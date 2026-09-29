@@ -1,0 +1,43 @@
+.target {
+  cursor: pointer;
+  outline: none;
+}
+
+/* The whole tile is the tap target. */
+.hit {
+  fill: transparent;
+}
+
+/* Reachable: dashed outline plus a dot on the hub, so it never relies on colour alone. */
+.outline {
+  fill: none;
+  stroke: var(--highlight);
+  stroke-width: 4;
+  stroke-dasharray: 10 6;
+}
+
+.dot {
+  fill: var(--highlight);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.target:focus-visible .outline {
+  stroke-dasharray: none;
+  stroke-width: 6;
+}
+
+/* Chosen (confirm move on): solid, thicker outline and a bigger dot. */
+.target[aria-pressed="true"] .outline {
+  stroke-dasharray: none;
+  stroke-width: 8;
+}
+
+.target[aria-pressed="true"] .dot {
+  r: 12px;
+}
+
+.target[aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.5;
+}

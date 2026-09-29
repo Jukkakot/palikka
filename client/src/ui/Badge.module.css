@@ -1,0 +1,19 @@
+/* The visible text is compact; the button keeps the tap target at least 44 px tall. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap-min);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-s);
+  cursor: pointer;
+}
+
+.badge:hover,
+.badge:focus-visible {
+  color: var(--text);
+}

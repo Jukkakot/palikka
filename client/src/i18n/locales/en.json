@@ -1,0 +1,342 @@
+{
+  "app": {
+    "title": "Labyrinth",
+    "tagline": "The shifting labyrinth – multiplayer in your browser"
+  },
+  "language": {
+    "label": "Language",
+    "fi": "Suomi",
+    "en": "English"
+  },
+  "footer": {
+    "rulesVersion": "Rules v{{version}}"
+  },
+  "build": {
+    "client": "Client {{time}}",
+    "server": "Server {{time}}",
+    "serverWaking": "Server: waking up…",
+    "serverNoAnswer": "Server: no answer",
+    "dev": "dev",
+    "unknown": "?",
+    "time": "{{date}} {{time}}"
+  },
+  "crash": {
+    "title": "Something went wrong",
+    "body": "The game ran into an unexpected error. Reload the page to continue.",
+    "reload": "Reload"
+  },
+  "treasures": {
+    "crown": "crown",
+    "key": "key",
+    "gem": "gem",
+    "coins": "coins",
+    "sword": "sword",
+    "shield": "shield",
+    "book": "book",
+    "map": "map",
+    "scroll": "scroll",
+    "potion": "potion",
+    "lamp": "lamp",
+    "chest": "treasure chest",
+    "dragon": "dragon",
+    "bat": "bat",
+    "spider": "spider",
+    "butterfly": "butterfly",
+    "ghost": "ghost",
+    "cat": "cat",
+    "fish": "fish",
+    "horse": "horse",
+    "beetle": "beetle",
+    "mouse": "mouse",
+    "skull": "skull",
+    "deer": "deer"
+  },
+  "board": {
+    "label": "Game board",
+    "treasure": "Treasure: {{name}}",
+    "pawn": "{{name}}",
+    "pawnMe": "{{name}} (you)",
+    "spare": "Spare tile",
+    "fixed": "fixed tile",
+    "targetTreasure": "Your target: {{name}}",
+    "targetHome": "Your home square – return here to win",
+    "reach_one": "Only your own square within reach after this shift",
+    "reach_other": "{{count}} squares within reach after this shift"
+  },
+  "start": {
+    "play": "Play",
+    "connecting": "Connecting to the server…",
+    "slow": "The server may be waking up. This can take a moment.",
+    "errorTitle": "Could not join a game",
+    "errorBody": "The server could not be reached. Try again in a moment.",
+    "retry": "Try again",
+    "waking": "Waking up the server…",
+    "wakingSlow": "The server was asleep. Waking up can take about a minute.",
+    "wakeFailed": "The server hasn't answered yet – you can still try.",
+    "kicked": "You were removed from the game because your turn time ran out.",
+    "nickname": "Nickname",
+    "nicknameLength": "A nickname needs 2–16 characters",
+    "nicknameCharacters": "The nickname has characters that can't be used",
+    "openGames": "Open games",
+    "noGames": "No open games right now",
+    "listUnavailable": "The game list isn't available right now – Play still works.",
+    "gameEntry": "{{host}} · {{count}}/4",
+    "gameEntryLabel": "Join the game: {{host}}, {{count}}/4 players",
+    "hostLeft": "The game's creator left, so the game was closed",
+    "notOpen": "That game is no longer open",
+    "serverFull": "The server is full – try again in a moment",
+    "resumeTitle": "Unfinished game",
+    "resumeBody": "Your seat in the game is still held.",
+    "resume": "Continue game",
+    "resumeGone": "That game can no longer be continued",
+    "wakingFor": "Waited {{time}}",
+    "invited": "You have been invited to a game",
+    "joinInvite": "Join the game",
+    "otherGames": "Other games",
+    "botGames": "Quick game with bots",
+    "playMyself": "I play myself",
+    "botGameLabel_one": "Quick game: you and {{count}} bot",
+    "botGameLabel_other": "Quick game: you and {{count}} bots",
+    "randomName": "Draw a new name",
+    "runningGames": "Games in progress",
+    "runningEntryLabel": "Watch game: {{host}}, {{count}} players",
+    "runningCount": "{{count}} players",
+    "watchBotsLabel": "Watch a game of {{count}} bots",
+    "watchBotCount_one": "{{count}} bot",
+    "watchBotCount_other": "{{count}} bots"
+  },
+  "game": {
+    "copyLine": "Game {{id}} · {{date}} {{time}} · v {{ver}}",
+    "copied": "Copied",
+    "localLabel": "Own game",
+    "copyFallback": "Copy this line into your bug report:",
+    "linkLabel": "Game {{id}}. Tap to share the game's link.",
+    "watchShareText": "Watch my Labyrinth game",
+    "linkFallback": "Copy the game's link:",
+    "copyLineNoGame": "{{date}} {{time}} · v {{ver}}"
+  },
+  "turn": {
+    "mine": "Your turn – push a tile",
+    "other": "{{name}} is pushing",
+    "mineMove": "Your turn – move your pawn",
+    "otherMove": "{{name}} is moving",
+    "timeUp": "Time's up",
+    "disconnected": "{{name}} – connection lost",
+    "timeLeft": "Time left {{time}}",
+    "autoplayMine": "The bot is playing for you",
+    "autoplay": "The bot is playing for {{name}}"
+  },
+  "shift": {
+    "hint": "Pick an arrow on the board edge",
+    "rotate": "Rotate tile",
+    "confirm": "Push",
+    "cancel": "Cancel",
+    "waiting": "Waiting for the server…",
+    "newSpare": "Drops out",
+    "fromN": "Push into column {{line}} from the top",
+    "fromS": "Push into column {{line}} from the bottom",
+    "fromW": "Push into row {{line}} from the left",
+    "fromE": "Push into row {{line}} from the right",
+    "forbidden": "{{label}} – not allowed, it would push the tile straight back"
+  },
+  "errors": {
+    "NOT_SEATED": "You are not in this game",
+    "NOT_YOUR_TURN": "It is not your turn",
+    "WRONG_PHASE": "You can't do that right now",
+    "REVERSE_PUSH_FORBIDDEN": "You can't push the tile straight back from the same spot",
+    "generic": "That didn't work. Try again.",
+    "UNREACHABLE": "Your pawn can't reach that square",
+    "NOT_KICKABLE": "That player can't be removed now",
+    "TURN_NOT_EXPIRED": "Their time isn't up yet",
+    "NOT_HOST": "Only the game's creator can start it",
+    "NOT_ENOUGH_PLAYERS": "At least 2 players are needed",
+    "LOOK_TAKEN": "Someone already has that pawn",
+    "SEAT_TAKEN": "That seat is already taken",
+    "NOT_A_BOT": "There is no bot in that seat",
+    "NOT_SPECTATOR": "Only a spectator can change the speed",
+    "PEOPLE_PLAYING": "The speed can only be changed while only bots play",
+    "SERVER_FULL": "The server is full – try again in a moment",
+    "AUTOPLAYING": "The bot is playing your turn – take it back first"
+  },
+  "move": {
+    "hint": "Tap a highlighted square",
+    "stay": "Stay",
+    "to": "Move to row {{row}}, column {{col}}",
+    "stayHere": "Your square – stay",
+    "go": "Walk here"
+  },
+  "hint": {
+    "button": "Hint",
+    "title": "Show a good move for you: the push and the square to walk to",
+    "square": "Hint: walk to row {{row}}, column {{col}}"
+  },
+  "progress": {
+    "label": "Players and treasures found",
+    "count": "{{found}}/{{cards}} treasures found",
+    "target": "target: {{name}}",
+    "home": "home square",
+    "collected": "You found: {{name}}",
+    "disconnected": "connection lost",
+    "left": "{{name}} left the game",
+    "bot": "bot",
+    "autoplay": "the bot is playing for them",
+    "autoplayMine": "the bot is playing for you"
+  },
+  "result": {
+    "mine": "You won!",
+    "other": "{{name}} won",
+    "rematch": "Play again",
+    "home": "Start screen"
+  },
+  "kick": {
+    "timeUp": "{{name}} – time is up",
+    "button": "Remove {{name}}",
+    "confirm": "Remove {{name}} from the game?",
+    "yes": "Remove",
+    "cancel": "Cancel"
+  },
+  "waiting": {
+    "title": "Waiting room",
+    "seats": "Players",
+    "you": "you",
+    "host": "host",
+    "freeSeat": "Free seat",
+    "disconnected": "connection lost",
+    "invite": "Invite players",
+    "shareText": "Join my Labyrinth game",
+    "copied": "Link copied",
+    "copyFailed": "Copy the link: {{url}}",
+    "start": "Start the game",
+    "needTwo": "At least 2 players are needed",
+    "waitingFor": "Waiting for {{name}} to start the game",
+    "leave": "Leave",
+    "leaveConfirm": "The game closes for everyone. Leave?",
+    "cancel": "Cancel",
+    "bot": "bot",
+    "addBot": "Add a bot",
+    "addBotLabel": "Add a bot to seat {{seat}}",
+    "removeBot": "Remove bot {{name}}"
+  },
+  "leave": {
+    "button": "Leave the game",
+    "confirm": "Leave the game? Your pawn and treasures leave the game.",
+    "yes": "Leave",
+    "cancel": "Cancel"
+  },
+  "spectate": {
+    "watching": "You are watching",
+    "count": "Spectators: {{count}}",
+    "speed": "Bot speed",
+    "lateInvite": "The game had already started – you are watching it",
+    "newBotGame": "New bot game"
+  },
+  "tips": {
+    "target": "Your target is shown in the player list, and its tile is marked in purple on the board.",
+    "push": "Start by pushing the spare tile in: tap an arrow on the board's edge.",
+    "walk": "Walk by tapping a highlighted square – or stay where you are.",
+    "home": "All treasures found! Return to your start corner to win.",
+    "close": "Close tip",
+    "reset": "Show tips again",
+    "resetDone": "Tips will show in the next game."
+  },
+  "daily": {
+    "title": "Daily puzzle",
+    "explain": "The same puzzle for everyone today: get your pawn to the treasure in as few turns as you can.",
+    "play": "Play the daily puzzle",
+    "continue": "Continue the daily puzzle",
+    "again": "Play again",
+    "today_one": "Your best today: {{count}} turn (best possible {{par}})",
+    "today_other": "Your best today: {{count}} turns (best possible {{par}})",
+    "turn": "Turn {{turn}} · best possible {{par}}",
+    "won_one": "Solved in {{count}} turn (best {{par}})",
+    "won_other": "Solved in {{count}} turns (best {{par}})",
+    "wonPar_one": "Solved in {{count}} turn – the best possible! ⭐",
+    "wonPar_other": "Solved in {{count}} turns – the best possible! ⭐",
+    "undo": "Undo move",
+    "retry": "Again",
+    "replay": "Show the best route",
+    "replayTitle": "Best route · step {{n}}/{{count}}",
+    "replayStart": "Start",
+    "replayShift": "Turn {{turn}}: push",
+    "replayMove": "Turn {{turn}}: walk",
+    "replayPrev": "Previous step",
+    "replayNext": "Next step",
+    "replayClose": "Close"
+  },
+  "autoplay": {
+    "handOver": "Let the bot play",
+    "takeBack": "Take back",
+    "playing": "The bot is playing for you. You can take over at any time."
+  },
+  "turnAlert": {
+    "title": "● Your turn – {{title}}"
+  },
+  "settings": {
+    "open": "Settings",
+    "title": "Settings",
+    "back": "Back",
+    "confirmations": "Confirmations",
+    "confirmShift": "Confirm push",
+    "confirmShiftNote": "Tapping an arrow shows a preview first; a second tap pushes.",
+    "confirmMove": "Confirm move",
+    "confirmMoveNote": "Tapping a square selects it; a second tap walks there.",
+    "theme": "Theme",
+    "themes": {
+      "system": "Device",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "feedback": "Sounds and turn notification",
+    "sounds": "Sounds",
+    "soundsNote": "A short sound when your turn begins or you find a treasure.",
+    "turnTitle": "Tab title",
+    "turnTitleNote": "While the game is in the background, the tab title tells you it is your turn.",
+    "vibration": "Vibration",
+    "vibrationNote": "A short vibration when your turn begins.",
+    "vibrationUnsupported": "This device cannot vibrate.",
+    "deviceOnly": "Settings are saved on this device only.",
+    "help": "Help",
+    "report": "Report a problem",
+    "copyDetails": "Copy game details"
+  },
+  "howTo": {
+    "open": "How to play",
+    "title": "How to play",
+    "goal": {
+      "title": "Goal",
+      "body": "Collect your secret treasures one at a time, then return to your start square. The first one home wins."
+    },
+    "push": {
+      "title": "Push a tile",
+      "body": "Every turn starts with a push: tap an arrow on the edge of the board and the spare tile slides in, moving the whole row. You can turn the tile first.",
+      "more": "The tile pushed out at the other end is the next spare. A pawn pushed out comes back at the other end of the row. You may not undo the previous push by pushing the same row straight back."
+    },
+    "walk": {
+      "title": "Walk",
+      "body": "After the push, walk along open corridors as far as you like – or stay where you are. The squares you can reach are marked."
+    },
+    "treasure": {
+      "title": "Treasures",
+      "body": "Your target is shown in the player list and as a purple frame on the board. Stop on its tile to collect it and see your next target. You cannot see the others' targets."
+    },
+    "home": {
+      "title": "Return home",
+      "body": "Once all your treasures are found, your target is your start square. Whoever gets there first wins."
+    },
+    "daily": {
+      "title": "Daily puzzle",
+      "body": "One solo game a day, the same for everyone: take your pawn to one treasure in as few turns as possible. The best possible result is shown, and there is no time limit.",
+      "more": "You can undo moves and try again. Your best attempt is the day's result."
+    }
+  },
+  "look": {
+    "title": "Your pawn",
+    "taken": "{{name}} (taken)",
+    "names": {
+      "1": "Blue circle",
+      "2": "Orange square",
+      "3": "Green triangle",
+      "4": "Pink diamond"
+    }
+  }
+}

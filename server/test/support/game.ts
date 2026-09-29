@@ -1,0 +1,107 @@
+import type { ColyseusTestServer } from "@colyseus/testing";
+import { expect } from "vitest";
+import type { CommandResult } from "@labyrinth/protocol";
+import { targetOf, type GameState as Game, type Square, type TreasureId } from "@labyrinth/rules";
+import type appConfig from "../../src/app.config.js";
+import type { GameRoom } from "../../src/rooms/GameRoom.js";
+
+/** The parts of an SDK room the room tests use. */
+export interface TestClient {
+  sessionId: string;
+  roomId: string;
+  state: unknown;
+  request(type: string, payload: unknown): Promise<unknown>;
+  leave(consented?: boolean): Promise<unknown>;
+  onLeave(cb: (code: number) => void): unknown;
+  connection: { close(code?: number): void };
+  reconnection: { minUptime: number };
+}
+
+type Server = ColyseusTestServer<typeof appConfig>;
+
+export const NAMES = ["Maija", "Pekka", "Liisa", "Olli"] as const;
+
+export interface GameOptions {
+  /** Turn time limit in ms (default: the real 60 s). */
+  turnMs?: number;
+  /** Seat hold after a drop, in seconds (default: the real 300 s). */
+  disconnectSeconds?: number;
+  /** Extra join options for the room creation (pool, private). */
+  create?: Record<string, unknown>;
+}
+
+/** A new game's waiting room with `players` seated (seats 1…n, seat 1 hosting), named after `NAMES`. */
+export async function waitingRoom(colyseus: Server, players: number, options: GameOptions = {}) {
+  const room = (await colyseus.createRoom("game", { nickname: NAMES[0], ...options.create })) as unknown as GameRoom;
+  if (options.turnMs !== undefined) room.turnLimitMs = options.turnMs;
+  if (options.disconnectSeconds !== undefined) room.disconnectLimitSeconds = options.disconnectSeconds;
+  const clients: TestClient[] = [];
+  for (let i = 0; i < players; i++) clients.push(await join(colyseus, room, NAMES[i]!));
+  const player = (i: number) => room.state.players.get(clients[i]!.sessionId)!;
+  const seatOf = (i: number) => room.state.players.get(clients[i]!.sessionId)?.seat;
+  return { room, clients, player, seatOf };
+}
+
+/** Seats one more player in `room` under `nickname`. */
+export async function join(colyseus: Server, room: GameRoom, nickname: string, options: { look?: number } = {}): Promise<TestClient> {
+  return (await colyseus.connectTo(room as never, { nickname, ...options })) as unknown as TestClient;
+}
+
+/** The running game as the room's rules engine holds it (undefined in the waiting room). */
+export function gameOf(room: GameRoom): Game {
+  return (room as unknown as { game: Game }).game;
+}
+
+export interface Arrangement {
+  pawn?: Square;
+  /** Treasures that count as found (replaces the found ones). */
+  found?: readonly TreasureId[];
+  /** The current target; "" heads home. The stack is reordered so this card comes next. */
+  target?: TreasureId | "";
+}
+
+/**
+ * Arranges a seat of a running game for a test: changes the engine's state (the rules' truth)
+ * and mirrors it into the synced state, as if play had led there.
+ */
+export function arrange(room: GameRoom, seat: number, arrangement: Arrangement): void {
+  const internals = room as unknown as { game: Game };
+  const player = [...room.state.players.values()].find((p) => p.seat === seat)!;
+  internals.game = {
+    ...internals.game,
+    seats: internals.game.seats.map((s) => {
+      if (s.seat !== seat) return s;
+      const found = arrangement.found ?? s.found;
+      const unfound = s.stack.filter((t) => !found.includes(t));
+      // Without a given target the next unfound card is it, never one just marked found.
+      const target = arrangement.target ?? unfound[0] ?? "";
+      const rest = unfound.filter((t) => t !== target);
+      // Cards from another stack (the deal is random) push out the last ones: the stack keeps its size.
+      const size = Math.max(s.stack.length, found.length + (target ? 1 : 0));
+      const stack = (target ? [...found, target, ...rest] : [...found]).slice(0, size);
+      return { ...s, pawn: arrangement.pawn ?? s.pawn, found, stack };
+    }),
+  };
+  const arranged = internals.game.seats.find((s) => s.seat === seat)!;
+  player.row = arranged.pawn.row;
+  player.col = arranged.pawn.col;
+  player.found.clear();
+  player.found.push(...arranged.found);
+  player.target = targetOf(arranged) ?? "";
+}
+
+/** Makes the next start give the first turn to `startSeat` instead of the host. */
+export function forceStartSeat(room: GameRoom, startSeat: number): void {
+  room.chooseStartSeat = () => startSeat;
+}
+
+/**
+ * A started game: `players` seated in seats 1…n, the host (seat 1) has started it, and
+ * `startSeat` (default seat 1) has the first turn.
+ */
+export async function startedGame(colyseus: Server, players: number, options: GameOptions & { startSeat?: number } = {}) {
+  const game = await waitingRoom(colyseus, players, options);
+  forceStartSeat(game.room, options.startSeat ?? 1);
+  expect(await game.clients[0]!.request("start", {})).toEqual({ ok: true } satisfies CommandResult);
+  return game;
+}

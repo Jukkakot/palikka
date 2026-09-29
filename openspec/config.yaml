@@ -1,0 +1,53 @@
+schema: spec-driven
+
+context: |
+  Labyrinth: web multiplayer clone of Ravensburger "Das verrückte Labyrinth"
+  (fi: Muuttuva labyrintti), original rules, humans and bots, mobile first.
+
+  Monorepo (npm workspaces, TypeScript):
+  - packages/rules: pure deterministic game logic (seeded randomness), shared
+    by server and client. No React, Colyseus or I/O.
+  - server: Colyseus on Node 22. Authoritative: invalid commands are rejected
+    with an error code and never change state. In-memory rooms only.
+  - client: React + Vite, mobile portrait first. Server state is the truth.
+
+  Always: English identifiers and names; UI text Finnish first + English via
+  i18next; prefer established libraries over hand-written plumbing; minimalist
+  UI; tap targets ≥44 px; budget 0 €.
+
+  Knowledge base — start planning here, then verify against the code:
+  - docs/README.md: wiki front page and map of all project knowledge
+  - docs/architecture.md: how it is built (workspaces, server, client, state
+    sync, board geometry, commands, bots; sections marked Implemented/Planned)
+    → any design touching structure, game state or commands
+  - docs/operations.md: environments, deploy, config, logs, bug runbook
+  - docs/development.md: run, test, debug, conventions
+  - openspec/context/product.md: game rules, modes, lobby, UX decisions
+    → proposals and specs for any gameplay, lobby or UI change
+  - openspec/context/nfr.md: logging/audit, testing, abuse protection,
+    versioning, performance, error UX, legal, workflow → every design and task list
+  - openspec/context/roadmap.md: planned change order → when choosing or
+    scoping the next change
+  An existing spec in openspec/specs wins over docs/ and context/ files.
+
+rules:
+  proposal:
+    - State which workspaces (rules, server, client) the change touches.
+  specs:
+    - Specs describe game rules and observable behavior, never library or class names.
+    - "When a change removes behaviour, do not keep an old scenario under MODIFIED with new content (openspec validate refuses dropping scenarios): write the old requirement under REMOVED (Reason, Migration) and the new one under ADDED with a new name."
+  design:
+    - Explain how the change meets openspec/context/nfr.md (logging, tests, limits).
+  tasks:
+    - Each task group lands its own tests (rules unit, server integration, E2E where a critical path changes). Client tests cover logic (session hooks, view model, helpers); screens get only a few render tests for key interactions, and the UI check covers the rest. Each behaviour is tested once, at the lowest level that shows it (rule outcomes in rules tests; room tests for wiring, rejections, state and logs).
+    - Rule logic goes to packages/rules before server or client wiring.
+    - The last task group updates the docs/ wiki pages the change affects (turning Planned sections into Implemented, adding new structure, flows, contracts, environments or procedures) and, when the change delivers a roadmap item, marks it done in openspec/context/roadmap.md. The wiki stays short - no function lists, UI texts or per-component behaviour; those live in code and specs.
+
+operations:
+  apply:
+    guidance:
+      - Keep docs/ in sync with what was actually built, including deviations from the design discovered during implementation.
+  archive:
+    guidance:
+      - Before archiving, check that the docs/ wiki reflects the change (Planned → Implemented, new pages or sections, updated environments/procedures) and that roadmap.md marks the item done; fix gaps first.
+      - "After archiving, replace the `Purpose: TBD` line of any spec the archive created with one or two sentences on what the capability covers, and include it in the archive commit (no separate commit)."

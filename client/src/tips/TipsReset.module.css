@@ -1,0 +1,6 @@
+.done {
+  margin: 0;
+  min-height: var(--tap-min);
+  display: grid;
+  place-items: center;
+}

@@ -1,0 +1,30 @@
+.region {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom) + var(--space-6));
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--space-4);
+  pointer-events: none;
+}
+
+.notice {
+  margin: 0;
+  max-width: 36ch;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--text-m);
+  text-align: center;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+  animation: appear 180ms ease-out;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

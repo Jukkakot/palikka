@@ -1,0 +1,41 @@
+.line {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  color: var(--muted);
+  font-size: var(--text-m);
+}
+
+/* Your own turn is the most important thing on the screen. */
+.mine {
+  color: var(--text);
+  font-weight: 600;
+  font-size: var(--text-l);
+}
+
+.pawn {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+/* Time left, after the text; tabular digits so it does not jitter. */
+.timer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-m);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The last seconds and time up: bold, alarm icon and the danger colour (not colour alone). */
+.urgent {
+  color: var(--danger);
+  font-weight: 700;
+}

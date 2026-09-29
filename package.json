@@ -1,0 +1,28 @@
+{
+  "name": "labyrinth",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/rules",
+    "packages/protocol",
+    "server",
+    "client",
+    "e2e"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c blue,green \"npm run dev -w @labyrinth/server\" \"npm run dev -w @labyrinth/client\"",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "oxlint",
+    "e2e": "npm run e2e -w @labyrinth/e2e"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2"
+  }
+}

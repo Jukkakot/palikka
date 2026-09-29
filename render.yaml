@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: labyrinth-server
+    runtime: node
+    plan: free
+    region: frankfurt
+    # Built from the repo root so npm workspaces can link the shared packages.
+    buildCommand: npm ci --include=dev && npm run build -w @labyrinth/rules -w @labyrinth/protocol -w @labyrinth/server
+    startCommand: npm start -w @labyrinth/server
+    healthCheckPath: /health
+    # Deploys come from the deploy-server job in .github/workflows/ci.yml (deploy hook).
+    autoDeployTrigger: "off"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: ALLOWED_ORIGINS
+        value: https://jukkakot.github.io
+      # Central log store (docs/operations.md → Logs). The ingest token is set in the dashboard.
+      - key: AXIOM_DATASET
+        value: labyrinth
+      # The dataset lives in Axiom's EU region; ingest must go to its edge domain.
+      - key: AXIOM_EDGE
+        value: eu-central-1.aws.edge.axiom.co
+      - key: AXIOM_TOKEN
+        sync: false

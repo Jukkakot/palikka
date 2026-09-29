@@ -1,0 +1,118 @@
+.title {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-l);
+  color: var(--accent);
+}
+
+/* The four seats in seat order. */
+.seats {
+  width: min(100%, 22rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.seat {
+  /* Room for the host's 44 px bot button inside the row, the same height for every seat. */
+  min-height: calc(var(--tap-min) + 2 * var(--space-1));
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) 0 var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.free {
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
+}
+
+.pawn {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.badge {
+  flex: none;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.offline {
+  border-style: dashed;
+}
+
+.offline .pawn {
+  opacity: 0.45;
+}
+
+.botIcon {
+  flex: none;
+  color: var(--muted);
+}
+
+/* The host's add/remove bot button at the end of a seat row. */
+.seatAction {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  font-size: var(--text-s);
+}
+
+.iconAction {
+  padding: 0;
+}
+
+.offlineIcon {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Invite, start (or the guest's waiting text) and leave, stacked for the thumb. */
+.actions {
+  width: min(100%, 22rem);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.hint {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* The viewer's own pawn choice, under the seats. */
+.look {
+  width: min(100%, 22rem);
+}

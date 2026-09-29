@@ -1,0 +1,342 @@
+{
+  "app": {
+    "title": "Labyrintti",
+    "tagline": "Muuttuva labyrintti – moninpeli selaimessa"
+  },
+  "language": {
+    "label": "Kieli",
+    "fi": "Suomi",
+    "en": "English"
+  },
+  "footer": {
+    "rulesVersion": "Säännöt v{{version}}"
+  },
+  "build": {
+    "client": "Client {{time}}",
+    "server": "Server {{time}}",
+    "serverWaking": "Server: herätetään…",
+    "serverNoAnswer": "Server: ei vastannut",
+    "dev": "dev",
+    "unknown": "?",
+    "time": "{{date}} {{time}}"
+  },
+  "crash": {
+    "title": "Jokin meni pieleen",
+    "body": "Peli kohtasi odottamattoman virheen. Lataa sivu uudelleen jatkaaksesi.",
+    "reload": "Lataa uudelleen"
+  },
+  "treasures": {
+    "crown": "kruunu",
+    "key": "avain",
+    "gem": "jalokivi",
+    "coins": "kolikot",
+    "sword": "miekka",
+    "shield": "kilpi",
+    "book": "kirja",
+    "map": "kartta",
+    "scroll": "kirjakäärö",
+    "potion": "taikajuoma",
+    "lamp": "lamppu",
+    "chest": "aarrearkku",
+    "dragon": "lohikäärme",
+    "bat": "lepakko",
+    "spider": "hämähäkki",
+    "butterfly": "perhonen",
+    "ghost": "aave",
+    "cat": "kissa",
+    "fish": "kala",
+    "horse": "hevonen",
+    "beetle": "kovakuoriainen",
+    "mouse": "hiiri",
+    "skull": "pääkallo",
+    "deer": "peura"
+  },
+  "board": {
+    "label": "Pelilauta",
+    "treasure": "Aarre: {{name}}",
+    "pawn": "{{name}}",
+    "pawnMe": "{{name}} (sinä)",
+    "spare": "Ylimääräinen laatta",
+    "fixed": "kiinteä laatta",
+    "targetTreasure": "Kohteesi: {{name}}",
+    "targetHome": "Kotiruutusi – palaa tänne voittaaksesi",
+    "reach_one": "Vain oma ruutusi ulottuvilla tämän työnnön jälkeen",
+    "reach_other": "{{count}} ruutua ulottuvilla tämän työnnön jälkeen"
+  },
+  "start": {
+    "play": "Pelaa",
+    "connecting": "Yhdistetään palvelimeen…",
+    "slow": "Palvelin saattaa olla heräämässä. Tämä voi kestää hetken.",
+    "errorTitle": "Peliin ei päästy",
+    "errorBody": "Yhteyttä palvelimeen ei saatu. Yritä hetken päästä uudelleen.",
+    "retry": "Yritä uudelleen",
+    "waking": "Herätetään palvelinta…",
+    "wakingSlow": "Palvelin on ollut levossa. Herääminen voi kestää noin minuutin.",
+    "wakeFailed": "Palvelin ei vastannut vielä – voit silti yrittää.",
+    "kicked": "Sinut poistettiin pelistä, koska vuorosi aika loppui.",
+    "nickname": "Nimimerkki",
+    "nicknameLength": "Nimimerkissä pitää olla 2–16 merkkiä",
+    "nicknameCharacters": "Nimimerkissä on merkkejä, joita ei voi käyttää",
+    "openGames": "Avoimet pelit",
+    "noGames": "Ei avoimia pelejä juuri nyt",
+    "listUnavailable": "Pelilistaa ei saatu juuri nyt – Pelaa toimii silti.",
+    "gameEntry": "{{host}} · {{count}}/4",
+    "gameEntryLabel": "Liity peliin: {{host}}, {{count}}/4 pelaajaa",
+    "hostLeft": "Pelin luoja poistui, joten peli suljettiin",
+    "notOpen": "Peli ei ole enää avoinna",
+    "serverFull": "Palvelin on täynnä – yritä hetken päästä uudelleen",
+    "resumeTitle": "Kesken jäänyt peli",
+    "resumeBody": "Paikkasi pelissä on vielä tallessa.",
+    "resume": "Jatka peliä",
+    "resumeGone": "Peliä ei voi enää jatkaa",
+    "wakingFor": "Odotettu {{time}}",
+    "invited": "Sinut on kutsuttu peliin",
+    "joinInvite": "Liity peliin",
+    "otherGames": "Muut pelit",
+    "botGames": "Pikapeli bottien kanssa",
+    "playMyself": "Pelaan itse",
+    "botGameLabel_one": "Pikapeli: sinä ja {{count}} botti",
+    "botGameLabel_other": "Pikapeli: sinä ja {{count}} bottia",
+    "randomName": "Arvo uusi nimi",
+    "runningGames": "Käynnissä olevat pelit",
+    "runningEntryLabel": "Katso peliä: {{host}}, {{count}} pelaajaa",
+    "runningCount": "{{count}} pelaajaa",
+    "watchBotsLabel": "Katso {{count}} botin peliä",
+    "watchBotCount_one": "{{count}} botti",
+    "watchBotCount_other": "{{count}} bottia"
+  },
+  "game": {
+    "copyLine": "Peli {{id}} · {{date}} {{time}} · v {{ver}}",
+    "copied": "Kopioitu",
+    "localLabel": "Oma peli",
+    "copyFallback": "Kopioi tämä rivi bugiraporttiin:",
+    "linkLabel": "Peli {{id}}. Napauta jakaaksesi pelin linkin.",
+    "watchShareText": "Katso Labyrintti-peliäni",
+    "linkFallback": "Kopioi pelin linkki:",
+    "copyLineNoGame": "{{date}} {{time}} · v {{ver}}"
+  },
+  "turn": {
+    "mine": "Sinun vuorosi – työnnä laatta",
+    "other": "{{name}} työntää",
+    "mineMove": "Sinun vuorosi – siirrä nappulaa",
+    "otherMove": "{{name}} siirtää",
+    "timeUp": "Aika loppui",
+    "disconnected": "{{name}} – yhteys katkennut",
+    "timeLeft": "Aikaa jäljellä {{time}}",
+    "autoplayMine": "Botti pelaa puolestasi",
+    "autoplay": "Botti pelaa: {{name}}"
+  },
+  "shift": {
+    "hint": "Valitse nuoli laudan reunalta",
+    "rotate": "Käännä laattaa",
+    "confirm": "Työnnä",
+    "cancel": "Peru",
+    "waiting": "Odotetaan palvelinta…",
+    "newSpare": "Tippuu pois",
+    "fromN": "Työnnä ylhäältä sarakkeeseen {{line}}",
+    "fromS": "Työnnä alhaalta sarakkeeseen {{line}}",
+    "fromW": "Työnnä vasemmalta riviin {{line}}",
+    "fromE": "Työnnä oikealta riviin {{line}}",
+    "forbidden": "{{label}} – ei sallittu, työntäisi laatan takaisin"
+  },
+  "errors": {
+    "NOT_SEATED": "Et ole mukana tässä pelissä",
+    "NOT_YOUR_TURN": "Ei ole sinun vuorosi",
+    "WRONG_PHASE": "Sitä ei voi tehdä juuri nyt",
+    "REVERSE_PUSH_FORBIDDEN": "Et voi työntää laattaa takaisin samasta kohdasta",
+    "generic": "Siirto ei onnistunut. Yritä uudelleen.",
+    "UNREACHABLE": "Nappulasi ei pääse sinne",
+    "NOT_KICKABLE": "Tätä pelaajaa ei voi poistaa nyt",
+    "TURN_NOT_EXPIRED": "Pelaajan aika ei ole vielä loppunut",
+    "NOT_HOST": "Vain pelin luoja voi aloittaa pelin",
+    "NOT_ENOUGH_PLAYERS": "Tarvitaan vähintään 2 pelaajaa",
+    "LOOK_TAKEN": "Joku ehti valita sen nappulan",
+    "SEAT_TAKEN": "Paikka on jo varattu",
+    "NOT_A_BOT": "Paikalla ei ole bottia",
+    "NOT_SPECTATOR": "Vain katsoja voi muuttaa nopeutta",
+    "PEOPLE_PLAYING": "Nopeutta voi muuttaa vain, kun pelaavat pelkät botit",
+    "SERVER_FULL": "Palvelin on täynnä – yritä hetken päästä uudelleen",
+    "AUTOPLAYING": "Botti pelaa vuoroasi – ota vuoro takaisin ensin"
+  },
+  "move": {
+    "hint": "Napauta korostettua ruutua",
+    "stay": "Jää paikalleen",
+    "to": "Siirry ruutuun: rivi {{row}}, sarake {{col}}",
+    "stayHere": "Oma ruutu – jää paikalleen",
+    "go": "Kävele tänne"
+  },
+  "hint": {
+    "button": "Vihje",
+    "title": "Näytä sinulle hyvä siirto: työntö ja ruutu, johon kävellä",
+    "square": "Vihje: kävele ruutuun rivi {{row}}, sarake {{col}}"
+  },
+  "progress": {
+    "label": "Pelaajat ja löydetyt aarteet",
+    "count": "{{found}}/{{cards}} aarretta löydetty",
+    "target": "kohde: {{name}}",
+    "home": "kotiruutu",
+    "collected": "Löysit: {{name}}",
+    "disconnected": "yhteys katkennut",
+    "left": "{{name}} poistui pelistä",
+    "bot": "botti",
+    "autoplay": "botti pelaa hänen puolestaan",
+    "autoplayMine": "botti pelaa puolestasi"
+  },
+  "result": {
+    "mine": "Voitit!",
+    "other": "{{name}} voitti",
+    "rematch": "Pelaa uudelleen",
+    "home": "Alkuun"
+  },
+  "kick": {
+    "timeUp": "{{name}} – aika loppui",
+    "button": "Poista {{name}}",
+    "confirm": "Poistetaanko {{name}} pelistä?",
+    "yes": "Poista",
+    "cancel": "Peru"
+  },
+  "waiting": {
+    "title": "Odotushuone",
+    "seats": "Pelaajat",
+    "you": "sinä",
+    "host": "isäntä",
+    "freeSeat": "Vapaa paikka",
+    "disconnected": "yhteys katkennut",
+    "invite": "Kutsu pelaajia",
+    "shareText": "Liity Labyrintti-peliini",
+    "copied": "Linkki kopioitu",
+    "copyFailed": "Kopioi linkki: {{url}}",
+    "start": "Aloita peli",
+    "needTwo": "Tarvitaan vähintään 2 pelaajaa",
+    "waitingFor": "Odotetaan, että {{name}} aloittaa pelin",
+    "leave": "Poistu",
+    "leaveConfirm": "Peli suljetaan kaikilta. Poistutaanko?",
+    "cancel": "Peru",
+    "bot": "botti",
+    "addBot": "Lisää botti",
+    "addBotLabel": "Lisää botti paikalle {{seat}}",
+    "removeBot": "Poista botti {{name}}"
+  },
+  "leave": {
+    "button": "Poistu pelistä",
+    "confirm": "Poistutaanko pelistä? Nappulasi ja aarteesi poistuvat pelistä.",
+    "yes": "Poistu",
+    "cancel": "Peru"
+  },
+  "spectate": {
+    "watching": "Katsot peliä",
+    "count": "Katsojia: {{count}}",
+    "speed": "Bottien nopeus",
+    "lateInvite": "Peli oli jo alkanut – katsot sitä",
+    "newBotGame": "Uusi bottipeli"
+  },
+  "tips": {
+    "target": "Kohteesi näkyy pelaajalistassa, ja sen laatta on merkitty laudalle violetilla.",
+    "push": "Aloita työntämällä vapaa laatta sisään: napauta nuolta laudan reunalla.",
+    "walk": "Kävele napauttamalla korostettua ruutua – tai jää paikallesi.",
+    "home": "Kaikki aarteet löydetty! Palaa lähtöruutuusi voittaaksesi.",
+    "close": "Sulje vinkki",
+    "reset": "Näytä vinkit uudelleen",
+    "resetDone": "Vinkit näytetään seuraavassa pelissä."
+  },
+  "daily": {
+    "title": "Päivän pulma",
+    "explain": "Sama pulma kaikille tänään: vie nappula aarteen luo mahdollisimman harvalla vuorolla.",
+    "play": "Pelaa päivän pulma",
+    "continue": "Jatka päivän pulmaa",
+    "again": "Pelaa uudelleen",
+    "today_one": "Paras tuloksesi tänään: {{count}} vuoro (paras mahdollinen {{par}})",
+    "today_other": "Paras tuloksesi tänään: {{count}} vuoroa (paras mahdollinen {{par}})",
+    "turn": "Vuoro {{turn}} · paras mahdollinen {{par}}",
+    "won_one": "Ratkaisit pulman {{count}} vuorossa (paras {{par}})",
+    "won_other": "Ratkaisit pulman {{count}} vuorossa (paras {{par}})",
+    "wonPar_one": "Ratkaisit pulman {{count}} vuorossa – paras mahdollinen! ⭐",
+    "wonPar_other": "Ratkaisit pulman {{count}} vuorossa – paras mahdollinen! ⭐",
+    "undo": "Peru siirto",
+    "retry": "Uudelleen",
+    "replay": "Näytä paras reitti",
+    "replayTitle": "Paras reitti · vaihe {{n}}/{{count}}",
+    "replayStart": "Lähtötilanne",
+    "replayShift": "Vuoro {{turn}}: työnnä",
+    "replayMove": "Vuoro {{turn}}: kävele",
+    "replayPrev": "Edellinen vaihe",
+    "replayNext": "Seuraava vaihe",
+    "replayClose": "Sulje"
+  },
+  "autoplay": {
+    "handOver": "Anna botin pelata",
+    "takeBack": "Ota vuoro takaisin",
+    "playing": "Botti pelaa puolestasi. Voit ottaa vuoron takaisin milloin vain."
+  },
+  "turnAlert": {
+    "title": "● Sinun vuorosi – {{title}}"
+  },
+  "settings": {
+    "open": "Asetukset",
+    "title": "Asetukset",
+    "back": "Takaisin",
+    "confirmations": "Vahvistukset",
+    "confirmShift": "Vahvista työntö",
+    "confirmShiftNote": "Nuolen napautus näyttää ensin esikatselun, toinen napautus työntää.",
+    "confirmMove": "Vahvista siirto",
+    "confirmMoveNote": "Ruudun napautus valitsee sen, toinen napautus kävelee sinne.",
+    "theme": "Teema",
+    "themes": {
+      "system": "Laite",
+      "light": "Vaalea",
+      "dark": "Tumma"
+    },
+    "feedback": "Äänet ja vuoroilmoitus",
+    "sounds": "Äänet",
+    "soundsNote": "Lyhyt äänimerkki, kun vuorosi alkaa tai löydät aarteen.",
+    "turnTitle": "Välilehden otsikko",
+    "turnTitleNote": "Kun peli on taustalla, välilehden otsikko kertoo vuorosi alkaneen.",
+    "vibration": "Värinä",
+    "vibrationNote": "Lyhyt värinä, kun vuorosi alkaa.",
+    "vibrationUnsupported": "Tämä laite ei tue värinää.",
+    "deviceOnly": "Asetukset tallentuvat vain tähän laitteeseen.",
+    "help": "Ohjeet",
+    "report": "Vianilmoitus",
+    "copyDetails": "Kopioi pelin tiedot"
+  },
+  "howTo": {
+    "open": "Näin pelaat",
+    "title": "Näin pelaat",
+    "goal": {
+      "title": "Tavoite",
+      "body": "Kerää salaiset aarteesi yksi kerrallaan ja palaa sitten lähtöruutuusi. Ensimmäinen perillä voittaa."
+    },
+    "push": {
+      "title": "Työnnä laatta",
+      "body": "Vuoro alkaa aina työnnöllä: napauta nuolta laudan reunalla, niin vapaa laatta liukuu sisään ja koko rivi siirtyy. Voit kääntää laattaa ensin.",
+      "more": "Toisesta päästä ulos työntynyt laatta on seuraava vapaa laatta. Jos nappula työntyy ulos, se palaa rivin toiseen päähän. Edellistä työntöä ei saa kumota työntämällä samaa riviä heti takaisin."
+    },
+    "walk": {
+      "title": "Kävele",
+      "body": "Työnnön jälkeen kävele avoimia käytäviä pitkin niin pitkälle kuin haluat – tai jää paikallesi. Ruudut, joihin pääset, on merkitty."
+    },
+    "treasure": {
+      "title": "Aarteet",
+      "body": "Kohteesi näkyy pelaajalistassa ja laudalla violettina kehyksenä. Kun pysähdyt sen laatalle, saat aarteen ja näet seuraavan kohteen. Muiden kohteita et näe."
+    },
+    "home": {
+      "title": "Paluu kotiin",
+      "body": "Kun kaikki aarteesi on löydetty, kohteesi on lähtöruutusi. Se, joka ehtii sinne ensimmäisenä, voittaa."
+    },
+    "daily": {
+      "title": "Päivän pulma",
+      "body": "Joka päivä yksi yksinpeli, sama kaikille: vie nappula yhden aarteen luo mahdollisimman harvalla vuorolla. Näet parhaan mahdollisen tuloksen, eikä aikarajaa ole.",
+      "more": "Voit perua siirtoja ja yrittää uudelleen. Päivän tulokseksi jää paras yrityksesi."
+    }
+  },
+  "look": {
+    "title": "Nappulasi",
+    "taken": "{{name}} (varattu)",
+    "names": {
+      "1": "Sininen ympyrä",
+      "2": "Oranssi neliö",
+      "3": "Vihreä kolmio",
+      "4": "Pinkki vinoneliö"
+    }
+  }
+}

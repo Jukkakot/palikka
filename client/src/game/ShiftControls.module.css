@@ -1,0 +1,52 @@
+/* As wide as the board, so the controls line up with it. */
+.controls {
+  width: min(100%, 60dvh, 640px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.tiles {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.icon {
+  padding: 0;
+}
+
+.outgoing {
+  margin-left: auto;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.hint {
+  margin: 0;
+  min-height: var(--tap-min);
+  color: var(--muted);
+}
+
+/* A hint on the left of an actions row (move step). */
+.lead {
+  margin: 0 auto 0 0;
+  align-self: center;
+  color: var(--muted);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* A button with an icon before its text. */
+.withIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+}

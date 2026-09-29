@@ -1,0 +1,237 @@
+/* Wake-up status under Play. */
+.wake {
+  max-width: 32ch;
+  color: var(--muted);
+  display: grid;
+  gap: var(--space-1);
+}
+
+.wake p {
+  margin: 0;
+}
+
+/* "Herätetään palvelinta…" with a spinner and the time waited so far. */
+.waking {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.waited {
+  font-variant-numeric: tabular-nums;
+}
+
+.spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+/* The unfinished game to continue: the screen's primary action while it is offered. */
+.resume {
+  width: min(100%, 22rem);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  text-align: left;
+}
+
+.resumeTitle {
+  margin: 0;
+  font-size: var(--text-m);
+}
+
+.resumeBody {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Why the last game ended (kicked): calm, but readable. */
+.ended {
+  color: var(--text);
+}
+
+/* Nickname field and the ways into a game. */
+.form {
+  width: min(100%, 22rem);
+  display: grid;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.label {
+  font-size: var(--text-s);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* The nickname input and its dice button for a new random name. */
+.inputRow {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.dice {
+  flex: none;
+  padding: 0;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap-min);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-m);
+}
+
+.input[aria-invalid] {
+  border-color: var(--danger);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-s);
+  color: var(--danger);
+}
+
+.actions {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* Quick games against bots: a caption and three equal buttons in one row. */
+.bots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.bots > button {
+  padding: 0;
+}
+
+.botsTitle {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+/* "Pelaan itse": the whole row is the tap target. */
+.playMyself {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  cursor: pointer;
+}
+
+/* The open games: one tappable row per game. */
+.games {
+  width: min(100%, 22rem);
+  display: grid;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+.gamesTitle {
+  margin: 0;
+  font-size: var(--text-m);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.game {
+  width: 100%;
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.game:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.gameHost {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.gameCount {
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* The daily puzzle: its own block under the bot games, the result and share once solved. */
+.daily {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.dailyBody {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-s);
+}

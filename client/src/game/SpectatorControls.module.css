@@ -1,0 +1,20 @@
+/* Eye and number in the top bar: information only, so no tap target of its own. */
+.count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap-min);
+  padding: 0 var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+.speeds {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.speeds > button {
+  padding: 0 var(--space-3);
+}

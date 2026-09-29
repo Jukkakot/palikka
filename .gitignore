@@ -1,0 +1,26 @@
+node_modules
+dist
+build
+*.local
+*.log
+.env
+.env.*.local
+coverage
+.playwright-mcp
+.colyseus-cloud.json
+.devmode.json
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea
+.DS_Store
+logs/
+e2e/test-results
+e2e/playwright-report
+tools/axiom/dashboard.json
+
+# Background agents' git worktrees
+.claude/worktrees/

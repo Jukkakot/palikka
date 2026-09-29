@@ -1,0 +1,66 @@
+name: Production smoke
+
+# After a deploy (the server through CI's deploy-server job, the client through Deploy client),
+# wait until the live server and client run this commit's code, then play a quick game against a
+# bot on the live site. Also daily, to notice a broken free-tier service, and by hand.
+on:
+  workflow_run:
+    workflows: [CI, Deploy client]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: prod-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      HEALTH_URL: https://labyrinth-server-3z1m.onrender.com/health
+      SITE_URL: https://jukkakot.github.io/labyrinth/
+      SERVER_PATHS: server packages/rules packages/protocol package-lock.json render.yaml
+      CLIENT_PATHS: client packages/rules packages/protocol package-lock.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Wait until the live server and client run this code (max 15 min)
+        run: |
+          # A live version whose code under $2 equals HEAD's counts as current.
+          current() { [ -n "$1" ] && git cat-file -e "$1^{commit}" 2>/dev/null && git diff --quiet "$1" HEAD -- $2; }
+          for i in $(seq 1 45); do
+            server=$(curl -sf --max-time 30 "$HEALTH_URL" | jq -r '.version // empty' || true)
+            client=$(curl -sf --max-time 30 "${SITE_URL}version.json" | jq -r '.version // empty' || true)
+            if current "$server" "$SERVER_PATHS" && current "$client" "$CLIENT_PATHS"; then
+              echo "Live server $server and client $client are current"; exit 0
+            fi
+            echo "Waiting: live server '${server:-?}', client '${client:-?}'"
+            sleep 20
+          done
+          echo "::error::The live site did not reach this commit's code in 15 minutes"; exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx -w @labyrinth/e2e playwright install --with-deps chromium
+      - name: Smoke test on the live site (Galaxy S24)
+        run: npm run e2e:prod -w @labyrinth/e2e
+        env:
+          PROD_URL: ${{ env.SITE_URL }}
+      - name: Upload report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-smoke-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
