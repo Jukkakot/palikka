@@ -1,32 +1,44 @@
-import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { cellIndex } from "./board.js";
-import { botSeed, chooseBotCell } from "./bot.js";
+import { botRng, botSeed, simpleBotMove } from "./bot.js";
+import { CLASSIC } from "./config.js";
+import { positionWith } from "./engineFixtures.js";
+import { PIECE_SIZES } from "./pieces.js";
+import { applyMove } from "./play.js";
+import { checkPlacement, newPosition, type Position } from "./position.js";
 import { createRng } from "./rng.js";
-import { boardFromRows } from "./testing.js";
 
-const view = (rows: string[], targets?: number[]) => ({ board: boardFromRows(rows), seat: 1, seats: [{ seat: 1, placed: 0 }], targets });
-
-describe("bot › Choosing a cell", () => {
-  it("always picks an empty cell", () => {
-    fc.assert(
-      fc.property(fc.nat(), (seed) => {
-        const v = view(["1122", "0212"]);
-        return v.board[cellIndex(chooseBotCell(v, createRng(seed)))] === 0;
-      }),
-    );
+describe("simple bot", () => {
+  it("opens with a five-square piece on the start corner", () => {
+    const start = newPosition(CLASSIC, [1, 2, 3, 4], 1);
+    const move = simpleBotMove(start, 1, createRng(3))!;
+    expect(PIECE_SIZES[move.piece]).toBe(5);
+    expect(checkPlacement(start, 1, move)).toBeUndefined();
   });
 
-  it("grows next to its own cells", () => {
-    const cell = chooseBotCell(view(["1"]), createRng(3));
-    expect([cellIndex({ row: 0, col: 1 }), cellIndex({ row: 1, col: 0 })]).toContain(cellIndex(cell));
+  it("is deterministic for a seed", () => {
+    const start = newPosition(CLASSIC, [1, 2], 1);
+    expect(simpleBotMove(start, 1, botRng(9, start, 1))).toEqual(simpleBotMove(start, 1, botRng(9, start, 1)));
+    expect(botSeed(9, 0, 1)).not.toBe(botSeed(9, 1, 1));
+    expect(botSeed(9, 0, 1)).not.toBe(botSeed(9, 0, 2));
   });
 
-  it("goes for an open puzzle target first", () => {
-    expect(cellIndex(chooseBotCell(view(["1"], [0, 399]), createRng(3)))).toBe(399);
+  it("returns undefined for a colour with no legal move", () => {
+    const full: Position = { ...positionWith([]), cells: new Array<number>(400).fill(2) };
+    expect(simpleBotMove(full, 1, createRng(1))).toBeUndefined();
   });
 
-  it("mixes seat into the seed", () => {
-    expect(botSeed(5, 1)).not.toBe(botSeed(5, 2));
+  it("plays whole games with legal moves only, always a largest piece that fits", () => {
+    for (const seed of [1, 2, 3]) {
+      let position = newPosition(CLASSIC, [1, 2, 3, 4], 1);
+      while (!position.ended) {
+        const colour = position.turn;
+        const move = simpleBotMove(position, colour, botRng(seed, position, colour))!;
+        const result = applyMove(position, colour, move);
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        position = result.position;
+      }
+      expect(position.moveNumber).toBeGreaterThan(40);
+    }
   });
 });

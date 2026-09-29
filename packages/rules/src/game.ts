@@ -1,149 +1,94 @@
-import { cellIndex, cellsOf, emptyBoard, isOnBoard, type Board, type Cell } from "./board.js";
-import { botSeed, type BotView } from "./bot.js";
-import { createRng, MAX_SEED, type Rng } from "./rng.js";
-import { nextSeat, soleSurvivor } from "./turns.js";
+import { CLASSIC, type BoardConfig } from "./config.js";
+import type { Placement } from "./moves.js";
+import { abort, applyMove, resign } from "./play.js";
+import { newPosition, type MoveRefusal, type Position } from "./position.js";
+import { scores } from "./scoring.js";
 
 /*
- * The placeholder game ("claim a cell"), kept until the real rules replace it: on their turn a player
- * claims one empty cell; after PLACEMENTS_PER_SEAT turns each, the most cells wins. It exists so the
- * whole chain (lobby, room, bots, device games, daily puzzle, end screen) runs end to end.
- *
- * A whole game as plain, JSON-serialisable data and the commands that change it; the server's room
- * and the games on the device both use it, with the same rejection codes.
+ * A whole game as plain, JSON-serialisable data: who sits in which seat (a seat is also its colour)
+ * and the engine's position. The server's room and the games on the device both run it, with the
+ * same rejection codes.
  */
 
-/** Turns each seat plays before the game ends. */
-export const PLACEMENTS_PER_SEAT = 5;
-
 export interface GameSeat {
+  /** 1–4; also the colour. */
   readonly seat: number;
   readonly name: string;
   readonly bot: boolean;
-  /** Cells claimed so far (turns played). */
-  readonly placed: number;
 }
 
-export type GameStep = "play" | "finished";
-
-export interface GameState {
-  /** Seeds the start seat and, with the turn number, the bots' choices. */
+export interface Game {
+  /** Seeds the bots' choices (with the move number), so nothing else needs saving. */
   readonly seed: number;
-  readonly board: Board;
-  /** Seated players in ascending seat order. */
+  /** Seated players in ascending seat order; a seat that left is gone from here. */
   readonly seats: readonly GameSeat[];
-  readonly step: GameStep;
-  readonly turnSeat: number;
-  /** Turns started so far (the first turn is 1). */
-  readonly turn: number;
-  /** The winning seat; 0 while the game runs (and after a game nobody won). */
-  readonly winnerSeat: number;
-  /** Daily puzzle only: the cells to claim (indexes); the puzzle ends once all are claimed. */
-  readonly targets?: readonly number[];
+  /** Colours whose player left the running game: their squares stay, they are out and cannot win. */
+  readonly left: readonly number[];
+  readonly position: Position;
+  /** Set once the game has ended: the colours with the best score among those that did not leave; [] with no winner. */
+  readonly winners: readonly number[];
 }
 
-export interface NewSeat {
-  readonly seat: number;
-  readonly name: string;
-  readonly bot: boolean;
-}
+/** Why a move was refused: the room's own codes, then the engine's placement refusals. */
+export type GameRejection =
+  | "NOT_SEATED"
+  | "WRONG_PHASE"
+  | "NOT_YOUR_TURN"
+  | "INVALID_COMMAND"
+  | Exclude<MoveRefusal, "GAME_OVER" | "INVALID_MOVE" | "CANNOT_PASS" | "NOT_YOUR_TURN">;
 
-/** The server's codes for the ways a placement can be refused. */
-export type GameRejection = "NOT_SEATED" | "WRONG_PHASE" | "NOT_YOUR_TURN" | "CELL_TAKEN" | "INVALID_COMMAND";
+export type GameResult = { ok: true; game: Game } | { ok: false; code: GameRejection };
 
-export type GameCommandResult = { ok: true; state: GameState } | { ok: false; code: GameRejection };
-
-/** The first seat: the host when seated, else one drawn from the seed. */
-function firstSeat(seed: number, seats: readonly number[], hostSeat?: number): number {
-  if (hostSeat !== undefined && seats.includes(hostSeat)) return hostSeat;
-  return seats[createRng(seed).int(0, seats.length - 1)]!;
-}
-
-/** A started game on an empty board: the host on turn (else a seat drawn from `seed`). */
-export function startGame(seed: number, seats: readonly NewSeat[], hostSeat?: number): GameState {
+/** A started game on an empty board for `seats` (distinct seats 1–4); the lowest seat has the first turn. */
+export function startGame(seed: number, seats: readonly GameSeat[], config: BoardConfig = CLASSIC): Game {
   const ordered = [...seats].sort((a, b) => a.seat - b.seat);
-  return {
-    seed,
-    board: emptyBoard(),
-    seats: ordered.map(({ seat, name, bot }) => ({ seat, name, bot, placed: 0 })),
-    step: "play",
-    turnSeat: firstSeat(
-      seed,
-      ordered.map((s) => s.seat),
-      hostSeat,
-    ),
-    turn: 1,
-    winnerSeat: 0,
-  };
+  const colours = ordered.map((s) => s.seat);
+  return { seed, seats: ordered, left: [], position: newPosition(config, colours, colours[0]!), winners: [] };
 }
 
-/** The seat with the most cells; a tie goes to the lowest seat among them. 0 without seats. */
-export function leader(state: { board: Board; seats: readonly { seat: number }[] }): number {
-  let best = 0;
-  let bestCells = -1;
-  for (const { seat } of state.seats) {
-    const cells = cellsOf(state.board, seat);
-    if (cells > bestCells) {
-      best = seat;
-      bestCells = cells;
-    }
-  }
-  return best;
+export function isFinished(game: Game): boolean {
+  return game.position.ended;
 }
 
-/** The current player claims `cell`: the turn passes, or the game ends after everyone's last turn. */
-export function applyPlace(state: GameState, seat: number, cell: Cell): GameCommandResult {
-  if (!state.seats.some((s) => s.seat === seat)) return { ok: false, code: "NOT_SEATED" };
-  if (state.step === "finished") return { ok: false, code: "WRONG_PHASE" };
-  if (seat !== state.turnSeat) return { ok: false, code: "NOT_YOUR_TURN" };
-  if (!isOnBoard(cell)) return { ok: false, code: "INVALID_COMMAND" };
-  const index = cellIndex(cell);
-  if (state.board[index] !== 0) return { ok: false, code: "CELL_TAKEN" };
+/** The winners among the colours that did not leave, once the position has ended (none when aborted). */
+function withResult(game: Game): Game {
+  const { position } = game;
+  if (!position.ended || position.aborted) return { ...game, winners: [] };
+  const staying = scores(position).filter((s) => !game.left.includes(s.colour));
+  const best = Math.max(...staying.map((s) => s.score));
+  return { ...game, winners: staying.filter((s) => s.score === best).map((s) => s.colour) };
+}
 
-  const board = state.board.map((owner, i) => (i === index ? seat : owner));
-  const seats = state.seats.map((s) => (s.seat === seat ? { ...s, placed: s.placed + 1 } : s));
-  if (state.targets) {
-    // The daily puzzle ends once every target is claimed; the solving turn counts.
-    const solved = state.targets.every((t) => board[t] === seat);
-    return { ok: true, state: solved ? { ...state, board, seats, step: "finished", winnerSeat: seat } : { ...state, board, seats, turn: state.turn + 1 } };
+/** `seat` places a piece. Checks seat, phase and turn, then the placement with the rules. */
+export function playMove(game: Game, seat: number, move: Placement): GameResult {
+  if (!game.seats.some((s) => s.seat === seat)) return { ok: false, code: "NOT_SEATED" };
+  const result = applyMove(game.position, seat, move);
+  if (!result.ok) {
+    const { code } = result;
+    if (code === "GAME_OVER") return { ok: false, code: "WRONG_PHASE" };
+    if (code === "INVALID_MOVE" || code === "CANNOT_PASS") return { ok: false, code: "INVALID_COMMAND" };
+    return { ok: false, code };
   }
-  if (seats.every((s) => s.placed >= PLACEMENTS_PER_SEAT)) {
-    return { ok: true, state: { ...state, board, seats, step: "finished", winnerSeat: leader({ board, seats }) } };
-  }
-  const next = nextSeat(
-    seats.filter((s) => s.placed < PLACEMENTS_PER_SEAT).map((s) => s.seat),
-    seat,
-  );
-  return { ok: true, state: { ...state, board, seats, turnSeat: next, turn: state.turn + 1 } };
+  return { ok: true, game: withResult({ ...game, position: result.position }) };
 }
 
 /**
- * A seat leaves a running game (left, kicked, timed out): its cells stay on the board. The last seat
- * standing wins; if the leaver was on turn, the next seat's turn starts.
+ * `seat`'s player leaves the running game (left, kicked, timed out): its squares stay and its colour
+ * is out. The last seat standing wins at once; otherwise the turn moves on if it was theirs.
  */
-export function removeSeat(state: GameState, seat: number): GameState {
-  if (state.step === "finished" || !state.seats.some((s) => s.seat === seat)) return state;
-  const seats = state.seats.filter((s) => s.seat !== seat);
-  const survivor = soleSurvivor(seats.map((s) => s.seat));
-  if (survivor !== undefined) return { ...state, seats, step: "finished", winnerSeat: survivor };
-  if (seat !== state.turnSeat) return { ...state, seats };
-  const next = nextSeat(
-    seats.map((s) => s.seat),
-    seat,
-  );
-  return { ...state, seats, turnSeat: next, turn: state.turn + 1 };
+export function removeSeat(game: Game, seat: number): Game {
+  if (game.position.ended || !game.seats.some((s) => s.seat === seat)) return game;
+  const seats = game.seats.filter((s) => s.seat !== seat);
+  const left = [...game.left, seat];
+  if (seats.length === 1) {
+    const position: Position = { ...game.position, out: [...new Set([...game.position.out, seat])], turn: 0, ended: true };
+    return { ...game, seats, left, position, winners: [seats[0]!.seat] };
+  }
+  return withResult({ ...game, seats, left, position: resign(game.position, seat) });
 }
 
-/** Ends the game at once with `winnerSeat` (0: no winner, e.g. no person left). */
-export function endGame(state: GameState, winnerSeat: number): GameState {
-  return { ...state, step: "finished", winnerSeat };
-}
-
-/** What `seat` may know when choosing: everything is public in this game. */
-export function botViewOf(state: GameState, seat: number): BotView {
-  return { board: state.board, seat, seats: state.seats.map((s) => ({ seat: s.seat, placed: s.placed })), targets: state.targets };
-}
-
-/** A bot's rng for the current turn: from the game seed, its seat and the turn, so nothing needs saving. */
-export function botRngFor(state: GameState, seat: number): Rng {
-  return createRng(botSeed((state.seed + Math.imul(state.turn, 0x2545f491)) >>> 0, seat) % (MAX_SEED + 1));
+/** Ends the game at once with no winner (for example no person is left). */
+export function endGame(game: Game): Game {
+  if (game.position.ended) return game;
+  return { ...game, position: abort(game.position), winners: [] };
 }

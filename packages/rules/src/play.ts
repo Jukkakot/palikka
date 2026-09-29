@@ -58,6 +58,17 @@ export function pass(position: Position, colour: number): PlayResult {
   return { ok: true, position: advanceTurn({ ...position, out: [...position.out, colour] }, colour) };
 }
 
+/**
+ * `colour` leaves the running game (its player left or was removed): its squares stay and it is out
+ * from now on; when it was on turn, the turn goes to the next colour that can move (the game ends
+ * when none can). Unchanged for an ended game or a colour already out.
+ */
+export function resign(position: Position, colour: number): Position {
+  if (position.ended || !position.colours.includes(colour) || position.out.includes(colour)) return position;
+  const next = { ...position, out: [...position.out, colour] };
+  return position.turn === colour ? advanceTurn(next, colour) : next;
+}
+
 /** Ends the game at once from outside (for example everyone left), with no winner. */
 export function abort(position: Position): Position {
   return { ...position, turn: 0, ended: true, aborted: true };

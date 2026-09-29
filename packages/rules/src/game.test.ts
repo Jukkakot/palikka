@@ -1,83 +1,119 @@
-import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { cellAt, cellIndex, cellsOf, CELL_COUNT } from "./board.js";
-import { chooseBotCell } from "./bot.js";
-import { applyPlace, botRngFor, botViewOf, endGame, leader, PLACEMENTS_PER_SEAT, removeSeat, startGame, type GameState } from "./game.js";
-import { boardFromRows } from "./testing.js";
+import { botRng, simpleBotMove } from "./bot.js";
+import { CLASSIC, type BoardConfig } from "./config.js";
+import { placement } from "./engineFixtures.js";
+import { endGame, isFinished, playMove, removeSeat, startGame, type Game, type GameSeat } from "./game.js";
+import type { Placement } from "./moves.js";
 
-const seats = (n: number) => Array.from({ length: n }, (_, i) => ({ seat: i + 1, name: `P${i + 1}`, bot: i > 0 }));
+const seat = (n: number, bot = false): GameSeat => ({ seat: n, name: `P${n}`, bot });
+const seats = (...ns: number[]) => ns.map((n) => seat(n));
 
-/** Plays the game to its end with the bot choosing every cell. */
-function playOut(game: GameState): GameState {
-  let state = game;
-  while (state.step !== "finished") {
-    const cell = chooseBotCell(botViewOf(state, state.turnSeat), botRngFor(state, state.turnSeat));
-    const result = applyPlace(state, state.turnSeat, cell);
-    if (!result.ok) throw new Error(result.code);
-    state = result.state;
-  }
-  return state;
+/** A 3×3 board with three corners: small enough to get colours stuck by hand. */
+const TINY: BoardConfig = { size: 3, starts: { 1: { row: 0, col: 0 }, 2: { row: 0, col: 2 }, 3: { row: 2, col: 2 } } };
+
+function play(game: Game, colour: number, move: Placement): Game {
+  const result = playMove(game, colour, move);
+  if (!result.ok) throw new Error(result.code);
+  return result.game;
 }
 
-describe("game › Start", () => {
-  it("starts on an empty board with the host on turn", () => {
-    const game = startGame(7, seats(3), 2);
-    expect(game.board).toHaveLength(CELL_COUNT);
-    expect(game.board.every((c) => c === 0)).toBe(true);
-    expect(game.turnSeat).toBe(2);
-    expect(game.step).toBe("play");
+/** Plays the game to its end with the simple bot moving for everyone. */
+function playOut(game: Game): Game {
+  let current = game;
+  while (!isFinished(current)) {
+    const { turn } = current.position;
+    current = play(current, turn, simpleBotMove(current.position, turn, botRng(current.seed, current.position, turn))!);
+  }
+  return current;
+}
+
+describe("game-room › Seats and the start", () => {
+  it("Two people and a bot: the seated colours play and colour 1 starts", () => {
+    const game = startGame(1, [seat(2), seat(1), seat(4, true)]);
+    expect(game.position.colours).toEqual([1, 2, 4]);
+    expect(game.seats.map((s) => s.seat)).toEqual([1, 2, 4]);
+    expect(game.position.turn).toBe(1);
+    expect(game.winners).toEqual([]);
   });
 
-  it("draws a seated start seat without a host", () => {
-    fc.assert(fc.property(fc.nat(), (seed) => [1, 2, 3].includes(startGame(seed, seats(3)).turnSeat)));
-  });
-});
-
-describe("game › Placing", () => {
-  it("claims the cell and passes the turn clockwise", () => {
-    const result = applyPlace(startGame(1, seats(2), 1), 1, { row: 3, col: 4 });
-    expect(result.ok && result.state.board[cellIndex({ row: 3, col: 4 })]).toBe(1);
-    expect(result.ok && result.state.turnSeat).toBe(2);
-  });
-
-  it("refuses out of turn, a taken cell, off the board and when finished", () => {
-    const game = startGame(1, seats(2), 1);
-    expect(applyPlace(game, 2, { row: 0, col: 0 })).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
-    expect(applyPlace(game, 3, { row: 0, col: 0 })).toEqual({ ok: false, code: "NOT_SEATED" });
-    expect(applyPlace(game, 1, { row: 20, col: 0 })).toEqual({ ok: false, code: "INVALID_COMMAND" });
-    const taken = { ...game, board: boardFromRows(["2"]) };
-    expect(applyPlace(taken, 1, { row: 0, col: 0 })).toEqual({ ok: false, code: "CELL_TAKEN" });
-    expect(applyPlace(endGame(game, 0), 1, { row: 0, col: 0 })).toEqual({ ok: false, code: "WRONG_PHASE" });
+  it("Lowest seat starts", () => {
+    expect(startGame(1, seats(3, 2)).position.turn).toBe(2);
   });
 });
 
-describe("game › End", () => {
-  it("ends after every seat's last turn with the most cells winning", () => {
-    fc.assert(
-      fc.property(fc.nat(), fc.integer({ min: 2, max: 4 }), (seed, n) => {
-        const end = playOut(startGame(seed, seats(n), 1));
-        expect(end.seats.every((s) => s.placed === PLACEMENTS_PER_SEAT)).toBe(true);
-        expect(end.winnerSeat).toBe(leader(end));
-      }),
-      { numRuns: 30 },
-    );
+describe("game-room › A move", () => {
+  const start = startGame(5, seats(1, 2));
+
+  it("Legal first move: accepted, then the next colour is on turn", () => {
+    const next = play(start, 1, placement("I1", ["#"], 0, 0));
+    expect(next.position.cells[0]).toBe(1);
+    expect(next.position.turn).toBe(2);
   });
 
-  it("breaks a tie by the lowest seat", () => {
-    expect(leader({ board: boardFromRows(["0220011"]), seats: seats(2) })).toBe(1);
+  it("Illegal move: NOT_ON_START and nothing changes", () => {
+    expect(playMove(start, 1, placement("I1", ["#"], 5, 5))).toEqual({ ok: false, code: "NOT_ON_START" });
+    expect(start.position.cells.every((c) => c === 0)).toBe(true);
   });
 
-  it("the last seat standing wins; the leaver's cells stay", () => {
-    const placed = applyPlace(startGame(1, seats(2), 1), 1, cellAt(0));
-    const game = removeSeat(placed.ok ? placed.state : startGame(1, seats(2)), 1);
-    expect(game.step).toBe("finished");
-    expect(game.winnerSeat).toBe(2);
-    expect(cellsOf(game.board, 1)).toBe(1);
+  it("Not your turn", () => {
+    expect(playMove(start, 2, placement("I1", ["#"], 0, 19))).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
   });
 
-  it("a leaver on turn hands it to the next seat", () => {
-    const game = removeSeat(startGame(1, seats(3), 2), 2);
-    expect(game.turnSeat).toBe(3);
-    expect(game.step).toBe("play");
+  it("refuses a seat that is not in the game, malformed moves and moves after the end", () => {
+    expect(playMove(start, 3, placement("I1", ["#"], 19, 19))).toEqual({ ok: false, code: "NOT_SEATED" });
+    expect(playMove(start, 1, { piece: 99, orientation: 0, row: 0, col: 0 })).toEqual({ ok: false, code: "INVALID_COMMAND" });
+    expect(playMove(endGame(start), 1, placement("I1", ["#"], 0, 0))).toEqual({ ok: false, code: "WRONG_PHASE" });
+  });
+});
+
+describe("game-end-and-scoring › A colour leaves the game", () => {
+  it("Leaver on turn: its squares stay, it is out and the next colour is on turn", () => {
+    let game = startGame(1, seats(1, 2, 3));
+    game = play(game, 1, placement("I1", ["#"], 0, 0));
+    game = play(game, 2, placement("I1", ["#"], 0, 19));
+    game = play(game, 3, placement("I1", ["#"], 19, 19));
+    game = play(game, 1, placement("I2", ["##"], 1, 1));
+    expect(game.position.turn).toBe(2);
+    const after = removeSeat(game, 2);
+    expect(after.position.cells[19]).toBe(2);
+    expect(after.position.out).toContain(2);
+    expect(after.position.turn).toBe(3);
+    expect(after.left).toEqual([2]);
+    expect(after.seats.map((s) => s.seat)).toEqual([1, 3]);
+    expect(isFinished(after)).toBe(false);
+  });
+
+  it("Last one standing: the game ends and the other colour is the only winner", () => {
+    const game = removeSeat(startGame(1, seats(1, 2)), 1);
+    expect(isFinished(game)).toBe(true);
+    expect(game.position.aborted).toBe(false);
+    expect(game.winners).toEqual([2]);
+  });
+
+  it("Leaver cannot win: the best score among those that stayed wins", () => {
+    let game = startGame(1, seats(1, 2, 3), TINY);
+    game = play(game, 1, placement("V3", ["#.", "##"], 0, 0));
+    game = removeSeat(game, 1);
+    game = play(game, 2, placement("I1", ["#"], 0, 2));
+    game = play(game, 3, placement("I1", ["#"], 2, 2));
+    expect(isFinished(game)).toBe(true);
+    // Colour 1 has −86 (the best) but left; 2 and 3 share −88.
+    expect(game.winners).toEqual([2, 3]);
+  });
+
+  it("does nothing for a finished game or a seat not in it", () => {
+    const game = startGame(1, seats(1, 2));
+    expect(removeSeat(game, 3)).toBe(game);
+    const ended = endGame(game);
+    expect(removeSeat(ended, 1)).toBe(ended);
+  });
+});
+
+describe("game-room › End and result", () => {
+  it("a game played out ends with winners by score, and an aborted game has none", () => {
+    const game = playOut(startGame(42, seats(1, 2, 3, 4), CLASSIC));
+    expect(game.position.ended).toBe(true);
+    expect(game.winners.length).toBeGreaterThan(0);
+    expect(endGame(startGame(1, seats(1, 2))).winners).toEqual([]);
   });
 });

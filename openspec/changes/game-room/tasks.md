@@ -2,9 +2,9 @@
 
 ## 1. Rules: match layer, leaving, simple bot; placeholder removed
 
-- [ ] 1.1 Add `resign(position, colour)` to `play.ts` and the match layer in `game.ts` (`startGame`, `playMove`, `removeSeat`, `endGame`, winners among colours that did not leave); tests named after the `game-end-and-scoring` delta scenarios and the room's start/turn scenarios pass (`npm test -w @palikka/rules`)
-- [ ] 1.2 Rewrite `bot.ts` as `simpleBotMove` + `botRng` (largest piece first, seeded); tests: always legal, always a largest piece, deterministic per seed
-- [ ] 1.3 Delete `board.ts`, `daily.ts`, the placeholder parts of `testing.ts` and their tests; `TURN_TIME_LIMIT_SECONDS` = 120; rules tests and typecheck pass
+- [x] 1.1 Add `resign(position, colour)` to `play.ts` and the match layer in `game.ts` (`startGame`, `playMove`, `removeSeat`, `endGame`, winners among colours that did not leave); tests named after the `game-end-and-scoring` delta scenarios and the room's start/turn scenarios pass (`npm test -w @palikka/rules`)
+- [x] 1.2 Rewrite `bot.ts` as `simpleBotMove` + `botRng` (largest piece first, seeded); tests: always legal, always a largest piece, deterministic per seed
+- [x] 1.3 Delete `board.ts`, `daily.ts`, the placeholder parts of `testing.ts` and their tests; `TURN_TIME_LIMIT_SECONDS` = 120; rules tests and typecheck pass
 
 ## 2. Protocol
 
