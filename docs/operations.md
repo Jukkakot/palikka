@@ -5,9 +5,9 @@
 | | URL | Hosted on | Deploys when |
 |---|---|---|---|
 | Client | https://jukkakot.github.io/palikka/ | GitHub Pages | push to `main` touching `client/`, `packages/rules/`, lockfile ("Deploy client" workflow) |
-| Server | the repository variable `VITE_SERVER_URL` (expected https://palikka-server.onrender.com) | Render free web service `palikka-server` (Frankfurt) | green CI on `main` when the server code (`server/`, `packages/rules/`, `packages/protocol/`, lockfile, `render.yaml`) differs from the live server's commit: the `deploy-server` job in CI calls Render's deploy hook (secret `RENDER_DEPLOY_HOOK_URL`); Render auto-deploy is off |
+| Server | https://palikka-server-p4qm.onrender.com (also the repository variable `VITE_SERVER_URL`) | Render free web service `palikka-server` (Frankfurt) | green CI on `main` when the server code (`server/`, `packages/rules/`, `packages/protocol/`, lockfile, `render.yaml`) differs from the live server's commit: the `deploy-server` job in CI calls Render's deploy hook (secret `RENDER_DEPLOY_HOOK_URL`); Render auto-deploy is off |
 
-- Render ids: service and workspace ids are recorded here once the service exists (see One-time setup).
+- Render ids: service `srv-dau14mbncjis73abtnk0`, workspace `tea-d7vbs7l7vvec73dbddt0` (shared with Labyrinth).
 - **Free tier:** the server sleeps after ~15 min without traffic; the next request wakes it in
   about a minute. Sleeping, restarting or deploying loses all games in memory (accepted, budget
   0 €).
@@ -40,7 +40,7 @@ stale client when checking a deploy, compare the footer's "Client …" build tim
 
 ## One-time setup
 
-Done once per new game repository; all other deploys are automatic. Commands assume the GitHub CLI
+Done once per new game repository (for Palikka: 2026-09-29); all other deploys are automatic. Commands assume the GitHub CLI
 (`gh`) is logged in as the repo owner.
 
 1. **GitHub repo and Pages** (public, so Actions minutes are free):
@@ -91,9 +91,12 @@ lines, never slows a game.
 
 **Dashboard for people:** Axiom → Dashboards → **"Palikka – lokit"**, built by
 `tools/axiom/dashboard.py` and uploaded with `tools/axiom/axiom.ps1` (see the script header), not
-by hand in the UI. Its uid is recorded here once created (One-time setup, step 3). Panels: games
+by hand in the UI. Uid `0cb7d595-60a5-4fd3-8b7f-abbfd7d2e2a3`. Panels: games
 started, errors, rejected commands, bot fallbacks, lines by level, finished games by reason, the
 log table and rejections by code.
+
+**Setup (done 2026-09-29):** dataset `palikka` (EU region, 30-day retention), ingest-only token
+"palikka ingest (Render server)" in Render's `AXIOM_TOKEN`.
 
 **Access:** Claude administers Axiom (datasets, tokens, dashboards) through its REST API with the
 user's personal token `AXIOM_PAT` + `AXIOM_ORG_ID` from the Windows user environment. No error

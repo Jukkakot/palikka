@@ -5,7 +5,7 @@ Palikka is a browser game in the spirit of the classic corner-touching polyomino
 (Android primary). Everything you need to know about the solution starts here.
 
 - Play: https://jukkakot.github.io/palikka/
-- Server health: `<VITE_SERVER_URL>/health` (see [operations.md](operations.md))
+- Server health: https://palikka-server-p4qm.onrender.com/health
 
 ## Where to find what
 
