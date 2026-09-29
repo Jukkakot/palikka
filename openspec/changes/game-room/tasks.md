@@ -8,7 +8,7 @@
 
 ## 2. Protocol
 
-- [ ] 2.1 Placement payload for `place`, new `botPlace` payload, piece constants mirrored, error codes updated, `client.daily.*` removed; protocol tests cover the payload bounds (`npm test -w @palikka/protocol`)
+- [x] 2.1 Placement payload for `place`, new `botPlace` payload, piece constants mirrored, error codes updated, `client.daily.*` removed; protocol tests cover the payload bounds (`npm test -w @palikka/protocol`)
 
 ## 3. Server room on the real rules
 

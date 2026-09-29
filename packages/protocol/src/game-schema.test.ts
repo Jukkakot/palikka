@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  botPlacePayloadSchema,
   botSeatPayloadSchema,
   joinOptionsSchema,
   kickPayloadSchema,
@@ -28,18 +29,39 @@ describe("botSeatPayloadSchema", () => {
 });
 
 describe("placePayloadSchema", () => {
-  it("accepts any board square", () => {
-    expect(placePayloadSchema.safeParse({ row: 0, col: 0 }).success).toBe(true);
-    expect(placePayloadSchema.safeParse({ row: 19, col: 3 }).success).toBe(true);
+  const ok = { piece: 0, orientation: 0, row: 0, col: 0 };
+
+  it("accepts any piece, orientation and board square", () => {
+    expect(placePayloadSchema.safeParse(ok).success).toBe(true);
+    expect(placePayloadSchema.safeParse({ piece: 20, orientation: 7, row: 19, col: 3 }).success).toBe(true);
   });
 
-  it("rejects squares off the board, non-integers and extra fields", () => {
-    expect(placePayloadSchema.safeParse({ row: 20, col: 0 }).success).toBe(false);
-    expect(placePayloadSchema.safeParse({ row: -1, col: 0 }).success).toBe(false);
-    expect(placePayloadSchema.safeParse({ row: 1.5, col: 0 }).success).toBe(false);
-    expect(placePayloadSchema.safeParse({ row: "1", col: 0 }).success).toBe(false);
-    expect(placePayloadSchema.safeParse({ row: 1, col: 1, extra: 1 }).success).toBe(false);
-    expect(placePayloadSchema.safeParse(null).success).toBe(false);
+  it("rejects out-of-range fields, non-integers, missing and extra fields", () => {
+    for (const bad of [
+      { ...ok, piece: 21 },
+      { ...ok, piece: -1 },
+      { ...ok, orientation: 8 },
+      { ...ok, row: 20 },
+      { ...ok, col: -1 },
+      { ...ok, row: 1.5 },
+      { ...ok, row: "1" },
+      { piece: 0, row: 0, col: 0 },
+      { ...ok, extra: 1 },
+      { ...ok, seat: 1 },
+      null,
+    ]) {
+      expect(placePayloadSchema.safeParse(bad).success).toBe(false);
+    }
+  });
+});
+
+describe("botPlacePayloadSchema", () => {
+  it("accepts a seat 1–4 with a move and rejects anything else", () => {
+    const move = { piece: 3, orientation: 1, row: 2, col: 2 };
+    expect(botPlacePayloadSchema.safeParse({ seat: 2, ...move }).success).toBe(true);
+    expect(botPlacePayloadSchema.safeParse({ seat: 0, ...move }).success).toBe(false);
+    expect(botPlacePayloadSchema.safeParse({ seat: 5, ...move }).success).toBe(false);
+    expect(botPlacePayloadSchema.safeParse(move).success).toBe(false);
   });
 });
 

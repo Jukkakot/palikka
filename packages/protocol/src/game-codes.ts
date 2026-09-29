@@ -1,12 +1,25 @@
-/** Cells per board side. Mirrors `BOARD_SIZE` in `@palikka/rules` (protocol must not depend on rules); a server test keeps them equal. */
+/**
+ * Squares per board side, pieces per colour and most orientations per piece. They mirror the classic
+ * board and the piece set in `@palikka/rules` (protocol must not depend on rules); a server test
+ * keeps them equal.
+ */
 export const BOARD_CELLS_PER_SIDE = 20;
+export const PIECES_PER_COLOUR = 21;
+export const MAX_PIECE_ORIENTATIONS = 8;
 
 /** Error codes of game commands, on top of `COMMON_ERROR_CODES`. */
 export const GAME_ERROR_CODES = [
   "NOT_SEATED",
   "NOT_YOUR_TURN",
   "WRONG_PHASE",
-  "CELL_TAKEN",
+  "PIECE_USED",
+  "OFF_BOARD",
+  "OVERLAP",
+  "EDGE_CONTACT",
+  "NOT_ON_START",
+  "NO_CORNER_CONTACT",
+  "NOT_BOT_RUNNER",
+  "NOT_BOT_SEAT",
   "NOT_KICKABLE",
   "TURN_NOT_EXPIRED",
   "NOT_HOST",
@@ -27,10 +40,20 @@ export type GameErrorCode = (typeof GAME_ERROR_CODES)[number];
 export const TURN_PHASES = ["waiting", "play", "finished"] as const;
 export type TurnPhase = (typeof TURN_PHASES)[number];
 
-/** The cell the `place` command claims. */
+/**
+ * The move of the `place` command: a piece (0–20, the rules' piece number) in one of its
+ * orientations, with the top-left of the orientation's bounding box at (row, col).
+ */
 export interface PlacePayload {
+  piece: number;
+  orientation: number;
   row: number;
   col: number;
+}
+
+/** The bot runner's move for the bot-played `seat` on turn. */
+export interface BotPlacePayload extends PlacePayload {
+  seat: number;
 }
 
 /** The `start` command has no fields: only the host sends it, in the waiting room. */

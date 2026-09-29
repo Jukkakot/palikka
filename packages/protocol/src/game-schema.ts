@@ -3,6 +3,9 @@ import {
   type AutoplayPayload,
   BOARD_CELLS_PER_SIDE,
   BOT_SPEEDS,
+  MAX_PIECE_ORIENTATIONS,
+  PIECES_PER_COLOUR,
+  type BotPlacePayload,
   nicknameIssue,
   type BotSeatPayload,
   type JoinOptions,
@@ -16,10 +19,19 @@ import {
 
 const boardIndex = z.int().min(0).max(BOARD_CELLS_PER_SIDE - 1);
 
-export const placePayloadSchema = z.strictObject({
+const move = {
+  piece: z.int().min(0).max(PIECES_PER_COLOUR - 1),
+  orientation: z.int().min(0).max(MAX_PIECE_ORIENTATIONS - 1),
   row: boardIndex,
   col: boardIndex,
-}) satisfies z.ZodType<PlacePayload>;
+};
+
+export const placePayloadSchema = z.strictObject(move) satisfies z.ZodType<PlacePayload>;
+
+export const botPlacePayloadSchema = z.strictObject({
+  seat: z.int().min(1).max(4),
+  ...move,
+}) satisfies z.ZodType<BotPlacePayload>;
 
 export const kickPayloadSchema = z.strictObject({
   seat: z.int().min(1).max(4),
