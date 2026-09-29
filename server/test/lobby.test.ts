@@ -72,12 +72,11 @@ describe("lobby in a room", () => {
 
   describe("Waiting room", () => {
     it("No current player before the start; the first joiner hosts", async () => {
-      const { room, clients, player } = await waitingRoom(colyseus, 2);
+      const { room, clients } = await waitingRoom(colyseus, 2);
       expect(room.state.phase).toBe("waiting");
       expect(room.state.turnSeat).toBe(0);
       expect(room.state.turnDeadline).toBe(0);
       expect(room.state.hostSeat).toBe(1);
-      expect(player(1).placed).toBe(0);
       await vi.waitFor(() => expect((clients[1]!.state as DecodedState).hostSeat).toBe(1));
       expect(logs.byEvt("turn.changed")).toHaveLength(0);
     });

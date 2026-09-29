@@ -2,21 +2,22 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { matchMaker } from "colyseus";
 import type { CommandResult } from "@palikka/protocol";
-import { chooseBotCell, type BotStrategy, type BotView } from "@palikka/rules";
+import type { Placement } from "@palikka/rules";
+import { placement } from "@palikka/rules/testing";
 import appConfig from "../src/app.config.js";
 import { configureLogger } from "../src/logging/logger.js";
 import type { GameRoom } from "../src/rooms/GameRoom.js";
 import { captureLogs } from "./support/captureLogs.js";
-import { forceStartSeat, join, placeFree, waitingRoom, type TestClient } from "./support/game.js";
+import { forceStartSeat, join, legalMove, placeFree, waitingRoom, type TestClient } from "./support/game.js";
 
 const addBot = (client: TestClient, seat: number) => client.request("addBot", { seat }) as Promise<CommandResult>;
 const removeBot = (client: TestClient, seat: number) => client.request("removeBot", { seat }) as Promise<CommandResult>;
+const botPlace = (client: TestClient, seat: number, move: Placement) => client.request("botPlace", { seat, ...move }) as Promise<CommandResult>;
 const listing = async (roomId: string) => (await matchMaker.query({ roomId }))[0];
 
 interface DecodedPlayer {
   name: string;
   bot: boolean;
-  placed: number;
 }
 const seen = (client: TestClient) => client.state as { players: Map<string, DecodedPlayer> };
 
@@ -136,10 +137,79 @@ describe("bots in a room", () => {
     });
   });
 
-  describe("Bots play their turns", () => {
-    it("Bot's turn: it places by itself, audited as a bot, and the turn passes on", async () => {
+  describe("Who computes bot moves", () => {
+    it("Host runs the bots: the runner is the host's seat once the game starts", async () => {
+      const { room: r, clients } = await room(2);
+      await addBot(clients[0]!, 3);
+      await clients[0]!.request("start", {});
+      expect(r.state.botRunnerSeat).toBe(1);
+      await vi.waitFor(() => expect((clients[1]!.state as { botRunnerSeat: number }).botRunnerSeat).toBe(1));
+    });
+
+    it("Host drops: seat 2 becomes the runner, and the host again after reconnecting", async () => {
+      const { room: r, clients } = await room(2);
+      await addBot(clients[0]!, 3);
+      r.botDelayMs = 60_000;
+      await clients[0]!.request("start", {});
+      clients[0]!.reconnection.minUptime = 0;
+      clients[0]!.connection.close(4010);
+      await vi.waitFor(() => expect(r.state.botRunnerSeat).toBe(2));
+      await vi.waitFor(() => expect(logs.byEvt("player.reconnected")).toHaveLength(1), { timeout: 10_000 });
+      expect(r.state.botRunnerSeat).toBe(1);
+      expect(logs.byEvt("bot.runner")).toEqual([
+        expect.objectContaining({ from: 1, to: 2 }),
+        expect.objectContaining({ from: 2, to: 1 }),
+      ]);
+    });
+  });
+
+  describe("Bot moves are validated", () => {
+    /** Host (seat 1) and Pekka (seat 2) with a bot in seat 3 on turn; the server never moves for it. */
+    async function botOnTurn() {
+      const game = await room(2);
+      await addBot(game.clients[0]!, 3);
+      game.room.botDelayMs = 60_000;
+      forceStartSeat(game.room, 3);
+      await game.clients[0]!.request("start", {});
+      return game;
+    }
+
+    it("Runner moves for a bot: accepted, audited with the seat, and the next colour is on turn", async () => {
+      const { room: r, clients } = await botOnTurn();
+      expect(await botPlace(clients[0]!, 3, legalMove(r, 3))).toEqual({ ok: true });
+      expect(r.state.turnSeat).toBe(1);
+      expect([...r.state.cells].filter((c) => c === 3).length).toBeGreaterThan(0);
+      expect(logs.byEvt("cmd.accepted").filter((l) => l.cmd === "botPlace")).toEqual([expect.objectContaining({ player: clients[0]!.sessionId })]);
+      expect(logs.byEvt("bot.fallback")).toHaveLength(0);
+    });
+
+    it("Someone else sends a bot move: NOT_BOT_RUNNER", async () => {
+      const { room: r, clients } = await botOnTurn();
+      expect(await botPlace(clients[1]!, 3, legalMove(r, 3))).toEqual({ ok: false, code: "NOT_BOT_RUNNER" });
+      expect(r.state.turnSeat).toBe(3);
+    });
+
+    it("Not a bot's seat: NOT_BOT_SEAT for a seat a connected person plays", async () => {
+      const { room: r, clients } = await botOnTurn();
+      expect(await botPlace(clients[0]!, 2, legalMove(r, 2))).toEqual({ ok: false, code: "NOT_BOT_SEAT" });
+    });
+
+    it("A bot not on turn, an illegal move, and before the start", async () => {
+      const { room: r, clients } = await botOnTurn();
+      expect(await botPlace(clients[0]!, 3, placement("I1", ["#"], 5, 5))).toEqual({ ok: false, code: "NOT_ON_START" });
+      expect([...r.state.cells].every((c) => c === 0)).toBe(true);
+      expect(await botPlace(clients[0]!, 3, legalMove(r, 3))).toEqual({ ok: true });
+      expect(await botPlace(clients[0]!, 3, legalMove(r, 3))).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
+      const waiting = await room(1);
+      expect(await botPlace(waiting.clients[0]!, 3, placement("I1", ["#"], 19, 19))).toEqual({ ok: false, code: "WRONG_PHASE" });
+    });
+  });
+
+  describe("Server fallback", () => {
+    it("Runner silent: the server moves for the bot after the pause and the grace time, audited as the bot", async () => {
       const { room: r, clients } = await room(1);
       await addBot(clients[0]!, 2);
+      r.botRunnerGraceMs = 30;
       forceStartSeat(r, 1);
       await clients[0]!.request("start", {});
       expect(await placeFree(clients[0]!, r)).toEqual({ ok: true });
@@ -147,17 +217,20 @@ describe("bots in a room", () => {
       await vi.waitFor(() => expect(r.state.turnSeat).toBe(1));
       const botLines = logs.byEvt("cmd.accepted").filter((l) => l.bot === true);
       expect(botLines.map((l) => [l.cmd, l.player, l.seat])).toEqual([["place", "bot:2", 2]]);
-      expect(holder(r, 2)!.placed).toBe(1);
+      expect(logs.byEvt("bot.fallback")).toEqual([expect.objectContaining({ level: "warn", reason: "runnerSilent", seat: 2, runner: 1 })]);
+      expect(r.state.colours[1]!.pieces.length).toBe(1);
     });
 
-    it("Bot starts the game and plays its first turn without anyone doing anything", async () => {
+    it("No runner: with every person dropped the server plays the bots after the pause", async () => {
       const { room: r, clients } = await room(1);
       await addBot(clients[0]!, 2);
+      r.botRunnerGraceMs = 60_000;
       forceStartSeat(r, 2);
       await clients[0]!.request("start", {});
-      expect(r.state.turnSeat).toBe(2);
-      await vi.waitFor(() => expect(r.state.turnSeat).toBe(1));
-      expect([...r.state.cells].filter((c) => c === 2)).toHaveLength(1);
+      clients[0]!.connection.close(1000);
+      await vi.waitFor(() => expect(r.state.botRunnerSeat).toBe(0));
+      await vi.waitFor(() => expect(logs.byEvt("bot.fallback").length).toBeGreaterThanOrEqual(2));
+      expect(logs.byEvt("bot.fallback").every((l) => l.reason === "noRunner")).toBe(true);
     });
 
     it("the host plus a bot play the game to its end", async () => {
@@ -170,45 +243,9 @@ describe("bots in a room", () => {
         if (r.state.phase === "finished") break;
         expect(await placeFree(clients[0]!, r)).toEqual({ ok: true });
       }
-      expect(r.state.winnerSeat).toBeGreaterThan(0);
+      expect(r.state.winners.length).toBeGreaterThan(0);
       expect(logs.byEvt("game.finished")).toEqual([expect.objectContaining({ reason: "complete" })]);
-      expect(logs.byEvt("bot.fallback")).toHaveLength(0);
-    });
-
-    it("the bot's view holds the board and every seat's progress", async () => {
-      const { room: r, clients } = await room(1);
-      await addBot(clients[0]!, 2);
-      const views: BotView[] = [];
-      r.botStrategy = (view, rng) => {
-        views.push(view);
-        return chooseBotCell(view, rng);
-      };
-      forceStartSeat(r, 1);
-      await clients[0]!.request("start", {});
-      await placeFree(clients[0]!, r);
-      await vi.waitFor(() => expect(views.length).toBeGreaterThan(0));
-      expect(views[0]!.seat).toBe(2);
-      expect(views[0]!.seats).toEqual([
-        { seat: 1, placed: 1 },
-        { seat: 2, placed: 0 },
-      ]);
-      expect(views[0]!.board.filter((c) => c === 1)).toHaveLength(1);
-    });
-
-    it("Fallback: a rejected choice logs bot.fallback, then the bot claims the first empty cell", async () => {
-      const { room: r, clients } = await room(1);
-      await addBot(clients[0]!, 2);
-      // Always the top-left cell, which the person takes first.
-      const bad: BotStrategy = () => ({ row: 0, col: 0 });
-      r.botStrategy = bad;
-      forceStartSeat(r, 1);
-      await clients[0]!.request("start", {});
-      await clients[0]!.request("place", { row: 0, col: 0 });
-      await vi.waitFor(() => expect(r.state.turnSeat).toBe(1));
-      expect(logs.byEvt("bot.fallback")).toEqual([expect.objectContaining({ level: "error", cmd: "place", code: "CELL_TAKEN", bot: true })]);
-      expect(logs.byEvt("cmd.rejected")).toEqual([expect.objectContaining({ cmd: "place", player: "bot:2", bot: true })]);
-      expect(r.state.cells[1]).toBe(2);
-    });
+    }, 20_000);
   });
 
   describe("Quick game against bots", () => {
@@ -228,7 +265,7 @@ describe("bots in a room", () => {
       forceStartSeat(r, 2);
       await clients[0]!.request("start", {});
       await clients[0]!.leave(true);
-      await vi.waitFor(() => expect(logs.byEvt("game.finished")).toEqual([expect.objectContaining({ reason: "noPeople", winner: 0 })]));
+      await vi.waitFor(() => expect(logs.byEvt("game.finished")).toEqual([expect.objectContaining({ reason: "noPeople", winners: [] })]));
       await new Promise((resolve) => setTimeout(resolve, 150));
       expect(logs.byEvt("cmd.accepted").filter((l) => l.bot === true)).toHaveLength(0);
     });
@@ -252,8 +289,8 @@ describe("bots in a room", () => {
       await clients[0]!.request("start", {});
       await vi.waitFor(() => expect(r.state.turnExpired).toBe(true));
       expect(await clients[0]!.request("kick", { seat: 2 })).toEqual({ ok: true });
-      expect(r.state.winnerSeat).toBe(1);
-      expect(logs.byEvt("game.finished")).toEqual([expect.objectContaining({ reason: "lastPlayer", winner: 1 })]);
+      expect([...r.state.winners]).toEqual([1]);
+      expect(logs.byEvt("game.finished")).toEqual([expect.objectContaining({ reason: "lastPlayer", winners: [1] })]);
     });
   });
 });

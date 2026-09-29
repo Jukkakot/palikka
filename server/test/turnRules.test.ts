@@ -167,9 +167,9 @@ describe("turn rules in a room", () => {
 
       expect(await kick(clients[0]!, 2)).toEqual({ ok: true });
       expect(room.state.phase).toBe("finished");
-      expect(room.state.winnerSeat).toBe(1);
+      expect([...room.state.winners]).toEqual([1]);
       expect(room.state.turnDeadline).toBe(0);
-      expect(logs.byEvt("game.finished")).toEqual([expect.objectContaining({ winner: 1, reason: "lastPlayer" })]);
+      expect(logs.byEvt("game.finished")).toEqual([expect.objectContaining({ winners: [1], reason: "lastPlayer" })]);
     });
 
     it("Two of three leave", async () => {
@@ -177,18 +177,18 @@ describe("turn rules in a room", () => {
       await clients[1]!.leave();
       await vi.waitFor(() => expect(room.state.players.size).toBe(2));
       expect(room.state.phase).toBe("play");
-      expect(room.state.winnerSeat).toBe(0);
+      expect([...room.state.winners]).toEqual([]);
 
       await clients[2]!.leave();
       await vi.waitFor(() => expect(room.state.phase).toBe("finished"));
-      expect(room.state.winnerSeat).toBe(1);
+      expect([...room.state.winners]).toEqual([1]);
     });
 
     it("Opponent leaves before anyone played", async () => {
       const { room, clients } = await game(2, { turnMs: LONG_MS });
       await clients[1]!.leave();
       await vi.waitFor(() => expect(room.state.phase).toBe("finished"));
-      expect(room.state.winnerSeat).toBe(1);
+      expect([...room.state.winners]).toEqual([1]);
       expect(room.state.turnDeadline).toBe(0);
     });
   });
@@ -197,8 +197,8 @@ describe("turn rules in a room", () => {
     it("Before the start: a placement in the waiting room is WRONG_PHASE", async () => {
       const { room, clients } = await waitingRoom(colyseus, 2);
       const before = JSON.stringify(room.state.toJSON());
-      expect(await clients[0]!.request("place", { row: 0, col: 0 })).toEqual({ ok: false, code: "WRONG_PHASE" });
-      expect(await clients[1]!.request("place", { row: 0, col: 6 })).toEqual({ ok: false, code: "WRONG_PHASE" });
+      expect(await clients[0]!.request("place", { piece: 0, orientation: 0, row: 0, col: 0 })).toEqual({ ok: false, code: "WRONG_PHASE" });
+      expect(await clients[1]!.request("place", { piece: 0, orientation: 0, row: 0, col: 6 })).toEqual({ ok: false, code: "WRONG_PHASE" });
       expect(JSON.stringify(room.state.toJSON())).toBe(before);
     });
   });

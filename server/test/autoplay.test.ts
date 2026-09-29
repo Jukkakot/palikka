@@ -176,7 +176,7 @@ describe("autoplay in a room", () => {
       await clients[0]!.request("start", {});
       expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
       await vi.waitFor(() => expect(botCommands("place").length).toBeGreaterThanOrEqual(3));
-      expect(r.state.winnerSeat === 0 ? r.state.phase : "won").not.toBe("finished");
+      expect(r.state.phase).not.toBe("finished");
     });
   });
 });

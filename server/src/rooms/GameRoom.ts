@@ -3,6 +3,7 @@ import { ErrorCode, matchMaker, ServerError, type Client, type CloseCode, type D
 import {
   autoplayPayloadSchema,
   BOT_NAMES,
+  botPlacePayloadSchema,
   botSeatPayloadSchema,
   CLOSE_CODES,
   joinOptionsSchema,
@@ -17,31 +18,29 @@ import {
   type TurnPhase,
 } from "@palikka/protocol";
 import {
-  applyPlace,
-  botRngFor,
-  botViewOf,
-  CELL_COUNT,
-  cellAt,
-  cellIndex,
-  chooseBotCell,
+  botRng,
+  CLASSIC,
   DISCONNECT_LIMIT_SECONDS,
   endGame,
   kickRejection,
   MAX_SEED,
   MIN_SEATS,
+  placementText,
+  playMove,
   removeSeat,
+  scores,
+  simpleBotMove,
   startGame,
   TURN_TIME_LIMIT_SECONDS,
-  type BotStrategy,
-  type Cell,
-  type GameCommandResult,
-  type GameState as Game,
+  type Game,
+  type GameResult,
+  type Placement,
 } from "@palikka/rules";
 import type { z } from "zod";
 import { log, type LogFields } from "../logging/logger.js";
 import { CommandRejection, type Actor } from "./command.js";
 import { LoggedRoom } from "./LoggedRoom.js";
-import { GameState, Player } from "./schema/GameState.js";
+import { ColourState, GameState, Player } from "./schema/GameState.js";
 
 export const MAX_SEATS = 4;
 
@@ -80,6 +79,12 @@ const botKey = (seat: number) => `bot:${seat}`;
 /** Default pause before a bot's turn, so people can follow it. */
 export const BOT_DELAY_MS = 1000;
 
+/** How long after the pause the server waits for the bot runner's move before playing one itself. */
+export const BOT_RUNNER_GRACE_MS = 10_000;
+
+/** Why the server played a bot's move itself (`bot.fallback`). */
+type FallbackReason = "noRunner" | "runnerSilent";
+
 /** Refuses a join or room creation: the client reads `code` from the error message. */
 const refuse = (code: JoinErrorCode) =>
   new ServerError(code === "INVALID_NICKNAME" ? ErrorCode.AUTH_FAILED : ErrorCode.APPLICATION_ERROR, code);
@@ -108,13 +113,13 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
 
   /** Draws the game's seed at the start; room tests replace it. */
   drawDealSeed = () => randomInt(0, MAX_SEED + 1);
-  /** The first seat: the rule's choice (the host); room tests replace it to start elsewhere. */
+  /** The first seat: the rule's choice (the lowest seat); room tests replace it to start elsewhere. */
   chooseStartSeat = (seat: number) => seat;
 
-  /** How bots choose their turns; replaceable (a smarter strategy, or a bad one in tests). */
-  botStrategy: BotStrategy = chooseBotCell;
   /** Pause before a bot's turn; room tests shorten it. */
   botDelayMs = BOT_DELAY_MS;
+  /** How long the bot runner has after the pause before the server moves itself; room tests shorten it. */
+  botRunnerGraceMs = BOT_RUNNER_GRACE_MS;
 
   /**
    * The started game as the rules engine holds it (the one source of the rules' truth); the
@@ -169,15 +174,19 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     }),
 
 
-    place: this.command("place", placePayloadSchema, (client, cell) => {
+    place: this.command("place", placePayloadSchema, (client, move) => {
       const player = this.requirePlaying(client);
-      this.game = this.accepted(this.game && applyPlace(this.game, player.seat, cell), player.seat, cell);
+      this.playFor(player.seat, move);
+    }),
 
-      this.state.cells[cellIndex(cell)] = player.seat;
-      player.placed = this.gameSeat(player.seat).placed;
-      this.state.turn = this.game.turn;
-      if (this.game.step === "finished") this.finish(this.game.winnerSeat, "complete");
-      else this.setTurn(this.game.turnSeat);
+    /** The bot runner's move for a bot-played seat on turn; validated like any move. */
+    botPlace: this.command("botPlace", botPlacePayloadSchema, (client, { seat, ...move }) => {
+      const sender = this.requireSeated(client);
+      if (!this.running()) throw new CommandRejection("WRONG_PHASE", { expected: "play" });
+      if (sender.seat !== this.state.botRunnerSeat) throw new CommandRejection("NOT_BOT_RUNNER", { runner: this.state.botRunnerSeat });
+      if (!this.isBotPlayed(seat)) throw new CommandRejection("NOT_BOT_SEAT", { seat });
+      if (seat !== this.state.turnSeat) throw new CommandRejection("NOT_YOUR_TURN", { seat });
+      this.playFor(seat, move);
     }),
 
     setAutoplay: this.command("setAutoplay", autoplayPayloadSchema, (client, { on }) => {
@@ -231,24 +240,68 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
 
   /**
    * Starts the game for the seated players (bots included), locks the room and gives the first turn
-   * to the host. The one way a game starts.
+   * to the lowest seat. The one way a game starts.
    */
   private startGame(): void {
     const seats = this.seats();
     this.startBotSeats = this.bots().map((p) => p.seat).sort((a, b) => a - b);
     const dealSeed = this.drawDealSeed();
     const players = [...this.state.players.values()].map(({ seat, name, bot }) => ({ seat, name, bot }));
-    const game = startGame(dealSeed, players, this.state.hostSeat);
-    const startSeat = this.chooseStartSeat(game.turnSeat);
-    this.game = { ...game, turnSeat: startSeat };
-    this.state.turn = this.game.turn;
+    const game = startGame(dealSeed, players);
+    const startSeat = this.chooseStartSeat(game.position.turn);
+    this.game = { ...game, position: { ...game.position, turn: startSeat } };
+    this.syncGame();
     void this.lock();
     // Locked for players; the room admits spectators itself (through the watch route).
     this.maxClients = MAX_SEATS + MAX_SPECTATORS;
+    this.syncRunner();
     for (const [id, p] of this.state.players) if (!p.bot && !p.connected) this.startAutoplay(id, "drop");
-    log.info("game.started", this.logCtx(undefined, { dealSeed, seats, startSeat }));
+    log.info("game.started", this.logCtx(undefined, { dealSeed, seats, startSeat, runner: this.state.botRunnerSeat }));
     this.setTurn(startSeat);
     this.syncListing({ open: false });
+  }
+
+  /** `seat` moves (a person, the runner for a bot, or the server's fallback): the engine decides, then state and turn follow. */
+  private playFor(seat: number, move: Placement): void {
+    this.game = this.accepted(this.game && playMove(this.game, seat, move), seat, move);
+    this.syncGame();
+    if (this.game.position.ended) this.finish(this.game.winners, "complete");
+    else this.setTurn(this.game.position.turn);
+  }
+
+  /** Mirrors the engine's game into the synced state: squares, and each colour's pieces and status. */
+  private syncGame(): void {
+    const { position, left } = this.game!;
+    position.cells.forEach((owner, i) => {
+      if (this.state.cells[i] !== owner) this.state.cells[i] = owner;
+    });
+    if (this.state.colours.length === 0) {
+      for (const colour of position.colours) this.state.colours.push(new ColourState({ colour }));
+    }
+    for (const c of this.state.colours) {
+      const pieces = position.placed[c.colour] ?? [];
+      for (let i = c.pieces.length; i < pieces.length; i++) c.pieces.push(pieces[i]!);
+      c.out = position.out.includes(c.colour);
+      c.left = left.includes(c.colour);
+    }
+  }
+
+  /**
+   * The bot runner is the host while seated and connected, else the connected person in the lowest
+   * seat, else nobody (the server plays the bots). A change during a bot's turn restarts its timer.
+   */
+  private syncRunner(): void {
+    const connected = this.people()
+      .filter((p) => p.connected)
+      .sort((a, b) => a.seat - b.seat);
+    const runner = connected.find((p) => p.seat === this.state.hostSeat) ?? connected[0];
+    const seat = runner?.seat ?? 0;
+    const from = this.state.botRunnerSeat;
+    if (seat === from) return;
+    this.state.botRunnerSeat = seat;
+    if (!this.running()) return;
+    log.info("bot.runner", this.logCtx(undefined, { from, to: seat }));
+    if (this.isBotPlayed(this.state.turnSeat)) this.scheduleBotStep(this.state.turnSeat);
   }
 
   /**
@@ -335,6 +388,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   private syncSeats(): void {
     if (this.state.phase === "waiting" && !this.closing) this.maxClients = MAX_SEATS - this.bots().length;
     void this.setMetadata({ ...this.metadata, seated: this.state.players.size });
+    this.syncRunner();
   }
 
   /** Adds the seat of a seated actor (person or bot), so a game can be followed by seat in the logs. */
@@ -351,19 +405,23 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
       turnSeat: this.state.turnSeat,
       turnExpired: this.state.turnExpired,
       turn: this.state.turn,
+      runner: this.state.botRunnerSeat,
     };
   }
 
-  /** The end of the game (a win, or no person left: winner 0): no further turn, no clock, no joining. */
-  private finish(winner: number, reason: FinishReason): void {
-    if (this.game) this.game = endGame(this.game, winner);
-    this.state.winnerSeat = winner;
+  /** The end of the game (winners by the rules, or none: no person left): no further turn, no clock, no joining. */
+  private finish(winners: readonly number[], reason: FinishReason): void {
+    if (this.game) {
+      this.game = endGame(this.game);
+      this.syncGame();
+    }
+    this.state.winners.push(...winners);
     this.setPhase("finished");
     this.restartClock();
     this.clearBotTimer();
     void this.lock();
     this.syncListing();
-    log.info("game.finished", this.logCtx(undefined, { winner, reason }));
+    log.info("game.finished", this.logCtx(undefined, { winners: [...winners], reason, scores: this.scoreFacts() }));
   }
 
   /**
@@ -385,11 +443,21 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     }
     if (this.state.phase === "finished") return;
     this.game = removeSeat(this.game!, seat);
+    this.syncGame();
+    this.syncRunner();
     // Bots never play on alone, only for someone watching; dropped people and spectators in their hold count.
-    if (this.nobodyLeft()) this.finish(0, "noPeople");
-    else if (this.game.step === "finished") this.finish(this.game.winnerSeat, "lastPlayer");
-    else if (this.game.turnSeat !== this.state.turnSeat) this.setTurn(this.game.turnSeat);
+    if (this.nobodyLeft()) this.finish([], "noPeople");
+    else if (this.game.position.ended) this.finish(this.game.winners, this.game.seats.length === 1 ? "lastPlayer" : "complete");
+    else if (this.game.position.turn !== this.state.turnSeat) this.setTurn(this.game.position.turn);
     else this.restartClock(true);
+  }
+
+  /** Each colour's score and squares for the end-of-game log line, e.g. "1:-12/77". */
+  private scoreFacts(): string {
+    if (!this.game) return "";
+    return scores(this.game.position)
+      .map((s) => `${s.colour}:${s.score}/${s.squares}`)
+      .join(" ");
   }
 
   /** No person is seated and nobody watches: bots must not play on. */
@@ -403,7 +471,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     this.state.spectators = this.spectators.size;
     log.info("spectator.left", this.logCtx(undefined, { player: sessionId, spectators: this.spectators.size }));
     this.syncListing();
-    if (this.running() && this.nobodyLeft()) this.finish(0, "noPeople");
+    if (this.running() && this.nobodyLeft()) this.finish([], "noPeople");
   }
 
   /**
@@ -480,42 +548,42 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   }
 
   /**
-   * The engine's new state for an accepted placement; its refusal as a rejection with the audit
-   * facts. Nobody acts in the waiting room (no game yet).
+   * The engine's new game for an accepted move; its refusal as a rejection with the audit facts.
+   * Nobody acts in the waiting room (no game yet).
    */
-  private accepted(result: GameCommandResult | undefined, seat: number, cell: Cell): Game {
+  private accepted(result: GameResult | undefined, seat: number, move: Placement): Game {
     if (!result) throw new CommandRejection("WRONG_PHASE", { expected: "play" });
-    if (result.ok) return result.state;
+    if (result.ok) return result.game;
     const facts: Partial<Record<typeof result.code, Record<string, unknown>>> = {
       NOT_YOUR_TURN: { seat },
       WRONG_PHASE: { expected: "play" },
-      CELL_TAKEN: { cell: [cell.row, cell.col] },
+      NOT_SEATED: { seat },
     };
-    throw new CommandRejection(result.code, facts[result.code]);
-  }
-
-  /** The seat as the engine holds it (seated players are always in the running game). */
-  private gameSeat(seat: number): Game["seats"][number] {
-    return this.game!.seats.find((s) => s.seat === seat)!;
+    throw new CommandRejection(result.code, facts[result.code] ?? { seat, move: placementText(move) });
   }
 
   /** A new turn starts with a fresh clock; the engine has already moved to it. */
   private setTurn(seat: number): void {
     const from = this.state.turnSeat;
     this.state.turnSeat = seat;
+    this.state.turn++;
     if (this.state.phase !== "play") this.setPhase("play");
-    log.info("turn.changed", this.logCtx(undefined, { from, to: seat }));
+    log.info("turn.changed", this.logCtx(undefined, { from, to: seat, out: this.game?.position.out.join(",") }));
     this.restartClock();
     this.clearBotTimer();
     if (this.isBotPlayed(seat)) this.scheduleBotStep(seat);
   }
 
-
-  /** The bot plays the seat's turn after the usual pause. */
+  /**
+   * A bot-played seat's turn: the runner sends its move. The server moves itself after the pause
+   * when there is no runner, or when the runner has not moved within the grace time after it.
+   */
   private scheduleBotStep(seat: number): void {
     this.clearBotTimer();
     if (!this.running()) return;
-    this.botTimer = this.clock.setTimeout(() => void this.playBotTurn(seat), this.botDelay(this.botDelayMs));
+    const runner = this.state.botRunnerSeat;
+    const wait = this.botDelay(this.botDelayMs) + (runner ? this.botRunnerGraceMs : 0);
+    this.botTimer = this.clock.setTimeout(() => void this.playFallback(seat, runner ? "runnerSilent" : "noRunner"), wait);
   }
 
   /** A bot pause at the current speed. */
@@ -528,21 +596,19 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     this.botTimer = undefined;
   }
 
-  /**
-   * A bot's turn, through the same command path as a person's. A rejected choice (a bad strategy)
-   * falls back to the first empty cell.
-   */
-  private async playBotTurn(seat: number): Promise<void> {
+  /** The server plays the simple bot's move for the seat, through the same command path as anyone. */
+  private async playFallback(seat: number, reason: FallbackReason): Promise<void> {
     this.botTimer = undefined;
     const actor = this.botActorOf(seat);
-    // Taken back (or the turn moved on) before the pause ended: nothing to play.
+    // Taken back (or the turn moved on) before the timer ran out: nothing to play.
     if (!actor || !this.isBotPlayed(seat) || this.state.turnSeat !== seat || !this.game) return;
-    const cell = this.botStrategy(botViewOf(this.game, seat), botRngFor(this.game, seat));
-    const result = await this.messages.place(actor, cell);
-    if (result.ok || !this.game) return;
-    log.error("bot.fallback", this.logCtx(actor, { cmd: "place", code: result.code }));
-    const empty = this.game.board.indexOf(0);
-    if (empty >= 0) await this.messages.place(actor, cellAt(empty));
+    const { position, seed } = this.game;
+    const move = simpleBotMove(position, seat, botRng(seed, position, seat));
+    const fields = this.logCtx(actor, { seat, reason, runner: this.state.botRunnerSeat });
+    if (reason === "runnerSilent") log.warn("bot.fallback", fields);
+    else log.info("bot.fallback", fields);
+    // The engine never hands the turn to a colour that cannot move.
+    if (move) await this.messages.place(actor, move);
   }
 
   /**
@@ -597,7 +663,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     const { data } = parsed;
     this.pool = data.pool ?? "";
     await this.setMetadata({ host: "", open: true, pool: data.pool ?? "", seated: 0, watchable: false });
-    this.state.cells.push(...Array.from({ length: CELL_COUNT }, () => 0));
+    this.state.cells.push(...Array.from({ length: CLASSIC.size * CLASSIC.size }, () => 0));
     // A rematch keeps the finished game's bots in their seats.
     for (const seat of data.botSeats ?? []) this.seatBot(seat);
   }
@@ -678,6 +744,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     // Already removed (kicked), or the room is closing: nothing to hold; onLeave follows.
     if (!player || this.closing) return;
     player.connected = false;
+    this.syncRunner();
     this.holds.set(client.sessionId, this.holdSeat(client, code, this.disconnectLimitSeconds));
     if (this.running()) this.startAutoplay(client.sessionId, "drop");
   }
@@ -689,6 +756,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     const player = this.state.players.get(client.sessionId);
     if (player) {
       player.connected = true;
+      this.syncRunner();
       this.stopAutoplay(client.sessionId, "reconnect");
     }
   }

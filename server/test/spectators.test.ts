@@ -18,7 +18,7 @@ interface DecodedState {
   spectators: number;
   botSpeed: number;
   phase: string;
-  winnerSeat: number;
+  winners: number[];
 }
 const seen = (client: TestClient) => client.state as DecodedState;
 const listing = async (roomId: string) => (await matchMaker.query({ roomId }))[0];
@@ -107,7 +107,7 @@ describe("spectators", () => {
     it("Spectator tries to act: NOT_SEATED for every command, nothing changes", async () => {
       const { room } = await startedGame(colyseus, 2);
       const spectator = await watch(room.roomId);
-      expect(await spectator.request("place", { row: 0, col: 0 })).toEqual({ ok: false, code: "NOT_SEATED" });
+      expect(await spectator.request("place", { piece: 0, orientation: 0, row: 0, col: 0 })).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(await spectator.request("kick", { seat: 1 })).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(await spectator.request("rematch", {})).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(room.state.phase).toBe("play");
@@ -145,8 +145,8 @@ describe("spectators", () => {
     it("Last spectator leaves a bot-only game: it ends without a winner", async () => {
       const { room, spectator } = await botOnlyGame(2);
       await spectator.leave();
-      await vi.waitFor(() => expect(logs.byEvt("game.finished")).toEqual([expect.objectContaining({ winner: 0, reason: "noPeople" })]));
-      expect(room.state.winnerSeat).toBe(0);
+      await vi.waitFor(() => expect(logs.byEvt("game.finished")).toEqual([expect.objectContaining({ winners: [], reason: "noPeople" })]));
+      expect([...room.state.winners]).toEqual([]);
     });
 
     it("Bots play on for a spectator after the only person left", async () => {

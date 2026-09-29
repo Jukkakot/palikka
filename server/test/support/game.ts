@@ -1,7 +1,7 @@
 import type { ColyseusTestServer } from "@colyseus/testing";
 import { expect } from "vitest";
 import type { CommandResult } from "@palikka/protocol";
-import { cellAt, type Cell, type GameState as Game } from "@palikka/rules";
+import { decodeMove, legalMoves, type Game, type Placement } from "@palikka/rules";
 import type appConfig from "../../src/app.config.js";
 import type { GameRoom } from "../../src/rooms/GameRoom.js";
 
@@ -22,12 +22,17 @@ type Server = ColyseusTestServer<typeof appConfig>;
 export const NAMES = ["Maija", "Pekka", "Liisa", "Olli"] as const;
 
 export interface GameOptions {
-  /** Turn time limit in ms (default: the real 60 s). */
+  /** Turn time limit in ms (default: the real 120 s). */
   turnMs?: number;
   /** Seat hold after a drop, in seconds (default: the real 300 s). */
   disconnectSeconds?: number;
   /** Extra join options for the room creation (pool, private). */
   create?: Record<string, unknown>;
+  /**
+   * How long the bot runner may take after the bot pause (default 0: the test clients never compute
+   * bot moves, so the server's fallback plays bot turns right after the pause).
+   */
+  graceMs?: number;
 }
 
 /** A new game's waiting room with `players` seated (seats 1…n, seat 1 hosting), named after `NAMES`. */
@@ -35,6 +40,7 @@ export async function waitingRoom(colyseus: Server, players: number, options: Ga
   const room = (await colyseus.createRoom("game", { nickname: NAMES[0], ...options.create })) as unknown as GameRoom;
   if (options.turnMs !== undefined) room.turnLimitMs = options.turnMs;
   if (options.disconnectSeconds !== undefined) room.disconnectLimitSeconds = options.disconnectSeconds;
+  room.botRunnerGraceMs = options.graceMs ?? 0;
   const clients: TestClient[] = [];
   for (let i = 0; i < players; i++) clients.push(await join(colyseus, room, NAMES[i]!));
   const player = (i: number) => room.state.players.get(clients[i]!.sessionId)!;
@@ -52,14 +58,15 @@ export function gameOf(room: GameRoom): Game {
   return (room as unknown as { game: Game }).game;
 }
 
-/** The first empty cell of the room's board. */
-export function freeCell(room: GameRoom): Cell {
-  return cellAt(gameOf(room).board.indexOf(0));
+/** A legal move for the colour on turn in the room's game (the first one the engine lists). */
+export function legalMove(room: GameRoom, seat = gameOf(room).position.turn): Placement {
+  const { position } = gameOf(room);
+  return decodeMove(legalMoves(position, seat)[0]!, position.config.size);
 }
 
-/** The client claims the first empty cell (a whole turn). */
+/** The client makes a legal move for the colour on turn (a whole turn). */
 export function placeFree(client: TestClient, room: GameRoom): Promise<CommandResult> {
-  return client.request("place", freeCell(room)) as Promise<CommandResult>;
+  return client.request("place", legalMove(room)) as Promise<CommandResult>;
 }
 
 /** Makes the next start give the first turn to `startSeat` instead of the host. */

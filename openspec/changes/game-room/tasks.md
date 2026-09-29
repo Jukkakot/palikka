@@ -12,10 +12,10 @@
 
 ## 3. Server room on the real rules
 
-- [ ] 3.1 Synced schema: `colours` (pieces, out, left), `winners`, `botRunnerSeat`; `Player.placed` removed
-- [ ] 3.2 `GameRoom` on the match layer: start (lowest seat first), `place`, leaving/kick/timeout via `removeSeat`, finish with winners, 120 s clock; room tests (move accepted and seen, refusal codes, stuck colour shown out, leaving, result) pass
-- [ ] 3.3 Bot runner selection, `botPlace` command with its rejection order, server fallback timers (`noRunner`, `runnerSilent`) and logs; room tests for runner changes, `botPlace` rejections and both fallbacks pass
-- [ ] 3.4 Update the remaining server tests (autoplay, spectators, rematch, lobby, turn rules) to the real moves; `npm test -w @palikka/server` passes
+- [x] 3.1 Synced schema: `colours` (pieces, out, left), `winners`, `botRunnerSeat`; `Player.placed` removed
+- [x] 3.2 `GameRoom` on the match layer: start (lowest seat first), `place`, leaving/kick/timeout via `removeSeat`, finish with winners, 120 s clock; room tests (move accepted and seen, refusal codes, stuck colour shown out, leaving, result) pass
+- [x] 3.3 Bot runner selection, `botPlace` command with its rejection order, server fallback timers (`noRunner`, `runnerSilent`) and logs; room tests for runner changes, `botPlace` rejections and both fallbacks pass
+- [x] 3.4 Update the remaining server tests (autoplay, spectators, rematch, lobby, turn rules) to the real moves; `npm test -w @palikka/server` passes
 
 ## 4. Client: engine view, bots, device games, interim control
 

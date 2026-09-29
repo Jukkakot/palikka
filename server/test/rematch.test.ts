@@ -9,7 +9,7 @@ import { forceStartSeat, join, startedGame, waitingRoom, type TestClient } from 
 
 const listing = async (roomId: string) => (await matchMaker.query({ roomId }))[0];
 /** Ends a running game as a win of `seat` (a real win needs many turns; the rematch only needs "finished"). */
-const finish = (room: GameRoom, seat: number) => (room as unknown as { finish(w: number, r: string): void }).finish(seat, "home");
+const finish = (room: GameRoom, seat: number) => (room as unknown as { finish(w: number[], r: string): void }).finish([seat], "home");
 const roomOf = (colyseus: ColyseusTestServer<typeof appConfig>, id: string) => colyseus.getRoomById(id) as unknown as GameRoom;
 
 describe("rematch", () => {
