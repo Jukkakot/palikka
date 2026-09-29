@@ -118,15 +118,29 @@ delivered by that roadmap change.
   `rematchRoomId`. No hidden information: everything a player may know is public.
 - UI-only state (the hint) never crosses the network.
 
-## Rules package — Implemented (placeholder game)
+## Rules package — Implemented
 
 `packages/rules/src/`: `board` (20×20 cells, owners), `game` (a whole game as JSON data:
 `startGame`, `applyPlace` with the server's rejection codes, `removeSeat`, `endGame`, `leader`,
 `botViewOf`, `botRngFor`), `bot` (`BotStrategy` over a `BotView`, `chooseBotCell`, `botSeed`),
 `daily` (`startDailyPuzzle(date)`: target cells seeded by the date), `turns` (next seat, kick rule,
 clock limits), `rng` (seeded `xoroshiro128plus`). Test fixtures in `@palikka/rules/testing`
-(`boardFromRows`, `boardToText`). **Planned (`rules-engine`):** pieces, orientations, corner rule,
-bitboard move generation, passing and scoring replace `board`/`game`/`bot`.
+(`boardFromRows`, `boardToText`). The placeholder is still what server and client run until
+`game-room` switches to the real engine and deletes `board`/`game`/`bot`.
+
+**Real engine — Implemented (not wired in yet):** `pieces` (the 21 pieces `I1 … Z5`, 91
+orientations generated at load, stable indexes pinned by a golden snapshot), `config`
+(`BoardConfig`, `CLASSIC` 20×20), `bitboard` (one 32-bit word per row), `position` (`Position` as
+plain JSON, a cached bitboard view per position object, `checkPlacement` with one refusal code),
+`moves` (`Placement` ↔ integer `Move` code), `movegen` (corner-based `legalMoves`,
+`hasLegalMove`), `play` (`applyMove`, `pass`, `abort`; automatic passing), `scoring` (`scores`,
+`winners`). `@palikka/rules/testing` adds `referenceMoves` (naive generator), `randomGame`,
+`placement` and `positionWith`. Property tests (fast-check) check the fast generator against the
+reference along random games.
+
+Move generation speed (`npm run bench -w @palikka/rules`, 40 seeded random 4-colour games, a full
+list for every colour still in at every position; developer desktop, 2026-09-29): **0.034 ms per
+move list, about 5.5 million moves/s** (target was under 0.5 ms).
 
 ## Client — Implemented
 

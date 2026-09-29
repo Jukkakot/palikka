@@ -31,3 +31,6 @@ export function boardToText(board: Board): string {
   }
   return lines.join("\n");
 }
+
+export { randomGame, referenceMoves } from "./reference.js";
+export { placement, positionWith } from "./engineFixtures.js";

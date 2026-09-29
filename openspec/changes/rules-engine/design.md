@@ -98,6 +98,21 @@ the developer desktop: average under 0.5 ms per position for a full move list ov
 mid-game positions; the measured number is recorded in `docs/architecture.md`. Not enforced in CI
 (timing is flaky); bots measure themselves in `tournament-elo`.
 
+### Decisions made during implementation
+
+- `applyMove`, `pass` and `abort` live in `play.ts`, not `position.ts`: `position.ts` would
+  otherwise import `movegen.ts` (automatic passing) while `movegen.ts` imports the bit view from
+  `position.ts`, an import cycle.
+- The duplicate filter is one module-level `Uint32Array` of stamps (a new stamp per call) instead
+  of a fresh `Uint8Array` per call: same result, no 67 kB allocation per move list.
+- One more refusal code, `INVALID_MOVE`, for malformed input (unknown piece or orientation index,
+  non-integer position, colour not in the game). It is checked before the spec's order; legal
+  input never gets it.
+- `winners` returns an empty list while the game runs, not the current leaders.
+- Test fixtures `placement(id, drawing, row, col)` and `positionWith(pieces)` (a board set up
+  without rule checks) are exported from `@palikka/rules/testing` for later changes.
+- Measured speed: 0.034 ms per full move list (see `docs/architecture.md`), well under the target.
+
 ## Meeting nfr.md
 
 Pure package: no logging (the room logs rule outcomes). Tests as above; bundle impact small (piece
