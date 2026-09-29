@@ -3,6 +3,8 @@
 ## Setup and run — Implemented
 
 - Requires Node 22 (`.nvmrc`) and npm 11. `npm install` at the repo root installs all workspaces.
+- Ports are the game's own (not the Colyseus/Vite defaults), so its dev servers run next to other
+  games' (e.g. Labyrinth on 2567/5173).
 - `npm run dev` starts both:
   - server on http://localhost:2577 (`/health`, `/monitor`, `/playground`)
   - client on http://localhost:5183 (also on the LAN for phones: see the Vite output)
@@ -12,7 +14,7 @@
   watching (`?dev=0vN`) and the waiting room need it.
 - PWA: the service worker is off in `npm run dev`. To try install and offline start:
   `VITE_SERVER_URL=http://localhost:2577 npm run build -w @palikka/client && npm run preview -w
-  @palikka/client` (port 4173; without the URL a production build shows the crash screen), then
+  @palikka/client` (port 5184; without the URL a production build shows the crash screen), then
   DevTools → Application. Icons: edit `client/public/favicon.svg`, run
   `npm run icons -w @palikka/client`, commit the PNGs.
 - Logs: the terminal shows pretty lines; `logs/dev.log` has the same entries as JSON (server and
@@ -51,10 +53,10 @@ npm run e2e   # smoke test, when UI or connection code changed
 
 | Level | Tools | Status |
 |---|---|---|
-| Rules | Vitest; fast-check properties over random boards (`boardArb` in `board.test.ts`); test names follow spec scenarios (`board › Rotation › Rotating a corner`); the bot simulation plays 5 games per player count, 20 with `BOT_SIM=full npm test -w @palikka/rules` (run it when a bot strategy changes); the bot tournament (sampling vs look-ahead vs greedy, win rates, ms/turn) runs with `BOT_TOURNAMENT=300 npx vitest run botTournament --silent=false` in `packages/rules` (about 30 min; fewer games for a quick look) | Implemented |
-| Server | Vitest + @colyseus/testing (real rooms, SDK clients in-process); `captureLogs()` asserts log lines; `test/support/game.ts`: `waitingRoom(n)`, `startedGame(n, { startSeat })` (nicknamed players, host starts, start seat forced via the `chooseStartSeat` hook), `arrange(room, seat, { pawn, found, target })` sets up a position in the room's game engine and the synced state | Implemented |
+| Rules | Vitest; fast-check property tests for invariants; test names follow spec scenarios (`game › Placing › …`). **Planned (`tournament-elo`):** a bot tournament driver with Elo, heavy runs in GitHub Actions | Implemented |
+| Server | Vitest + @colyseus/testing (real rooms, SDK clients in-process); `captureLogs()` asserts log lines; `test/support/game.ts`: `waitingRoom(n)`, `startedGame(n, { startSeat })` (nicknamed players, host starts, start seat forced via the `chooseStartSeat` hook), `placeFree(client, room)` plays a turn | Implemented |
 | Client | Vitest; jsdom + Testing Library for components (`// @vitest-environment jsdom`) | Implemented |
-| E2E | Playwright, Galaxy S24 profile — **one smoke test** for now (two browser contexts: nickname + Play, the waiting room, the host starts, both see the whole board, fits 360×780) | Implemented |
+| E2E | Playwright, Galaxy S24 profile — **one smoke test** for now (two browser contexts: nickname + Play, the waiting room, the host starts, both see the whole board, fits 360×780, the host's square reaches the guest) | Implemented |
 
 ### E2E smoke
 
@@ -67,7 +69,7 @@ npm run e2e   # smoke test, when UI or connection code changed
 - Each test plays in its own quick-play pool (`?pool=…`), so runs never share games.
 - On failure: screenshot and trace in `e2e/test-results/` (`npx playwright show-trace …`); CI
   uploads them as the `playwright-report` artifact. Check `logs/dev.log` for the `client.error`
-  line — that is how the empty-state bug was found.
+  line.
 - Scope: smoke only. Feature behaviour belongs in unit and room tests.
 - **Production smoke:** `npm run e2e:prod -w @palikka/e2e` runs `e2e/tests/prod.spec.ts` against
   the live site (`PROD_URL`, default the Pages address) with `playwright.prod.config.ts`; CI runs
@@ -83,7 +85,8 @@ npm run e2e   # smoke test, when UI or connection code changed
 - **Lint hook** (for Claude): `.claude/hooks/lint-edited.mjs` runs oxlint on every `.ts`/`.tsx`
   file Claude edits and hands problems back at once.
 - **Playwright MCP** (for Claude): `playwright-mobile` = Galaxy S24 (default for UI checks),
-  `playwright-ios` = iPhone 15, `playwright` = desktop; all headless and isolated.
+  `playwright-ios` = iPhone 15, `playwright` = desktop; all headless and isolated. UI checks cover
+  both the light and the dark theme (Kuura) when colours or surfaces change.
 - **Render MCP** (for Claude): deploys, service details, production logs. See
   [operations.md](operations.md).
 

@@ -1,32 +1,39 @@
 schema: spec-driven
 
 context: |
-  Palikka: web multiplayer clone of Ravensburger "Das verrückte Palikka"
-  (fi: Palikka), original rules, humans and bots, mobile first.
+  Palikka: browser game in the spirit of the classic corner-touching polyomino
+  territory game (own name and look, theme "Kuura"; never the trademark's name,
+  logos or look), 1-4 players, humans and strong bots, mobile first. Main focus:
+  strong bots, computed in the browser (Web Worker); the server only validates.
 
   Monorepo (npm workspaces, TypeScript):
   - packages/rules: pure deterministic game logic (seeded randomness), shared
     by server and client. No React, Colyseus or I/O.
+  - packages/protocol: shared contract (codes, schemas, log events).
   - server: Colyseus on Node 22. Authoritative: invalid commands are rejected
     with an error code and never change state. In-memory rooms only.
   - client: React + Vite, mobile portrait first. Server state is the truth.
+  - Planned: a game-independent bot library workspace package (search, MCTS,
+    time budgets), used by this game through an adapter.
 
   Always: English identifiers and names; UI text Finnish first + English via
-  i18next; prefer established libraries over hand-written plumbing; minimalist
-  UI; tap targets ≥44 px; budget 0 €.
+  i18next; playful theme voice in texts and names; light and dark theme;
+  prefer established libraries over hand-written plumbing; minimalist UI;
+  tap targets >=44 px where the layout allows; budget 0 EUR.
 
-  Knowledge base — start planning here, then verify against the code:
+  Knowledge base - start planning here, then verify against the code:
   - docs/README.md: wiki front page and map of all project knowledge
   - docs/architecture.md: how it is built (workspaces, server, client, state
-    sync, board geometry, commands, bots; sections marked Implemented/Planned)
-    → any design touching structure, game state or commands
+    sync, commands, bots; sections marked Implemented/Planned)
+    -> any design touching structure, game state or commands
   - docs/operations.md: environments, deploy, config, logs, bug runbook
   - docs/development.md: run, test, debug, conventions
-  - openspec/context/product.md: game rules, modes, lobby, UX decisions
-    → proposals and specs for any gameplay, lobby or UI change
+  - docs/template.md: generic files that may move to a shared template
+  - openspec/context/product.md: game rules, modes, lobby, theme, UX decisions
+    -> proposals and specs for any gameplay, lobby or UI change
   - openspec/context/nfr.md: logging/audit, testing, abuse protection,
-    versioning, performance, error UX, legal, workflow → every design and task list
-  - openspec/context/roadmap.md: planned change order → when choosing or
+    versioning, performance, error UX, legal, workflow -> every design and task list
+  - openspec/context/roadmap.md: planned change order -> when choosing or
     scoping the next change
   An existing spec in openspec/specs wins over docs/ and context/ files.
 

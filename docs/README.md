@@ -1,10 +1,11 @@
 # Palikka wiki
 
-A web multiplayer version of the shifting-palikka board game: original rules, humans and bots,
-mobile first (Android primary). Everything you need to know about the solution starts here.
+Palikka is a browser game in the spirit of the classic corner-touching polyomino territory game
+(own name, own look: theme "Kuura"), for 1–4 players against people and strong bots, mobile first
+(Android primary). Everything you need to know about the solution starts here.
 
 - Play: https://jukkakot.github.io/palikka/
-- Server health: https://palikka-server.onrender.com/health
+- Server health: `<VITE_SERVER_URL>/health` (see [operations.md](operations.md))
 
 ## Where to find what
 
@@ -17,6 +18,7 @@ mobile first (Android primary). Everything you need to know about the solution s
 | What has been decided but not built yet? | [`openspec/context/`](../openspec/context/): [product](../openspec/context/product.md), [nfr](../openspec/context/nfr.md), [roadmap](../openspec/context/roadmap.md) |
 | What is being worked on now? | [`openspec/changes/`](../openspec/changes/) (active changes) |
 | Why was something done this way? | [`openspec/changes/archive/`](../openspec/changes/archive/): proposal and design of every finished change |
+| Which files are generic and could move to a shared template repo? | [template.md](template.md) |
 
 ## Sources of truth
 

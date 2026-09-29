@@ -5,9 +5,9 @@
 | | URL | Hosted on | Deploys when |
 |---|---|---|---|
 | Client | https://jukkakot.github.io/palikka/ | GitHub Pages | push to `main` touching `client/`, `packages/rules/`, lockfile ("Deploy client" workflow) |
-| Server | https://palikka-server.onrender.com | Render free web service `palikka-server` (Frankfurt) | green CI on `main` when the server code (`server/`, `packages/rules/`, `packages/protocol/`, lockfile, `render.yaml`) differs from the live server's commit: the `deploy-server` job in CI calls Render's deploy hook (secret `RENDER_DEPLOY_HOOK_URL`); Render auto-deploy is off |
+| Server | the repository variable `VITE_SERVER_URL` (expected https://palikka-server.onrender.com) | Render free web service `palikka-server` (Frankfurt) | green CI on `main` when the server code (`server/`, `packages/rules/`, `packages/protocol/`, lockfile, `render.yaml`) differs from the live server's commit: the `deploy-server` job in CI calls Render's deploy hook (secret `RENDER_DEPLOY_HOOK_URL`); Render auto-deploy is off |
 
-- Render ids: service `srv-darps5navr4c73fmplh0`, workspace `tea-d7vbs7l7vvec73dbddt0`.
+- Render ids: service and workspace ids are recorded here once the service exists (see One-time setup).
 - **Free tier:** the server sleeps after ~15 min without traffic; the next request wakes it in
   about a minute. Sleeping, restarting or deploying loses all games in memory (accepted, budget
   0 €).
@@ -29,28 +29,38 @@ stale client when checking a deploy, compare the footer's "Client …" build tim
 
 ### After a deploy (manual checks)
 
-1. Open https://jukkakot.github.io/palikka/ on the phone (or Playwright MCP `playwright-mobile`).
-   If the server was asleep, Pelaa is greyed out with "Herätetään palvelinta…" (up to about a
-   minute); then Pelaa becomes available. The footer shows "Client …" and "Server …" build times:
-   they must match the Pages and Render deploys you just made (newer than the push). Enter a
-   nickname and tap Pelaa → the waiting room, you are the host.
-2. Open the same page in a second tab or device: the game shows in "Avoimet pelit" as
-   "<name> · 1/4". Tap it → both tabs list two players; the host taps "Aloita peli" → both see the
-   board, same game id.
-3. Tap the game id → the share sheet (or "Linkki kopioitu") with a `?game=<id>` link.
-4. On the current player's tab tap an edge arrow, then "Työnnä" → the line slides in both tabs.
-5. In Render logs (`list_logs`, text = the game id) find `game.setup`; its seed reproduces the
-   starting board: `boardToText(setupBoard(seed))`. `game.started` has the `dealSeed`, seats and
-   start seat. Each `cmd.accepted` `shift` line then replays one shift with `shiftBoard`.
-6. **Leave through the Render proxy** — checked 2026-09-27: a leave arrives as `player.left`
-   `code: 4000` (consented) and the player is removed at once; the production smoke repeats the
-   leave on every deploy.
+1. Open https://jukkakot.github.io/palikka/ on the phone. If the server was asleep, Pelaa is
+   greyed out with "Herätetään palvelinta talviunilta…" (up to about a minute). The footer's
+   "Client …" and "Server …" build times must be newer than the push. Enter a nickname and tap
+   Pelaa → the waiting room, you are the host.
+2. Open the same page in a second tab or device: the game shows in "Avoimet pelit". Tap it → both
+   tabs list two players; the host taps "Aloita peli" → both see the board, same game id.
+3. The player on turn taps a square → it turns their colour in both tabs.
+4. In Axiom (or Render logs) find the game id: `game.started`, `cmd.accepted place` lines.
+
+## One-time setup
+
+Done once per new game repository; all other deploys are automatic. Commands assume the GitHub CLI
+(`gh`) is logged in as the repo owner.
+
+1. **GitHub repo and Pages** (public, so Actions minutes are free):
+   `gh repo create Jukkakot/palikka --public --source . --push`, then
+   `gh api -X POST repos/Jukkakot/palikka/pages -f build_type=workflow`.
+2. **Render service:** dashboard → New → Blueprint → pick the repo (reads `render.yaml`, free plan,
+   Frankfurt). Then Settings → Deploy Hook → copy it and
+   `gh secret set RENDER_DEPLOY_HOOK_URL --repo Jukkakot/palikka` (paste). Note the service URL and
+   `gh variable set VITE_SERVER_URL --repo Jukkakot/palikka --body https://<service>.onrender.com`.
+3. **Axiom:** dataset `palikka` (EU) and an ingest-only token for it, through the API with
+   `tools/axiom/axiom.ps1` (the user's `AXIOM_PAT`); the token goes to the Render service's
+   `AXIOM_TOKEN` env var (dashboard or Render MCP). Then build the dashboard with
+   `tools/axiom/dashboard.py` and record its uid under Logs.
+4. Record the Render service and workspace ids above, then re-run CI (`gh workflow run CI`).
 
 ## Configuration — Implemented
 
 | Name | Where | Purpose |
 |---|---|---|
-| `VITE_SERVER_URL` | GitHub repository variable → client build | Server base URL |
+| `VITE_SERVER_URL` | GitHub repository variable → client build, CI health checks | Server base URL |
 | `VITE_BASE` | set in deploy workflow | `/palikka/` path on Pages |
 | `ALLOWED_ORIGINS` | `render.yaml` env | CORS allow-list (comma-separated) |
 | `NODE_ENV=production` | `render.yaml` env | Disables `/monitor` and `/playground` |
@@ -77,28 +87,23 @@ lines, never slows a game.
 ['palikka'] | where evt == "cmd.rejected" | summarize count() by code, cmd     // rejections by code
 ['palikka'] | where evt == "bot.fallback" | project _time, room, seat, cmd, code
 ['palikka'] | where evt == "game.finished" | summarize count() by reason, bin(_time, 1d)
-['palikka'] | where evt == "game.started" | summarize count() by quick = tostring(quick), bin(_time, 1d)
 ```
 
-**Dashboard for people:** Axiom → Dashboards → **"Palikka – lokit"** (uid
-`944f69f1-0eb1-46b1-b88c-5c0635b8aed6`). Filter bar: source (server/client), type (audit = commands,
-game flow, connections, HTTP, errors and warnings), game id, people/bots, version. Panels: games
+**Dashboard for people:** Axiom → Dashboards → **"Palikka – lokit"**, built by
+`tools/axiom/dashboard.py` and uploaded with `tools/axiom/axiom.ps1` (see the script header), not
+by hand in the UI. Its uid is recorded here once created (One-time setup, step 3). Panels: games
 started, errors, rejected commands, bot fallbacks, lines by level, finished games by reason, the
-log table (newest first) and rejections by code. Built by `tools/axiom/dashboard.py`; change it there
-and upload with `tools/axiom/axiom.ps1` (see the script header), not by hand in the UI.
+log table and rejections by code.
 
-**Setup (done 2026-09-27):** dataset `palikka` (EU region, plan retention 30 days), ingest-only
-token "palikka ingest (Render server)" in Render's `AXIOM_TOKEN`. Claude administers Axiom
-(datasets, tokens, dashboards, monitors) through its REST API with the user's personal token
-`AXIOM_PAT` + `AXIOM_ORG_ID` from the Windows user environment (`tools/axiom/axiom.ps1` reads them
-there, as a running VS Code may not have inherited them). No error alerts or
-emails (the user's choice for a hobby project): errors are found on the dashboard.
+**Access:** Claude administers Axiom (datasets, tokens, dashboards) through its REST API with the
+user's personal token `AXIOM_PAT` + `AXIOM_ORG_ID` from the Windows user environment. No error
+alerts or emails: errors are found on the dashboard.
 
 **Format:** one JSON object per line, keys in this order:
 
 ```
 {"level":"warn","evt":"cmd.rejected","room":"brave-otters-sing","player":"r39lF4Y3r",
- "cmd":"shift","code":"REVERSE_PUSH_FORBIDDEN", …,"src":"server","ver":"a1b2c3d","msg":"…"}
+ "cmd":"place","code":"CELL_TAKEN", …,"src":"server","ver":"a1b2c3d","msg":"…"}
 ```
 
 - `level` debug/info/warn/error; production writes `info` and up (`LOG_LEVEL` overrides).
@@ -121,18 +126,16 @@ emails (the user's choice for a hobby project): errors are found on the dashboar
 | `room.refused` | a join or creation refused, `{ reason }`: `nickname` (invalid), `options` (another invalid or unknown join option, e.g. `bots` or `private` from an old app), `cap` (`open` games at the limit) or `notWatchable` (a spectator for a game not running) |
 | `player.joined` / `left` / `dropped` / `reconnected` | connection changes (a dropped seat is held 5 min); `joined` carries the nickname `name` |
 | `player.removed` | a player is taken out of a game, `{ seat, reason, by? }` (`left`, `kicked` by seat `by`, `timeout` after 5 min disconnected) |
-| `game.setup` | a new game's seed |
-| `game.started` | the game started, `{ dealSeed, seats, startSeat }` (reproduces the deal and who began; seed never synced) |
-| `treasure.collected` | a player collects their target, `{ seat, treasure, found, cards }` |
-| `game.finished` | the game ended, `{ winner, reason }` (seat; `home` or `lastPlayer`; `noPeople` with winner 0 when only bots were left and nobody watched) |
+| `game.started` | the game started, `{ dealSeed, seats, startSeat }` (the seed reproduces who began and the bots' choices; never synced) |
+| `game.finished` | the game ended, `{ winner, reason }` (seat; `complete` when the rules ended it, `lastPlayer`; `noPeople` with winner 0 when only bots were left and nobody watched) |
 | `game.rematch` | a finished game created its rematch game, `{ rematchRoom }` (follow the group into that room) |
 | `spectator.joined` / `spectator.left` | a spectator came or went (left, or the 5-min drop hold ran out), `{ spectators }` = count after; their connection lines are `player.joined` with `spectator: true` etc. |
 | `bot.added` / `bot.removed` | the host seated or removed a bot in the waiting room, `{ seat, name }` |
-| `bot.fallback` | error: a bot's chosen command was rejected, `{ cmd, code }`; it made an allowed shift and stayed instead (a bug in the bot strategy) |
+| `bot.fallback` | error: a bot's chosen command was rejected, `{ cmd, code }`; it played an always-allowed move instead (a bug in the bot strategy) |
 | `autoplay.changed` | the bot took over a person's seat or gave it back, `{ seat, on, reason }` (`player` handed over or took back, `drop` connection lost, `reconnect` came back); its commands then carry `bot: true` with the person's own `player` |
 | `turn.changed` | every turn change, `{ from, to }` seats (0 = nobody) |
 | `turn.expired` | the current turn's 60 s ran out, `{ seat }`; from now on the others may kick |
-| `phase.changed` | the step within a turn changes, `{ from, to, turnSeat }` (`shift` → `move`, `move` → `finished`) |
+| `phase.changed` | the phase changes, `{ from, to, turnSeat }` (`waiting` → `play` → `finished`) |
 | `cmd.accepted` / `cmd.rejected` / `cmd.failed` | every room command, exactly once, with code and state facts; a bot's commands carry `player: "bot:<seat>"` and `bot: true` |
 | `framework.log` | Colyseus's own messages |
 | `server.started` / `server.shutdown`, `process.*` | process lifecycle and fatal errors |

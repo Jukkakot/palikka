@@ -1,71 +1,83 @@
-# Product decisions
+# Product
 
-Agreed before any capability was specified. Once a capability has a spec under
-`openspec/specs/`, that spec wins over this file.
+Decisions about what the game is and how it feels, not yet written as specs. Once a spec exists
+in `openspec/specs/`, the spec wins.
 
-## Rules
-- Original Ravensburger rules and limits, no house rules: 2–4 players; all 24
-  treasure cards dealt evenly; only your current target card is secret; after
-  collecting all your treasures, return to your own start corner to win; the
-  game ends when the first player wins.
-- Tile set: 16 fixed tiles; 34 movable tiles = 12 straight, 16 corner (6 with
-  treasure), 6 T-junction (all with treasure); one movable tile is the spare.
-- Starting player is random; turn order is clockwise by start corner.
+## The game (rules in our own words)
 
-## Modes and players
-- Online multiplayer, humans + bots mixed, solo vs bots. No hot-seat.
-- Daily puzzle: a solo game on the device, the same for everyone on a date; reach one treasure in
-  as few turns as possible; the puzzle shows the best possible (par, usually 2). Undo and retries
-  are allowed, the day keeps the best solve; the hint is on. No sharing of the result.
-- Identity = nickname only, no accounts. Session is per browser tab
-  (sessionStorage), so two tabs = two players; reload rejoins the same seat.
-  Nickname is remembered (localStorage) only as a prefill.
-- One bot difficulty level. Bots act with a short delay so humans can follow.
+A territory game with polyomino pieces on a square grid, in the spirit of the classic
+corner-touching game. Never use the original's trademarked name, logos or look (nfr → Legal).
 
-## Lobby and game lifecycle
-- Public lobby: list of open games and quick play; every server game is public. Friends are
-  invited by the waiting room's link (no private games, no code entry field).
-- Games with bots from the start screen run on the device: "Pelaan itse" on = 1v1–1v3, off = a
-  game of 2–4 bots to watch (speed 1×/2×/4×).
-- Waiting room: creator adds/removes bots in empty seats and presses Start
-  (min 2 players). If the creator leaves the waiting room, the room closes.
-- Turn limit 60 s. Nothing automatic happens; after it expires the other human
-  players may kick the slow player.
-- Leaving or being kicked removes the player with pawn and treasures. If only
-  one human remains, they win; if the only human in a bot game leaves, the game
-  ends.
-- A dropped connection is not leaving: the player shows as disconnected and may
-  return; the 60 s turn limit and kick still apply; after 5 min disconnected the
-  player is removed automatically.
-- Spectators can join and see everything, including secret targets.
-- Rematch: "Play again" moves everyone who wants into a new waiting room with
-  the same settings and bots.
+- **Board:** 20×20 for 2–4 players. Variants later: Duo 14×14 (2 players), 2 players with two
+  colours each on 20×20, 3 players (roadmap `variants`).
+- **Pieces:** each colour has the 21 free polyominoes of size 1–5 (1 monomino, 1 domino,
+  2 trominoes, 5 tetrominoes, 12 pentominoes; 89 squares). A piece may be rotated and mirrored
+  (up to 8 orientations).
+- **Colours and order:** seat 1–4 = Järvi (blue), Lakka (yellow), Puolukka (red), Kuusi (green),
+  playing in that order. Each colour starts from its own board corner (seat 1 top-left, then
+  clockwise).
+- **First piece** of a colour covers its start corner square.
+- **Every later piece** must touch at least one piece of the same colour **corner to corner**, and
+  must never touch a piece of the same colour **edge to edge**. Touching other colours is free.
+  Pieces never overlap and stay inside the board.
+- **Passing:** a colour with no legal placement passes, automatically; once it cannot move it
+  never can again (the board only fills), so it is out for the rest of the game. A player may not
+  pass voluntarily while a legal move exists (decision to confirm in the rules spec).
+- **End:** when no colour can place a piece.
+- **Scoring:** each unplaced square is −1; placing every piece gives +15, and +5 more when the last
+  piece placed was the monomino. Highest score wins; equal scores share the win.
 
-## UI and UX
-- Modern, minimalist, no clutter: no event log, no chat, no emoji reactions.
-  The last push is shown on the board itself (animation + blocked reverse arrow).
-- Mobile portrait is the design target; landscape must not break; desktop works.
-  Android (Chrome) is the primary platform, iOS Safari must also work. Reference
-  device: Samsung Galaxy S24 (360×780 CSS px, DPR 3) — the default for design
-  checks and mobile tests.
-  A dedicated landscape layout only if the board gets too small.
-- Shift: tap an edge arrow → ghost preview → tap again / Confirm. Move: reachable
-  tiles are highlighted, tapping one moves immediately; "Stay" is a button.
-- The player's own target tile is always highlighted on the board.
-- During a game the room's readable id (e.g. `brave-otters-sing`) is shown small in
-  the top area. Tapping it copies "game id · local date and time · app version"
-  to the clipboard for bug reports. Games on the device show "Päivän pulma" / "Oma peli"
-  there instead of their long `local-…` id (the copied line keeps the full id).
-- Treasures and all UI icons come from Tabler Icons (line style). Board tiles use
-  the corridor style: plain tile, corridor drawn in the accent colour, treasure
-  icon on the corridor. Comparison page: https://claude.ai/artifact/UffuCoPpjAtHTYcBJJgCjz
-- Styling: CSS Modules on shared design tokens; reusable components for
-  everything shown in more than one place (buttons, badges, tiles, pawns).
-- Players are distinguished by colour-blind-safe colour + pawn shape.
-- Per-user settings (browser-local, never affect rules): confirm shift (default
-  on), confirm move (default off), language, theme (system/light/dark), sounds,
-  vibration. New comfort toggles of the same kind go here.
-- Subtle sounds + vibration (Android). Turn notification when backgrounded: tab
-  title + sound. No push notifications.
-- Accessibility: basic level — WCAG AA contrast, ≥44 px targets, never colour
-  alone, prefers-reduced-motion respected. Full screen-reader play is out of scope.
+## Modes
+
+- **Against bots on the device:** 1 person + 1–3 bots, runs fully in the browser (no server), also
+  offline. Watching bots only (2–4) as well.
+- **Online:** a waiting room with an invite link; empty seats get bots. The host's browser computes
+  the bots' moves (Web Worker); the server validates them like any move. Bot strength therefore
+  depends on the host's device (accepted).
+- **Spectators:** running online games can be watched.
+- **Daily puzzle ("Päivän pulma"):** a given shape to fill with pieces; the same for everyone on a
+  day; score and personal best on the device (roadmap `daily-puzzle`).
+
+## Start screen and lobby
+
+- Balanced: two equally visible ways in, "Pelaa botteja vastaan" and "Luo peli kavereille". The
+  lobby must stay simple and get people playing quickly; the open-games list is secondary and may
+  be cut if it does not earn its place (to decide in `basic-ui`).
+- Nickname prefilled with a random themed name; the daily puzzle has its own entry.
+
+## Bots
+
+- The main focus of the project: as strong as possible.
+- The player is offered **one** bot, the strongest the device manages within the time budget. The
+  bot interface still takes a budget (time or search depth) so levels or other choices can come
+  later without rework.
+- The bot "brains" are a game-independent library (own workspace package, no Palikka names): search
+  (paranoid / best-reply), MCTS, time budget, worker harness; Palikka plugs in through an adapter.
+- Bot strength is measured, not guessed: tournaments and Elo (roadmap `tournament-elo`).
+- Bot names (theme): Kettu, Ilves, Pöllö, Näätä.
+
+## Theme "Kuura" (frost)
+
+- Look: the simplest option on purpose. Flat squares with a small gap and slightly rounded
+  corners, no shadows or textures. Light = a frosty morning (pale blue-grey ground, white cells),
+  dark = the polar night (near-black ground, slate cells). Seat colours as above, brighter in dark.
+- Pieces are always squares; nothing round.
+- Voice: playful and wintery throughout (the user wants it "reilusti"): the server "wakes from
+  hibernation", a leaver "wandered off into the forest", the winner "has the winter". Keep texts
+  clear first, playful second.
+- Accessibility is basic only: contrast and tap targets; colour alone may identify a player.
+
+## Mobile ideas (roadmap `mobile-ui`, not before)
+
+- Choose from legal moves: highlighted free corners → tap one → only the pieces that fit there →
+  flip through only their legal orientations → confirm.
+- Drag with the piece shown above the finger, snapping to the nearest legal spot. Automatic zoom to
+  the own corners; the own start corner always at the bottom corner of the screen.
+- "Vihje" shows the bot's three best moves. TV mode: a host screen with phones as controllers.
+  Duo as the default on a phone.
+
+## Open questions (for the spec phase)
+
+- Turn time limit for the real game (60 s like now, or longer; pieces take thought).
+- Voluntary pass allowed or not; how a stuck colour is shown.
+- Undo in games against bots on the device.

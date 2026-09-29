@@ -15,14 +15,17 @@ Apply to every change. Designs and task lists must show how they are met.
   again"), and closes when the last human leaves or after 10 minutes.
 
 ## Performance (mid-range phone a few years old)
-- Usable within 3 s on 4G; JS bundle budget 200 kB gzip, checked in CI.
-- Tile slide and pawn move at 60 fps; animate only transform and opacity.
+- Usable within 3 s on 4G; JS bundle budget 200 kB gzip, checked in CI (a bot
+  Web Worker bundle gets its own budget when it arrives).
+- Piece moves and previews at 60 fps; animate only transform and opacity.
 - Every tap gives immediate feedback (pending state); target server response
   under 300 ms.
+- Bots never block the UI thread: search runs in a Web Worker under a time
+  budget. Move generation must be fast enough for search (bitboards, measured
+  in the rules benchmarks once they exist).
 
 ## Error UX
-- Rejected command: short localized message ("You can't push back from the
-  same spot").
+- Rejected command: short localized message ("Someone got there first").
 - Connection lost: banner "Reconnecting…". Crash: "Something went wrong –
   reload" screen.
 - Technical details go to the logs only, never to the UI.
@@ -64,12 +67,16 @@ Apply to every change. Designs and task lists must show how they are met.
 - Client: unit tests for logic (session hooks, view model, helpers). Screens get only a few
   render tests for key interactions; layout and visuals are checked with the Playwright MCP UI
   check, not with a render test per spec scenario.
-- E2E: for now one Playwright smoke test (Galaxy S24 profile): the app starts and Play
-  shows the board. Feature behaviour is covered by unit tests and server room tests,
+- E2E: for now one Playwright smoke test (Galaxy S24 profile): two players meet, the
+  host starts, and a move syncs. Feature behaviour is covered by unit tests and server room tests,
   not by per-feature E2E UI tests.
-- Further testing practices (bot simulations, a11y checks, coverage limits,
-  visual regression) are decided when there is something to test; visual
-  regression is out for now.
+- Bot strength is a measured requirement: a new bot version must beat the previous one by a
+  stated margin in a tournament (roadmap `tournament-elo`); heavy tournaments run in GitHub
+  Actions, not in the unit test run.
+- Accessibility is basic only (the user's choice): contrast, tap targets, reduced motion; colour
+  alone may carry the player identity.
+- Further testing practices (a11y checks, coverage limits, visual regression) are decided when
+  there is something to test; visual regression is out for now.
 
 ## Abuse protection
 - Nickname 2–16 characters, trimmed, no control characters or whitespace-only.
@@ -81,13 +88,15 @@ Apply to every change. Designs and task lists must show how they are met.
   shows "New version available, reload" instead of playing on a broken client.
 
 ## Legal and privacy
-- Never use Ravensburger names, logos or artwork in the UI or assets; own name
-  ("Palikka"/"Palikka") and own icons only.
+- The original is a Mattel trademark: never use its name, logos, artwork, box
+  look or its signature colour scheme in the UI, assets, texts or repo. Own name
+  ("Palikka"), own theme ("Kuura") and own icons only. Game rules as such are
+  not protected; describe them in our own words.
 - No license: all rights reserved.
 - No analytics, no cookies, no consent banner.
 
 ## Development workflow
-- Claude commits locally; the user pushes and deploys manually (early phase). CI guards
+- Claude commits and pushes to `main` itself (standing permission for this repo). CI guards
   main and Render deploys only after green CI.
 - No code formatter; oxlint only.
 - Dependencies are updated manually (no Renovate/Dependabot).
@@ -95,4 +104,10 @@ Apply to every change. Designs and task lists must show how they are met.
 ## Browser support
 - Chrome on Android is primary (reference device Galaxy S24); iOS Safari, Firefox
   and Edge must also work. Versions back about two years. No
-  legacy polyfills.
+  legacy polyfills. Web Workers and typed arrays (incl. BigInt only if measured
+  to be fast enough) may be assumed.
+
+## Theme
+- Every UI change follows the theme "Kuura" (product.md → Theme): flat squares,
+  northern colours, playful voice. Light and dark are both designed; the device
+  setting is followed unless the player forces one.
