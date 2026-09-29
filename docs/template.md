@@ -47,6 +47,13 @@ Palikka-specific places (listed).
 | `rng.ts`, `turns.ts` | as is | seeded rng, next seat, kick rule, clock limits |
 | everything else | game-specific | |
 
+## Bots (`packages/bots`, `packages/palikka-bots`)
+
+| Path | Status | Notes |
+|---|---|---|
+| `packages/bots/` (`game-bots`) | generic (new) | game interface, budget, greedy and random players; no game names, no dependencies; meant to become a shared package for all the browser games |
+| `packages/palikka-bots/` | game-specific | the adapter pattern (`Game` over the rules, evaluation, `chooseMove`, `playGame`) is the part to copy |
+
 ## Client (`client/`)
 
 | Path | Status | Notes |

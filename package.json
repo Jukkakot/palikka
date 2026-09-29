@@ -8,6 +8,8 @@
   "workspaces": [
     "packages/rules",
     "packages/protocol",
+    "packages/bots",
+    "packages/palikka-bots",
     "server",
     "client",
     "e2e"

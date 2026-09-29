@@ -32,8 +32,8 @@ delivered by that roadmap change.
 - **Games with bots from the start screen run on the device** (Client → Local play), played or
   watched; online games, watching them and the waiting room use the server.
 - **Bots:** today the server plays bot seats of online games. **Planned (`game-room`):** the host's
-  browser computes bot moves (Web Worker) and the server only validates them; the bot "brains"
-  become a game-independent workspace package (**Planned (`bot-greedy`)**).
+  browser computes bot moves (Web Worker) and the server only validates them. The real bot
+  "brains" exist as packages but are not wired in yet ([Bots](#bots--implemented-not-wired-in-yet)).
 
 ## Workspaces — Implemented
 
@@ -41,10 +41,12 @@ delivered by that roadmap change.
 |---|---|---|
 | `packages/rules` | Game rules as pure functions on plain data. Randomness only from an injected seed. | Depend on React, Colyseus or any I/O. |
 | `packages/protocol` | What client and server agree on: command codes, payload and join-option schemas, close codes, log event catalogue. zod schemas sit in `*-schema.ts` modules; rules the client needs are plain functions, so the client bundle has no zod. | Contain game logic. |
+| `packages/bots` (`game-bots`) | Game-independent bot brains: a game interface, budgets, players (greedy now; search and MCTS later). | Know any game; carry Palikka names. |
+| `packages/palikka-bots` (`@palikka/bots`) | Palikka's adapter to `game-bots`, its evaluation and the worker entry point `chooseMove`. | Do I/O or hold state. |
 | `server` | Rooms, matchmaking, command validation (via rules), state sync, bots. Source of truth. | Trust the client. |
 | `client` | Rendering, input, games on the device, i18n, settings. | Hold authoritative state of server games. |
 
-**No build step between packages:** `rules` and `protocol` export a `source` condition pointing at
+**No build step between packages:** the `packages/*` workspaces export a `source` condition pointing at
 `src/index.ts`; Vite, Vitest and `tsx` resolve it. The server production build uses `dist/`.
 
 ## Server — Implemented
@@ -141,6 +143,21 @@ reference along random games.
 Move generation speed (`npm run bench -w @palikka/rules`, 40 seeded random 4-colour games, a full
 list for every colour still in at every position; developer desktop, 2026-09-29): **0.034 ms per
 move list, about 5.5 million moves/s** (target was under 0.5 ms).
+
+## Bots — Implemented (not wired in yet)
+
+- **`game-bots`** (`packages/bots`): a game plugs in as a `Game` (player to move, legal moves,
+  play, game over). A `Bot` answers `choose(state, budget, rng)`; `Budget` is plain JSON
+  (`timeMs` and/or `depth`); the rng is injected, so a seed fixes the choice. Players today:
+  `greedyBot(game, evaluate)` (one ply, seeded tie-breaking, stops at the time limit with the
+  best so far) and `randomBot` (baseline). Search, MCTS and the worker harness: `bot-search`.
+- **`@palikka/bots`** (`packages/palikka-bots`): `palikkaGame` over the rules engine, `evaluate`
+  (own score, free corners and exclusive reach against the opponents' average, won/lost end),
+  `greedyPlayer`, `randomPlayer`, `playGame` (whole seeded games for tests and tournaments) and the
+  worker entry point `chooseMove(position, colour, budget, seed | rng) → Placement | undefined`.
+- Strength and speed (`npm run bench -w @palikka/bots -- 50`, developer desktop, 2026-09-29):
+  greedy vs three random players wins **99 %** (198/200); **7.9 ms per move** on average, slowest
+  77 ms. A unit test keeps the ≥ 90 % bar over 12 seeded games.
 
 ## Client — Implemented
 

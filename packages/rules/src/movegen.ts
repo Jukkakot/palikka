@@ -104,3 +104,18 @@ export function hasLegalMove(position: Position, colour: number): boolean {
   forEachFit(position, colour, () => (found = true));
   return found;
 }
+
+/** Squares `colour` may not cover: occupied, or sharing an edge with its own squares. A new copy. */
+export function forbiddenSquares(position: Position, colour: number): Bits {
+  if (!position.colours.includes(colour)) return emptyBits(position.config.size);
+  return forbiddenFor(position, colour);
+}
+
+/**
+ * The colour's free corner squares: where its next piece may touch down (its start square before
+ * the first piece, while free). Empty for a colour not in the game. A new copy.
+ */
+export function freeCorners(position: Position, colour: number): Bits {
+  if (!position.colours.includes(colour)) return emptyBits(position.config.size);
+  return cornersFor(position, colour, forbiddenFor(position, colour));
+}
