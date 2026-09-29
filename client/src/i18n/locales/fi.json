@@ -30,7 +30,7 @@
   },
   "board": {
     "label": "Pelilauta",
-    "cell": "Vapaa ruutu: rivi {{row}}, sarake {{col}}"
+    "cell": "Kulmaruutu: rivi {{row}}, sarake {{col}}"
   },
   "start": {
     "play": "Pelaa",
@@ -84,7 +84,7 @@
     "copyLineNoGame": "{{date}} {{time}} · v {{ver}}"
   },
   "turn": {
-    "mine": "Sinun vuorosi – valtaa ruutu",
+    "mine": "Sinun vuorosi – napauta kulmaruutua",
     "other": "{{name}} miettii…",
     "timeUp": "Aika loppui",
     "disconnected": "{{name}} – yhteys katkennut",
@@ -93,14 +93,13 @@
     "autoplay": "Botti pelaa: {{name}}"
   },
   "place": {
-    "hint": "Napauta vapaata ruutua",
+    "hint": "Napauta merkittyä ruutua: sinne asettuu suurin mahtuva palikka",
     "wait": "Odota vuoroasi"
   },
   "errors": {
     "NOT_SEATED": "Et ole mukana tässä pelissä",
     "NOT_YOUR_TURN": "Ei ole sinun vuorosi",
     "WRONG_PHASE": "Sitä ei voi tehdä juuri nyt",
-    "CELL_TAKEN": "Joku ehti ensin – ruutu on jo varattu",
     "generic": "Siirto ei onnistunut. Yritä uudelleen.",
     "NOT_KICKABLE": "Tätä pelaajaa ei voi poistaa nyt",
     "TURN_NOT_EXPIRED": "Pelaajan aika ei ole vielä loppunut",
@@ -111,29 +110,40 @@
     "NOT_SPECTATOR": "Vain katsoja voi muuttaa nopeutta",
     "PEOPLE_PLAYING": "Nopeutta voi muuttaa vain, kun pelaavat pelkät botit",
     "SERVER_FULL": "Palvelin on täynnä – yritä hetken päästä uudelleen",
-    "AUTOPLAYING": "Botti pelaa vuoroasi – ota vuoro takaisin ensin"
+    "AUTOPLAYING": "Botti pelaa vuoroasi – ota vuoro takaisin ensin",
+    "PIECE_USED": "Tämä palikka on jo laudalla",
+    "OFF_BOARD": "Palikka ei mahdu laudalle",
+    "OVERLAP": "Joku ehti ensin – ruutu on jo varattu",
+    "EDGE_CONTACT": "Omat palikat saavat koskea toisiaan vain kulmista",
+    "NOT_ON_START": "Ensimmäisen palikan pitää peittää oma aloituskulmasi",
+    "NO_CORNER_CONTACT": "Palikan pitää koskettaa omaa palikkaa kulmasta",
+    "NOT_BOT_RUNNER": "Bottien siirrot laskee nyt toinen pelaaja",
+    "NOT_BOT_SEAT": "Tällä paikalla ei pelaa botti"
   },
   "hint": {
     "button": "Vihje",
-    "title": "Näytä ruutu, jonka botti valitsisi"
+    "title": "Näytä, mihin botti asettaisi palikan"
   },
   "progress": {
     "label": "Pelaajat ja pisteet",
     "seat": "{{name}}",
     "seatMe": "{{name}} (sinä)",
-    "score_one": "{{count}} ruutu",
-    "score_other": "{{count}} ruutua",
+    "score_one": "{{count}} piste",
+    "score_other": "{{count}} pistettä",
     "disconnected": "yhteys katkennut",
     "left": "{{name}} lähti metsään – poistui pelistä",
     "bot": "botti",
     "autoplay": "botti pelaa hänen puolestaan",
-    "autoplayMine": "botti pelaa puolestasi"
+    "autoplayMine": "botti pelaa puolestasi",
+    "out": "ei enää siirtoja"
   },
   "result": {
     "mine": "Voitit! Talvi on sinun.",
-    "other": "{{name}} valtasi eniten ja voitti",
+    "other": "{{name}} voitti – talvi on hänen",
     "rematch": "Pelaa uudelleen",
-    "home": "Alkuun"
+    "home": "Alkuun",
+    "shared": "Tasapeli: {{names}} jakavat voiton",
+    "sharedMine": "Jaettu voitto! {{names}} jakavat talven."
   },
   "kick": {
     "timeUp": "{{name}} – aika loppui",
@@ -178,27 +188,11 @@
     "newBotGame": "Uusi bottipeli"
   },
   "tips": {
-    "goal": "Jokainen saa viisi vuoroa. Eniten ruutuja vallannut voittaa.",
-    "place": "Napauta vapaata ruutua – se muuttuu sinun väriseksesi.",
+    "goal": "Aseta palikoita laudalle. Jokainen ruutu, joka jää laudan ulkopuolelle, vie pisteen.",
+    "place": "Napauta merkittyä kulmaruutua – sinne asettuu suurin palikka, joka mahtuu.",
     "close": "Sulje vinkki",
     "reset": "Näytä vinkit uudelleen",
     "resetDone": "Vinkit näytetään seuraavassa pelissä."
-  },
-  "daily": {
-    "title": "Päivän pulma",
-    "explain": "Sama pulma kaikille tänään: valtaa merkityt ruudut mahdollisimman harvalla vuorolla.",
-    "play": "Pelaa päivän pulma",
-    "continue": "Jatka päivän pulmaa",
-    "again": "Pelaa uudelleen",
-    "today_one": "Paras tuloksesi tänään: {{count}} vuoro (paras mahdollinen {{par}})",
-    "today_other": "Paras tuloksesi tänään: {{count}} vuoroa (paras mahdollinen {{par}})",
-    "turn": "Vuoro {{turn}} · paras mahdollinen {{par}}",
-    "won_one": "Ratkaisit pulman {{count}} vuorossa (paras {{par}})",
-    "won_other": "Ratkaisit pulman {{count}} vuorossa (paras {{par}})",
-    "wonPar_one": "Ratkaisit pulman {{count}} vuorossa – paras mahdollinen! ❄",
-    "wonPar_other": "Ratkaisit pulman {{count}} vuorossa – paras mahdollinen! ❄",
-    "undo": "Peru siirto",
-    "retry": "Uudelleen"
   },
   "autoplay": {
     "handOver": "Anna botin pelata",
@@ -236,16 +230,14 @@
     "title": "Näin pelaat",
     "goal": {
       "title": "Tavoite",
-      "body": "Valtaa laudalta enemmän ruutuja kuin muut. Jokainen saa viisi vuoroa, ja eniten ruutuja vallannut voittaa. (Tämä on väliaikainen harjoituspeli: oikeat palikat ja säännöt tulevat pian.)"
+      "body": "Jokaisella värillä on 21 palikkaa. Aseta niistä mahdollisimman monta laudalle: jokainen laudan ulkopuolelle jäänyt ruutu on miinuspiste, ja kaikki palikat laudalle saanut saa 15 pistettä (ja 5 lisää, jos viimeinen oli yksittäinen ruutu). Eniten pisteitä saanut voittaa."
     },
     "turn": {
       "title": "Vuoro",
-      "body": "Napauta vapaata ruutua, niin se muuttuu sinun värisiksesi ja vuoro siirtyy seuraavalle. Vihje näyttää ruudun, jonka botti valitsisi."
-    },
-    "daily": {
-      "title": "Päivän pulma",
-      "body": "Joka päivä yksi yksinpeli, sama kaikille: valtaa merkityt ruudut mahdollisimman harvalla vuorolla. Näet parhaan mahdollisen tuloksen, eikä aikarajaa ole.",
-      "more": "Voit perua siirtoja ja yrittää uudelleen. Päivän tulokseksi jää paras yrityksesi."
+      "body": "Ensimmäinen palikka peittää oman aloituskulmasi. Sen jälkeen jokaisen palikan pitää koskettaa omaa väriäsi kulmasta, mutta ei koskaan sivusta. Muita värejä saa koskettaa vapaasti. Jos siirtoja ei enää ole, vuorosi ohitetaan. Toistaiseksi palikka asetetaan napauttamalla merkittyä kulmaruutua; Vihje näyttää, mihin botti asettaisi palikan."
     }
+  },
+  "undo": {
+    "label": "Peru siirto"
   }
 }

@@ -48,7 +48,7 @@
   white-space: nowrap;
 }
 
-/* Alone on the strip (the daily puzzle) a 16-character name fits whole. */
+/* Alone on the strip a 16-character name fits whole. */
 .strip:has(> li:only-child) .name {
   max-width: none;
 }
@@ -64,6 +64,11 @@
 
 .offline [data-seat] {
   opacity: 0.45;
+}
+
+/* The colour cannot move any more: its score is final. */
+.out .count {
+  text-decoration: line-through;
 }
 
 .offlineIcon {

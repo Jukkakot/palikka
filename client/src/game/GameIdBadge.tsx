@@ -1,7 +1,7 @@
 import { IconShare2 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { inviteUrl } from "../session/inviteLink.ts";
-import { isDailyRoomId, isLocalRoomId } from "../session/localGameStore.ts";
+import { isLocalRoomId } from "../session/localGameStore.ts";
 import { Badge } from "../ui/Badge.tsx";
 import { useCopyFeedback } from "../ui/copyFeedback.ts";
 import { browserSharer, shareOrCopy, type Sharer } from "../ui/share.ts";
@@ -28,9 +28,7 @@ export function GameIdBadge({
   const [state, setState] = useCopyFeedback();
 
   if (isLocalRoomId(roomId)) {
-    return (
-      <span className={`${styles.local} ${styles.label}`}>{isDailyRoomId(roomId) ? t("daily.title") : t("game.localLabel")}</span>
-    );
+    return <span className={`${styles.local} ${styles.label}`}>{t("game.localLabel")}</span>;
   }
 
   const onTap = async () => {

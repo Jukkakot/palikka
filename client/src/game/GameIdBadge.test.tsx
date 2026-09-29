@@ -49,12 +49,6 @@ describe("board-view › Game link badge", () => {
     expect(input.readOnly).toBe(true);
   });
 
-  it("Daily puzzle label: shows Päivän pulma and is not tappable", () => {
-    render(<GameIdBadge roomId="local-daily-mujxitgji577" />);
-    expect(screen.getByText("Päivän pulma")).toBeTruthy();
-    expect(screen.queryByRole("button")).toBeNull();
-  });
-
   it("Other game on the device: shows Oma peli", () => {
     render(<GameIdBadge roomId="local-abc123" />);
     expect(screen.getByText("Oma peli")).toBeTruthy();

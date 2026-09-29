@@ -18,7 +18,7 @@ const seats = [seatView(1, "Maija"), seatView(2, "Pekka")];
 describe("board-view › Whose turn is shown", () => {
   it("Own turn: says it is your turn and to claim a square", () => {
     render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: true }} />);
-    expect(screen.getByText("Sinun vuorosi – valtaa ruutu")).toBeTruthy();
+    expect(screen.getByText("Sinun vuorosi – napauta kulmaruutua")).toBeTruthy();
   });
 
   it("Other player's turn: names Pekka with their colour", () => {
@@ -36,8 +36,8 @@ describe("board-view › Whose turn is shown", () => {
 });
 
 describe("board-view › Rejected command message", () => {
-  it("CELL_TAKEN is explained without technical details", () => {
-    render(<Notice message={i18n.t(noticeKey("CELL_TAKEN"))} />);
+  it("OVERLAP is explained without technical details", () => {
+    render(<Notice message={i18n.t(noticeKey("OVERLAP"))} />);
     expect(screen.getByRole("status").textContent).toBe("Joku ehti ensin – ruutu on jo varattu");
   });
 
@@ -86,7 +86,7 @@ describe("board-view › Whose turn is shown › turn clock", () => {
   });
 
   it("clock skew never shows more than the limit or less than zero", () => {
-    expect(secondsLeft(1_000 + 90_000, 1_000)).toBe(60);
+    expect(secondsLeft(1_000 + 150_000, 1_000)).toBe(120);
     expect(secondsLeft(1_000, 5_000)).toBe(0);
     expect(secondsLeft(10_500, 1_000)).toBe(10);
     expect(formatSeconds(60)).toBe("1:00");

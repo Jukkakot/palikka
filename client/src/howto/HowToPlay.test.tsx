@@ -9,14 +9,13 @@ afterEach(async () => {
 });
 
 describe("how-to-play › What the rules screen explains", () => {
-  it("sections in order, the daily puzzle spelled out", async () => {
+  it("sections in order, the corner rule spelled out", async () => {
     await i18n.changeLanguage("fi");
     render(<HowToPlay onClose={vi.fn()} />);
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings).toEqual(["Tavoite", "Vuoro", "Päivän pulma"]);
-    const daily = screen.getByRole("region", { name: "Päivän pulma" }).textContent!;
-    expect(daily).toMatch(/sama kaikille/);
-    expect(daily).toMatch(/perua/);
+    expect(headings).toEqual(["Tavoite", "Vuoro"]);
+    const turn = screen.getByRole("region", { name: "Vuoro" }).textContent!;
+    expect(turn).toMatch(/kulmasta, mutta ei koskaan sivusta/);
   });
 
   it("English: title and sections follow the language at once", async () => {

@@ -5,30 +5,29 @@ import styles from "./TurnLine.module.css";
 import { TurnTimer } from "./TurnTimer.tsx";
 
 type TurnLineView = Pick<GameView, "turnSeat" | "isMyTurn" | "seats"> &
-  Partial<Pick<GameView, "finished" | "winnerSeat" | "mySeat" | "turnDeadline" | "turnExpired" | "turnDisconnected" | "turnAutoplay" | "daily" | "turn" | "par">>;
+  Partial<Pick<GameView, "finished" | "winners" | "mySeat" | "turnDeadline" | "turnExpired" | "turnDisconnected" | "turnAutoplay">>;
 
 /**
  * Whose turn it is, with the current player's colour; on your own turn, what to do. The turn's time
- * left follows at the end. Once the game has finished it shows the result instead.
+ * left follows at the end. Once the game has finished it shows the result instead: the winner, or
+ * every winner of a shared win.
  */
 export function TurnLine({ view }: { view: TurnLineView }) {
   const { t } = useTranslation();
-  const { turnSeat, isMyTurn, finished = false, winnerSeat = 0, mySeat, daily = false, turn = 0, par = 0 } = view;
+  const { turnSeat, isMyTurn, finished = false, winners = [], mySeat } = view;
   const { turnDeadline = 0, turnExpired = false, turnDisconnected = false, turnAutoplay = false } = view;
   const mineSeat = turnSeat === mySeat;
   const nameOf = (seat: number) => view.seats.find((s) => s.seat === seat)?.name ?? "";
-  if (finished && winnerSeat > 0) {
-    const iWon = winnerSeat === mySeat;
+  if (finished && winners.length > 0) {
+    const iWon = mySeat !== undefined && winners.includes(mySeat);
+    const first = winners[0]!;
+    let text: string;
+    if (winners.length > 1) text = t(iWon ? "result.sharedMine" : "result.shared", { names: winners.map(nameOf).join(", ") });
+    else text = iWon ? t("result.mine") : t("result.other", { name: nameOf(first) });
     return (
-      <p className={`${styles.line} ${styles.mine}`} data-winner-seat={winnerSeat}>
-        <SeatMark seat={winnerSeat} isMe={iWon} size={28} />
-        <span>
-          {daily
-            ? t(turn <= par ? "daily.wonPar" : "daily.won", { count: turn, par })
-            : iWon
-              ? t("result.mine")
-              : t("result.other", { name: nameOf(winnerSeat) })}
-        </span>
+      <p className={`${styles.line} ${styles.mine}`} data-winner-seat={winners.join(",")}>
+        <SeatMark seat={iWon ? mySeat : first} isMe={iWon} size={28} />
+        <span>{text}</span>
       </p>
     );
   }
@@ -39,8 +38,6 @@ export function TurnLine({ view }: { view: TurnLineView }) {
   else if (turnDisconnected) text = t("turn.disconnected", { name: nameOf(turnSeat) });
   else if (turnAutoplay) text = t("turn.autoplay", { name: nameOf(turnSeat) });
   else text = t("turn.other", { name: nameOf(turnSeat) });
-  // The puzzle is always the player's turn; its score (turns against the best possible) stays in sight instead.
-  if (daily) text = t("daily.turn", { turn, par });
   return (
     <p className={isMyTurn ? `${styles.line} ${styles.mine}` : styles.line} data-turn-seat={turnSeat}>
       <SeatMark seat={turnSeat} isMe={mineSeat} size={28} />

@@ -23,7 +23,7 @@
   --cell: #f8fafc;
   /* A cell the viewer can claim now (hover and focus) */
   --cell-open: #dbe6f3;
-  /* Daily puzzle targets and the hint's cell */
+  /* Tappable squares' dots and the hint's squares */
   --target: #1c2430;
   --hint: #f0a53a;
 

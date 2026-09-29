@@ -1,44 +1,49 @@
-import { BOARD_SIZE, cellAt, type Board as BoardCells, type Cell } from "@palikka/rules";
 import { useTranslation } from "react-i18next";
 import styles from "./Board.module.css";
 
 export interface BoardProps {
-  board: BoardCells;
-  /** Daily puzzle: cells to claim, marked while empty. */
-  targets?: readonly number[];
-  /** The hint's cell, ringed. */
-  hint?: number;
-  /** The viewer's own turn: empty cells are buttons that claim the cell. */
-  onPlace?(cell: Cell): void;
-  /** A command is on its way: the cells stay but do nothing. */
+  /** Owner colour per square (0 = empty), row-major; the board is square. */
+  board: readonly number[];
+  /** Squares ringed as the hint. */
+  hint?: ReadonlySet<number>;
+  /** The viewer's turn: the squares they can tap (interim move control). */
+  tappable?: ReadonlySet<number>;
+  onTap?(index: number): void;
+  /** A command is on its way: the squares stay but do nothing. */
   busy?: boolean;
 }
 
 /**
- * The 20×20 board in the Kuura look: flat squares on a frosty ground, a claimed cell in its seat's
- * colour. On the viewer's turn the empty cells are buttons (one tap claims one); otherwise the board
- * is a picture with a text summary for screen readers.
+ * The board in the Kuura look: flat squares on a frosty ground, a placed piece's squares in its
+ * colour. On the viewer's turn the squares where a piece of theirs fits are marked buttons (one tap
+ * places a piece there); otherwise the board is a picture.
  */
-export function Board({ board, targets = [], hint, onPlace, busy = false }: BoardProps) {
+export function Board({ board, hint, tappable, onTap, busy = false }: BoardProps) {
   const { t } = useTranslation();
-  const targetSet = new Set(targets);
+  const size = Math.round(Math.sqrt(board.length));
   return (
-    <div className={styles.board} role="grid" aria-label={t("board.label")} aria-rowcount={BOARD_SIZE} aria-colcount={BOARD_SIZE} data-board>
+    <div
+      className={styles.board}
+      style={{ gridTemplateColumns: `repeat(${size}, 1fr)`, gridTemplateRows: `repeat(${size}, 1fr)` }}
+      role="grid"
+      aria-label={t("board.label")}
+      aria-rowcount={size}
+      aria-colcount={size}
+      data-board
+    >
       {board.map((owner, i) => {
-        const { row, col } = cellAt(i);
-        const cls = [styles.cell, owner > 0 && styles.owned, targetSet.has(i) && owner === 0 && styles.target, hint === i && styles.hint]
-          .filter(Boolean)
-          .join(" ");
+        const row = Math.floor(i / size);
+        const col = i % size;
+        const cls = [styles.cell, owner > 0 && styles.owned, hint?.has(i) && styles.hint].filter(Boolean).join(" ");
         const style = owner > 0 ? { background: `var(--seat-${owner})` } : undefined;
-        if (onPlace && owner === 0) {
+        if (onTap && tappable?.has(i)) {
           return (
             <button
               key={i}
               type="button"
               className={`${cls} ${styles.open}`}
-              style={style}
               disabled={busy}
-              onClick={() => onPlace({ row, col })}
+              onClick={() => onTap(i)}
               aria-label={t("board.cell", { row: row + 1, col: col + 1 })}
               data-cell={i}
             />

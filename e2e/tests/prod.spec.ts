@@ -3,9 +3,9 @@ import { board, uniquePool } from "./helpers.ts";
 
 /**
  * Production smoke, run by the prod-smoke workflow after a deploy (config `playwright.prod.config.ts`):
- * on the live site a quick game against a bot starts on the device at once; then a player wakes
- * the server, opens a game with Pelaa, seats a bot, starts, sees the board, leaves, and stays on
- * the start screen after a reload.
+ * on the live site a quick game against a bot starts on the device at once, a corner tap places a
+ * piece and the bot answers; then a player wakes the server, opens a game with Pelaa, seats a bot,
+ * starts, sees the board, leaves, and stays on the start screen after a reload.
  */
 test("live site: bot game on the device, then a server game with a bot, then leave", async ({ page }) => {
   const pool = uniquePool("prod");
@@ -18,6 +18,10 @@ test("live site: bot game on the device, then a server game with a bot, then lea
   await oneBot.click();
   await expect(board(page).locator("[data-cell]")).toHaveCount(400, { timeout: 10_000 });
   await expect(page.getByText("Kettu, botti", { exact: false })).toBeAttached();
+  // A piece in the own corner, and the bot answers from its Web Worker in its corner.
+  await page.getByRole("button", { name: "Kulmaruutu: rivi 1, sarake 1", exact: true }).click();
+  await expect(board(page).locator("[data-cell='0']")).toHaveAttribute("data-owner", "1");
+  await expect(board(page).locator("[data-cell='19']")).toHaveAttribute("data-owner", "2", { timeout: 10_000 });
   await page.getByRole("button", { name: "Poistu pelistä" }).click();
   await page.getByRole("button", { name: "Poistu", exact: true }).click();
 

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { cellsOf, emptyBoard } from "@palikka/rules";
+import { CLASSIC, legalMoves, type Placement } from "@palikka/rules";
+import { placement, positionWith } from "@palikka/rules/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadNickname } from "./nickname.ts";
 import { loadResume, saveResume } from "./resumeRecord.ts";
@@ -9,10 +10,20 @@ import { CLOSE_CODES } from "@palikka/protocol";
 import { useGameSession, type Connector, type GameRoomLike } from "./useGameSession.ts";
 import { toGameView, type SyncedState } from "./viewModel.ts";
 
-const board = [...emptyBoard()];
-board[0] = 1;
-board[21] = 1;
-board[399] = 2;
+/** Colour 1 has the single square and the domino in its corner, colour 2 the single square in its own. */
+const started = positionWith(
+  [
+    [1, placement("I1", ["#"], 0, 0)],
+    [2, placement("I1", ["#"], 0, 19)],
+    [1, placement("I2", ["#", "#"], 1, 1)],
+  ],
+  [1, 2],
+);
+const board = started.cells;
+const colours = [
+  { colour: 1, pieces: [0, 1], out: false, left: false },
+  { colour: 2, pieces: [0], out: true, left: false },
+];
 
 function syncedState(players: Record<string, number>, turn: Partial<SyncedState> = {}): SyncedState {
   return {
@@ -20,9 +31,12 @@ function syncedState(players: Record<string, number>, turn: Partial<SyncedState>
     phase: "play",
     ...turn,
     cells: board,
+    colours,
     players: new Map(Object.entries(players).map(([id, seat]) => [id, { seat, connected: true }])),
   };
 }
+
+const MOVE: Placement = { piece: 4, orientation: 0, row: 2, col: 3 };
 
 function fakeRoom(overrides: Partial<GameRoomLike> = {}): GameRoomLike {
   return {
@@ -48,7 +62,6 @@ function connectorWith(overrides: Partial<Connector>): Connector {
     joinById: vi.fn(),
     watch: vi.fn(),
     createBotWatch: vi.fn(),
-    playDaily: vi.fn(),
     reconnect: vi.fn(),
     ...overrides,
   };
@@ -78,14 +91,27 @@ beforeEach(() => {
 });
 
 describe("game-session › view model", () => {
-  it("takes the synced board, lists seats in order and scores them by cells", () => {
+  it("takes the synced board, lists seats in order and scores them by the rules", () => {
     const view = toGameView(syncedState({ b: 2, me: 1 }), "r", "me")!;
     expect(view.board).toEqual(board);
-    expect(view.seats.map((s) => [s.seat, s.isMe, s.score])).toEqual([
-      [1, true, cellsOf(board, 1)],
-      [2, false, 1],
+    expect(view.seats.map((s) => [s.seat, s.isMe, s.score, s.squares, s.out])).toEqual([
+      [1, true, 3 - 89, 3, false],
+      [2, false, 1 - 89, 1, true],
     ]);
     expect(view.mySeat).toBe(1);
+  });
+
+  it("rebuilds the rules' position, so the viewer's legal moves are the server's", () => {
+    const { position } = toGameView(syncedState({ me: 1, b: 2 }), "r", "me")!;
+    expect(position).toMatchObject({ config: CLASSIC, colours: [1, 2], out: [2], turn: 1, moveNumber: 3, ended: false });
+    expect(legalMoves(position!, 1)).toEqual(legalMoves({ ...started, out: [2] }, 1));
+    expect(toGameView({ ...syncedState({ me: 1 }), colours: [] }, "r", "me")!.position).toBeUndefined();
+  });
+
+  it("knows the bot runner and whether the turn is a bot's", () => {
+    const state = syncedState({ me: 1 }, { turnSeat: 2, botRunnerSeat: 1 });
+    (state.players as Map<string, object>).set("bot:2", { seat: 2, connected: true, bot: true });
+    expect(toGameView(state, "r", "me")).toMatchObject({ botRunnerSeat: 1, turnBotPlayed: true, canUndo: false });
   });
 
   it("derives whose turn it is", () => {
@@ -185,28 +211,28 @@ describe("game-session › place command", () => {
     return hook;
   }
 
-  it("accepted: sends the cell and shows no notice", async () => {
+  it("accepted: sends the move and shows no notice", async () => {
     const room = fakeRoom();
     const { result } = await playing(room);
     let reply: unknown;
     await act(async () => {
-      reply = await result.current.place({ row: 2, col: 4 });
+      reply = await result.current.place(MOVE);
     });
     expect(reply).toEqual({ ok: true });
-    expect(room.request).toHaveBeenCalledWith("place", { row: 2, col: 4 });
+    expect(room.request).toHaveBeenCalledWith("place", MOVE);
     expect(result.current.notice).toBeUndefined();
     expect(result.current.pending).toBe(false);
   });
 
   it("rejected: notice key for the code, cleared after 4 s", async () => {
-    const room = fakeRoom({ request: vi.fn(async () => ({ ok: false, code: "CELL_TAKEN" })) });
+    const room = fakeRoom({ request: vi.fn(async () => ({ ok: false, code: "EDGE_CONTACT" })) });
     const { result } = await playing(room);
     vi.useFakeTimers();
     try {
       await act(async () => {
-        await result.current.place({ row: 0, col: 0 });
+        await result.current.place(MOVE);
       });
-      expect(result.current.notice).toBe("errors.CELL_TAKEN");
+      expect(result.current.notice).toBe("errors.EDGE_CONTACT");
       act(() => vi.advanceTimersByTime(4_000));
       expect(result.current.notice).toBeUndefined();
     } finally {
@@ -218,7 +244,7 @@ describe("game-session › place command", () => {
     const room = fakeRoom({ request: vi.fn(async () => Promise.reject(new Error("closed"))) });
     const { result } = await playing(room);
     await act(async () => {
-      await result.current.place({ row: 0, col: 0 });
+      await result.current.place(MOVE);
     });
     expect(result.current.notice).toBe("errors.generic");
   });
@@ -230,12 +256,12 @@ describe("game-session › place command", () => {
 
     let first!: Promise<unknown>;
     act(() => {
-      first = result.current.place({ row: 0, col: 0 });
+      first = result.current.place(MOVE);
     });
     expect(result.current.pending).toBe(true);
     let second: unknown = "not called";
     await act(async () => {
-      second = await result.current.place({ row: 0, col: 1 });
+      second = await result.current.place({ ...MOVE, col: 5 });
     });
     expect(second).toBeUndefined();
     expect(room.request).toHaveBeenCalledTimes(1);
@@ -267,8 +293,9 @@ describe("game-session › bot commands", () => {
 
 describe("game-session › end of the game in the view model", () => {
   it("finished: winner known, nobody's turn", () => {
-    const view = toGameView(syncedState({ me: 1, b: 2 }, { phase: "finished", winnerSeat: 1 }), "r", "me")!;
-    expect(view).toMatchObject({ finished: true, winnerSeat: 1, isMyTurn: false });
+    const view = toGameView(syncedState({ me: 1, b: 2 }, { phase: "finished", winners: [1, 2] }), "r", "me")!;
+    expect(view).toMatchObject({ finished: true, winners: [1, 2], isMyTurn: false });
+    expect(view.position).toMatchObject({ ended: true, turn: 0, aborted: false });
   });
 });
 
@@ -554,7 +581,7 @@ describe("game-session › Rematch", () => {
   /** A finished game the test can push state changes into. */
   function finishedRoom() {
     let push: (state: SyncedState) => void = () => {};
-    const state = syncedState({ me: 1, other: 2 }, { phase: "finished", winnerSeat: 1 });
+    const state = syncedState({ me: 1, other: 2 }, { phase: "finished", winners: [1] });
     (state.players as Map<string, object>).set("me", { seat: 1, connected: true, name: "Maija" });
     const room = fakeRoom({ state, onStateChange: vi.fn((cb: (s: SyncedState) => void) => (push = cb)) });
     return {

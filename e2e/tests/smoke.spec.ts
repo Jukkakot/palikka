@@ -3,9 +3,9 @@ import { board, gameId, quickPlay, uniquePool } from "./helpers.ts";
 
 /**
  * Smoke: against a real server, two players meet in a waiting room through quick play, the host
- * starts, both see the whole board on a Galaxy S24, and the host's first square reaches the guest.
+ * starts, both see the whole board on a Galaxy S24, and the host's first piece reaches the guest.
  */
-test("two players meet in the waiting room, the host starts, and a claimed square syncs", async ({ browser }) => {
+test("two players meet in the waiting room, the host starts, and a placed piece syncs", async ({ browser }) => {
   const pool = uniquePool("smoke");
   const host = await (await browser.newContext({ ...test.info().project.use })).newPage();
   const guest = await (await browser.newContext({ ...test.info().project.use })).newPage();
@@ -34,7 +34,7 @@ test("two players meet in the waiting room, the host starts, and a claimed squar
     expect(boardBox.y + boardBox.height).toBeLessThanOrEqual(780);
   }
 
-  await host.getByRole("button", { name: "Vapaa ruutu: rivi 1, sarake 1", exact: true }).click();
+  await host.getByRole("button", { name: "Kulmaruutu: rivi 1, sarake 1", exact: true }).click();
   await expect(board(guest).locator("[data-cell='0']")).toHaveAttribute("data-owner", "1");
-  await expect(guest.getByText("Sinun vuorosi – valtaa ruutu")).toBeVisible();
+  await expect(guest.getByText("Sinun vuorosi – napauta kulmaruutua")).toBeVisible();
 });

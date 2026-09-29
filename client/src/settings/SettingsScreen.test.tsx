@@ -66,11 +66,11 @@ describe("settings › Game details for a bug report", () => {
     expect(screen.getByRole("status").textContent).toBe("Kopioitu");
   });
 
-  it("Daily puzzle: the line carries the full local id", async () => {
+  it("Game on the device: the line carries the full local id", async () => {
     const copy = vi.fn(async (_text: string) => {});
-    render(<SettingsScreen onClose={vi.fn()} roomId="local-daily-mujxitgji577" copy={copy} />);
+    render(<SettingsScreen onClose={vi.fn()} roomId="local-mujxitgji577" copy={copy} />);
     await tapCopy();
-    expect(copy.mock.calls[0]![0]).toMatch(/^Peli local-daily-mujxitgji577 · /);
+    expect(copy.mock.calls[0]![0]).toMatch(/^Peli local-mujxitgji577 · /);
   });
 
   it("From the start screen: date, time and version only", async () => {

@@ -16,7 +16,6 @@ function sessionOf(overrides: Partial<StartScreenProps["session"]> = {}): StartS
     play: vi.fn(),
     joinById: vi.fn(),
     playBots: vi.fn(),
-    playDaily: vi.fn(),
     joinInvite: vi.fn(),
     watch: vi.fn(),
     watchBots: vi.fn(),

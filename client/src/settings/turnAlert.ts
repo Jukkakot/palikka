@@ -4,15 +4,15 @@ import type { GameView } from "../session/viewModel.ts";
 import { playSound, vibrate } from "./feedback.ts";
 import { getSettings } from "./settings.ts";
 
-type AlertView = Pick<GameView, "isMyTurn" | "spectating" | "myAutoplay" | "daily" | "finished" | "phase" | "seats">;
+type AlertView = Pick<GameView, "isMyTurn" | "spectating" | "myAutoplay" | "finished" | "phase" | "seats">;
 
 /**
  * Whether the viewer is on turn in a way worth announcing: their own seat, played by them, in a
- * running game with someone else (the daily puzzle is always their turn).
+ * running game with someone else.
  */
 export function isAlertTurn(view: AlertView): boolean {
   return (
-    view.isMyTurn && !view.spectating && !view.myAutoplay && !view.daily && !view.finished && view.phase === "playing" && view.seats.length > 1
+    view.isMyTurn && !view.spectating && !view.myAutoplay && !view.finished && view.phase === "playing" && view.seats.length > 1
   );
 }
 

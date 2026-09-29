@@ -3,8 +3,6 @@
   width: min(100%, 60dvh, 640px);
   aspect-ratio: 1;
   display: grid;
-  grid-template-columns: repeat(20, 1fr);
-  grid-template-rows: repeat(20, 1fr);
   gap: 2px;
   padding: 2px;
   background: var(--board);
@@ -23,13 +21,15 @@
   background: var(--cell);
 }
 
+/* Interim move control: a square where a piece of the viewer's fits, marked with a dot. */
 .open {
   cursor: pointer;
+  background-image: radial-gradient(circle, var(--target) 0 22%, transparent 24%);
 }
 
 .open:hover,
 .open:focus-visible {
-  background: var(--cell-open);
+  background-color: var(--cell-open);
 }
 
 .open:focus-visible {
@@ -39,11 +39,6 @@
 
 .owned {
   border-radius: 2px;
-}
-
-/* A puzzle target: a dot in the text colour until claimed. */
-.target {
-  background-image: radial-gradient(circle, var(--target) 0 22%, transparent 24%);
 }
 
 .hint {

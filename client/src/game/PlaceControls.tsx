@@ -8,14 +8,14 @@ export interface PlaceControlsProps {
   enabled: boolean;
   pending: boolean;
   onHint(): void;
-  /** Daily puzzle only: takes back the last placement. */
+  /** Games against bots on the device only: takes back the last move. */
   onUndo?(): void;
   canUndo?: boolean;
 }
 
 /**
- * Under the board during play: what to do (tap an empty cell), "Vihje", and in the daily puzzle
- * "Peru". Shown on every turn, disabled when it is not the viewer's.
+ * Under the board during play: what to do (tap a marked square), "Vihje", and against bots on the
+ * device "Peru". Shown on every turn, disabled when it is not the viewer's.
  */
 export function PlaceControls({ enabled, pending, onHint, onUndo, canUndo = false }: PlaceControlsProps) {
   const { t } = useTranslation();

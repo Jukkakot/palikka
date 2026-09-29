@@ -1,10 +1,20 @@
-import { CELL_COUNT, cellsOf, type Board } from "@palikka/rules";
-import { isDailyRoomId } from "./localGameStore.ts";
+import { CLASSIC, PIECE_SIZES, scoreOf, type Position } from "@palikka/rules";
+
+/** One colour of the started game as synced: its placed pieces and whether it is out or left. */
+export interface SyncedColour {
+  colour: number;
+  /** Placed piece numbers in placement order. */
+  pieces: Iterable<number>;
+  out: boolean;
+  left: boolean;
+}
 
 /** The synced state as the client receives it (Colyseus schema instances satisfy this shape). */
 export interface SyncedState {
-  /** Owner seat of every cell (0 = empty), row-major. */
+  /** Owner colour of every square (0 = empty), row-major. */
   cells?: Iterable<number>;
+  /** The colours of the started game; empty in the waiting room. */
+  colours?: Iterable<SyncedColour>;
   players?: {
     forEach(cb: (player: SyncedPlayer, sessionId: string) => void): void;
   };
@@ -12,23 +22,24 @@ export interface SyncedState {
   phase?: string;
   /** Seat of the host; 0 until someone has joined. */
   hostSeat?: number;
-  winnerSeat?: number;
+  /** The winning seats once the game is over. */
+  winners?: Iterable<number>;
   /** Turns started so far. */
   turn?: number;
   /** Server epoch ms when the current turn's time runs out; 0 = no clock. */
   turnDeadline?: number;
   turnExpired?: boolean;
+  /** The seat whose browser computes the bots' moves; 0 = none. */
+  botRunnerSeat?: number;
   /** How many spectators watch. */
   spectators?: number;
   /** Bot speed 1, 2 or 4. */
   botSpeed?: number;
   /** Id of the rematch game; "" until someone asked for one. */
   rematchRoomId?: string;
-  /** Daily puzzle: the cells to claim. */
-  targets?: Iterable<number>;
-  /** Daily puzzle: the fewest turns possible. */
-  par?: number;
-  /** Daily puzzle: there is a placement to take back. */
+  /** Games against bots on the device only: "Peru" exists here. */
+  undo?: boolean;
+  /** Games against bots on the device only: there is a move to take back. */
   undoable?: boolean;
 }
 
@@ -40,8 +51,6 @@ export interface SyncedPlayer {
   /** True while the bot plays this person's seat. */
   autoplay?: boolean;
   name?: string;
-  /** Turns played. */
-  placed?: number;
 }
 
 export interface SeatView {
@@ -57,10 +66,12 @@ export interface SeatView {
   isBot: boolean;
   /** A person's seat the bot plays for now (handed over, or the connection dropped). */
   autoplay?: boolean;
-  /** Turns played. */
-  placed: number;
-  /** Cells the seat owns: its score. */
+  /** The rules' score: −1 per unplaced square, bonuses for placing everything. */
   score: number;
+  /** Squares the colour has on the board. */
+  squares: number;
+  /** The colour cannot move any more. */
+  out: boolean;
 }
 
 /** Where the game is: the waiting room before the start, the game itself, or finished. */
@@ -81,7 +92,10 @@ export interface GameView {
   rematchRoomId?: string;
   /** Seat of the host, who may start the game from the waiting room; 0 until known. */
   hostSeat: number;
-  board: Board;
+  /** Owner colour per square (0 = empty), row-major. */
+  board: readonly number[];
+  /** The started game as the rules see it (for moves, hints and bots); undefined in the waiting room. */
+  position?: Position;
   /** Seated players sorted by seat. */
   seats: SeatView[];
   mySeat?: number;
@@ -91,12 +105,12 @@ export interface GameView {
   isMyTurn: boolean;
   /** The bot plays the viewer's seat. */
   myAutoplay: boolean;
-  /** The viewer may hand their seat to the bot: seated in a running game that is not a daily puzzle. */
+  /** The viewer may hand their seat to the bot: seated in a running game. */
   canAutoplay: boolean;
   /** The current turn is an auto-played person's. */
   turnAutoplay: boolean;
-  /** Seat of the winner; 0 while the game runs. */
-  winnerSeat: number;
+  /** The winning seats once finished (several on a shared win); empty otherwise. */
+  winners: readonly number[];
   finished: boolean;
   /** Server epoch ms when the current turn's time runs out; 0 while no clock runs. */
   turnDeadline: number;
@@ -106,16 +120,41 @@ export interface GameView {
   turnDisconnected: boolean;
   /** The viewer may kick the current player: seated, not on turn, time up, game running. */
   canKick: boolean;
-  /** A daily puzzle (solo, on the device). */
-  daily: boolean;
-  /** Turns started so far (the solving turn once finished); 0 when not known. */
+  /** Turns started so far; 0 when not known. */
   turn: number;
-  /** Daily puzzle: the cells to claim; empty elsewhere. */
-  targets: number[];
-  /** Daily puzzle: the fewest turns possible; 0 elsewhere. */
-  par: number;
-  /** Daily puzzle: "Peru" can take back a placement. */
+  /** The seat whose browser computes the bots' moves; 0 = none. */
+  botRunnerSeat: number;
+  /** The seat on turn is played by the bot (a bot, or an auto-played person). */
+  turnBotPlayed: boolean;
+  /** "Peru" exists in this game (against bots on the device). */
+  canUndo: boolean;
+  /** There is a move to take back. */
   undoable: boolean;
+}
+
+/** The engine's position from the synced state; undefined before the game has started. */
+function positionOf(state: SyncedState, cells: number[], ended: boolean, winners: number[]): Position | undefined {
+  const colours = state.colours ? [...state.colours] : [];
+  if (colours.length === 0) return undefined;
+  const placed: Record<number, number[]> = {};
+  const out: number[] = [];
+  let moveNumber = 0;
+  for (const c of colours) {
+    placed[c.colour] = [...c.pieces];
+    moveNumber += placed[c.colour]!.length;
+    if (c.out) out.push(c.colour);
+  }
+  return {
+    config: CLASSIC,
+    colours: colours.map((c) => c.colour).sort((a, b) => a - b),
+    cells,
+    placed,
+    out,
+    turn: ended ? 0 : (state.turnSeat ?? 0),
+    moveNumber,
+    ended,
+    aborted: ended && winners.length === 0,
+  };
 }
 
 /**
@@ -124,13 +163,17 @@ export interface GameView {
  */
 export function toGameView(state: SyncedState, roomId: string, mySessionId: string): GameView | undefined {
   const board = state.cells ? [...state.cells] : [];
-  if (board.length !== CELL_COUNT) return undefined;
+  if (board.length !== CLASSIC.size * CLASSIC.size) return undefined;
 
+  const finished = state.phase === "finished";
+  const winners = state.winners ? [...state.winners] : [];
+  const position = positionOf(state, board, finished, winners);
   const seats: SeatView[] = [];
   state.players?.forEach((p, sessionId) => {
     if (p.seat <= 0) return;
     const isBot = p.bot === true;
     const autoplay = !isBot && p.autoplay === true;
+    const pieces = position?.placed[p.seat] ?? [];
     seats.push({
       seat: p.seat,
       sessionId,
@@ -139,18 +182,17 @@ export function toGameView(state: SyncedState, roomId: string, mySessionId: stri
       isMe: sessionId === mySessionId,
       isBot,
       autoplay,
-      placed: p.placed ?? 0,
-      score: cellsOf(board, p.seat),
+      score: position ? scoreOf(pieces) : 0,
+      squares: pieces.reduce((sum, piece) => sum + PIECE_SIZES[piece]!, 0),
+      out: position?.out.includes(p.seat) ?? false,
     });
   });
   seats.sort((a, b) => a.seat - b.seat);
   const me = seats.find((s) => s.isMe);
   const mySeat = me?.seat;
   const turnSeat = state.turnSeat ?? 0;
-  const finished = state.phase === "finished";
   const phase: GamePhase = finished ? "finished" : state.phase === "waiting" ? "waiting" : "playing";
   const myAutoplay = me?.autoplay ?? false;
-  const daily = isDailyRoomId(roomId);
   const current = seats.find((s) => s.seat === turnSeat);
   const turnExpired = !finished && (state.turnExpired ?? false);
   return {
@@ -163,23 +205,24 @@ export function toGameView(state: SyncedState, roomId: string, mySessionId: stri
     rematchRoomId: state.rematchRoomId || undefined,
     hostSeat: state.hostSeat ?? 0,
     board,
+    position,
     seats,
     mySeat,
     turnSeat,
     isMyTurn: phase === "playing" && mySeat !== undefined && mySeat === turnSeat && !myAutoplay,
     myAutoplay,
-    canAutoplay: phase === "playing" && me !== undefined && !daily,
+    canAutoplay: phase === "playing" && me !== undefined,
     turnAutoplay: !finished && current?.autoplay === true,
-    winnerSeat: state.winnerSeat ?? 0,
+    winners,
     finished,
     turnDeadline: finished ? 0 : (state.turnDeadline ?? 0),
     turnExpired,
     turnDisconnected: !finished && current !== undefined && !current.connected,
     canKick: turnExpired && mySeat !== undefined && current !== undefined && mySeat !== turnSeat,
-    daily,
     turn: state.turn ?? 0,
-    targets: state.targets ? [...state.targets] : [],
-    par: state.par ?? 0,
-    undoable: state.undoable ?? false,
+    botRunnerSeat: state.botRunnerSeat ?? 0,
+    turnBotPlayed: phase === "playing" && current !== undefined && (current.isBot || current.autoplay === true),
+    canUndo: (state.undo ?? false) && me !== undefined,
+    undoable: (state.undoable ?? false) && phase === "playing",
   };
 }

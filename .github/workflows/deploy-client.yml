@@ -33,7 +33,7 @@ jobs:
       - name: Version from commit
         run: echo "VITE_APP_VERSION=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - run: npm ci
-      - run: npm test -w @palikka/rules -w @palikka/protocol -w @palikka/client
+      - run: npm test -w @palikka/rules -w @palikka/protocol -w game-bots -w @palikka/bots -w @palikka/client
       - run: npm run build -w @palikka/client
         env:
           VITE_BASE: /${{ github.event.repository.name }}/

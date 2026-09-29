@@ -19,14 +19,14 @@
 
 ## 4. Client: engine view, bots, device games, interim control
 
-- [ ] 4.1 Bot interface, Palikka adapter, module worker and worker client (in-thread fallback); unit test of the adapter and the in-thread path
-- [ ] 4.2 View model builds `position`, scores, squares, out, winners, runner seat; view-model tests pass
-- [ ] 4.3 `LocalRoom` on the match layer with async bots, undo history, new save format (old saves dropped); daily puzzle removed from session, store and start screen; `localRoom` tests (bots answer, undo, saving, old save dropped, watch game) pass
-- [ ] 4.4 `useBotRunner` in the session (runner computes and sends `botPlace` after the pause, drops stale results); session test with a fake room passes
-- [ ] 4.5 Interim control (`interimMoves`), board with tappable corner squares, hint as squares, undo button for device games, result line with shared wins, texts fi/en (errors, turn, tips, rules screen); screen tests and locale parity pass; `npm run build -w @palikka/client` and `npm run size -w @palikka/client` pass (worker with its own budget)
+- [x] 4.1 Bot interface, Palikka adapter, module worker and worker client (in-thread fallback); unit test of the adapter and the in-thread path
+- [x] 4.2 View model builds `position`, scores, squares, out, winners, runner seat; view-model tests pass
+- [x] 4.3 `LocalRoom` on the match layer with async bots, undo history, new save format (old saves dropped); daily puzzle removed from session, store and start screen; `localRoom` tests (bots answer, undo, saving, old save dropped, watch game) pass
+- [x] 4.4 `useBotRunner` in the session (runner computes and sends `botPlace` after the pause, drops stale results); session test with a fake room passes
+- [x] 4.5 Interim control (`interimMoves`), board with tappable corner squares, hint as squares, undo button for device games, result line with shared wins, texts fi/en (errors, turn, tips, rules screen); screen tests and locale parity pass; `npm run build -w @palikka/client` and `npm run size -w @palikka/client` pass (worker with its own budget)
 
 ## 5. E2E, docs, final checks
 
-- [ ] 5.1 Update `e2e/tests/smoke.spec.ts` and `e2e/tests/prod.spec.ts` to the corner tap and the new texts (not run here: no dev servers in this job)
+- [x] 5.1 Update `e2e/tests/smoke.spec.ts` and `e2e/tests/prod.spec.ts` to the corner tap and the new texts (not run here: no dev servers in this job)
 - [ ] 5.2 Update `docs/architecture.md` (Overview bots, Game flow, State sync, Rules package, Client) and any other wiki page the change affects, short
 - [ ] 5.3 `npm run lint`, `npm run typecheck`, touched workspaces' tests and the client build pass; decisions recorded in design.md

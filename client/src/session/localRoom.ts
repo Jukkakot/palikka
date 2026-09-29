@@ -1,24 +1,10 @@
 import { BOT_NAMES, BOT_SPEEDS, type BotSpeed, type CommandResult } from "@palikka/protocol";
-import {
-  applyPlace,
-  botRngFor,
-  botViewOf,
-  cellAt,
-  chooseBotCell,
-  MAX_SEED,
-  startDailyPuzzle,
-  startGame,
-  type BotStrategy,
-  type GameCommandResult,
-  type GameState,
-  type NewSeat,
-} from "@palikka/rules";
+import { botRng, botSeed, MAX_SEED, playMove, simpleBotMove, startGame, type Game, type GameResult, type GameSeat, type Placement } from "@palikka/rules";
+import { BOT_BUDGET, BOT_DELAY_MS, type AskBot } from "../bots/botMoves.ts";
+import { askBotWorker } from "../bots/botWorkerClient.ts";
 import { log } from "../logging/logger.ts";
-import { loadDailyRecord, saveDailyRecord, saveDailyResult } from "./dailyRecord.ts";
 import {
   clearLocalGame,
-  DAILY_ROOM_PREFIX,
-  isDailyRoomId,
   isWatchRoomId,
   loadLocalGame,
   localToken,
@@ -30,8 +16,7 @@ import {
 import type { GameRoomLike } from "./useGameSession.ts";
 import type { SyncedPlayer, SyncedState } from "./viewModel.ts";
 
-/** The server's bot pause: a bot's turn this long after it starts. */
-export const BOT_DELAY_MS = 1_000;
+export { BOT_DELAY_MS };
 
 /** The player's key in the synced players (their session id). */
 const ME = "me";
@@ -43,7 +28,8 @@ export interface LocalRoomDeps {
   clearTimeout(id: unknown): void;
   /** A fresh game seed. */
   seed(): number;
-  strategy: BotStrategy;
+  /** Where bot moves come from: the bot worker in the app, a stub in tests. */
+  askBot: AskBot;
 }
 
 const defaultDeps = (): LocalRoomDeps => ({
@@ -53,39 +39,58 @@ const defaultDeps = (): LocalRoomDeps => ({
     const [value] = globalThis.crypto.getRandomValues(new Uint32Array(1));
     return value! % (MAX_SEED + 1);
   },
-  strategy: chooseBotCell,
+  askBot: askBotWorker,
 });
 
 /** The seats of a quick game: the player in seat 1, `bots` bots in the next seats. */
-function quickSeats(nickname: string, bots: number): NewSeat[] {
+function quickSeats(nickname: string, bots: number): GameSeat[] {
   return [{ seat: 1, name: nickname, bot: false }, ...BOT_NAMES.slice(0, bots).map((name, i) => ({ seat: i + 2, name, bot: true }))];
+}
+
+function logStarted(roomId: string, game: Game, watch = false): void {
+  log.info("client.local.started", {
+    room: roomId,
+    dealSeed: game.seed,
+    seats: game.seats.map((s) => s.seat).join(","),
+    startSeat: game.position.turn,
+    ...(watch && { watch: true }),
+  });
 }
 
 /** A new saved game against `bots` bots, replacing any saved one; logs its start. */
 function newGame(nickname: string, bots: number, deps: LocalRoomDeps): SavedLocalGame {
   const roomId = newLocalRoomId();
-  // The player hosts, so they play first.
-  const game = startGame(deps.seed(), quickSeats(nickname, bots), 1);
+  // The player sits in seat 1, so they move first.
+  const game = startGame(deps.seed(), quickSeats(nickname, bots));
   const saved = { roomId, game };
   saveLocalGame(saved);
-  log.info("client.local.started", { room: roomId, dealSeed: game.seed, seats: game.seats.map((s) => s.seat).join(","), startSeat: game.turnSeat });
+  logStarted(roomId, game);
   return saved;
 }
 
-/** A game of `bots` bots only to watch, in seats 1 upwards; a seat drawn from the seed starts. Never saved. */
+/** A game of `bots` bots only to watch, in seats 1 upwards. Never saved. */
 function newWatchGame(bots: number, speed: BotSpeed, deps: LocalRoomDeps): SavedLocalGame {
   const roomId = newLocalRoomId(Math.random, WATCH_ROOM_PREFIX);
-  const seats = BOT_NAMES.slice(0, bots).map((name, i) => ({ seat: i + 1, name, bot: true }));
-  // No host seated: the rules draw the first seat.
-  const game = startGame(deps.seed(), seats);
-  log.info("client.local.started", { room: roomId, dealSeed: game.seed, seats: game.seats.map((s) => s.seat).join(","), startSeat: game.turnSeat, watch: true });
+  const game = startGame(
+    deps.seed(),
+    BOT_NAMES.slice(0, bots).map((name, i) => ({ seat: i + 1, name, bot: true })),
+  );
+  logStarted(roomId, game, true);
   return { roomId, game, speed };
+}
+
+/** The `place` payload as a placement; undefined when a field is missing or not an integer. */
+function placementOf(payload: unknown): Placement | undefined {
+  const { piece, orientation, row, col } = (payload ?? {}) as Record<string, unknown>;
+  const fields = [piece, orientation, row, col];
+  return fields.every((f) => Number.isInteger(f)) ? { piece, orientation, row, col } as Placement : undefined;
 }
 
 /**
  * A game against bots that runs on this device, behind the same interface as a game room on the
  * server: the session, view model and screens cannot tell the difference. Commands answer like the
- * server; bots play through the same path with the server's pause; every step is saved.
+ * server; bots play through the same path after the server's pause, their moves computed off the UI
+ * thread; every step is saved. "Peru" takes back the player's last move and the bots' after it.
  */
 export class LocalRoom implements GameRoomLike {
   readonly roomId: string;
@@ -96,6 +101,8 @@ export class LocalRoom implements GameRoomLike {
   private stateListeners: ((state: SyncedState) => void)[] = [];
   private leaveListeners: ((code: number) => void)[] = [];
   private botTimer: unknown;
+  /** Bumped whenever a pending bot move becomes stale (a new state, an undo, a leave). */
+  private generation = 0;
   private gone = false;
 
   private constructor(saved: SavedLocalGame, deps: LocalRoomDeps) {
@@ -119,55 +126,48 @@ export class LocalRoom implements GameRoomLike {
     return new LocalRoom(newWatchGame(bots, speed, all), all);
   }
 
-  /** Starts an attempt at the daily puzzle of `date` (a solo game in its own save slot); the day's best stays. */
-  static createDaily(name: string, date: string, deps: Partial<LocalRoomDeps> = {}): LocalRoom {
-    const roomId = newLocalRoomId(Math.random, DAILY_ROOM_PREFIX);
-    const { game, par } = startDailyPuzzle(date, name);
-    saveDailyRecord({ date, roomId, par, best: loadDailyRecord(date)?.best });
-    log.info("client.daily.started", { room: roomId, date, dealSeed: game.seed, par });
-    return new LocalRoom({ roomId, game, par, history: [] }, { ...defaultDeps(), ...deps });
-  }
-
   /** The saved game `roomId`, continued where it was; undefined when it is gone. */
   static restore(roomId: string, deps: Partial<LocalRoomDeps> = {}): LocalRoom | undefined {
     const saved = loadLocalGame(roomId);
     return saved && new LocalRoom(saved, { ...defaultDeps(), ...deps });
   }
 
-  get game(): GameState {
+  get game(): Game {
     return this.saved.game;
   }
 
   /** The game in the shape the server syncs, as seen by the player. */
   get state(): SyncedState {
     const { game, rematchRoomId } = this.saved;
+    const { position } = game;
     const players = new Map<string, SyncedPlayer>(
       game.seats.map((s) => [
         s.bot ? `bot:${s.seat}` : ME,
-        {
-          seat: s.seat,
-          name: s.name,
-          bot: s.bot,
-          ...(!s.bot && { autoplay: this.saved.autoplay ?? false }),
-          connected: true,
-          placed: s.placed,
-        },
+        { seat: s.seat, name: s.name, bot: s.bot, ...(!s.bot && { autoplay: this.saved.autoplay ?? false }), connected: true },
       ]),
     );
     return {
-      cells: game.board,
+      cells: position.cells,
+      colours: position.colours.map((colour) => ({
+        colour,
+        pieces: position.placed[colour] ?? [],
+        out: position.out.includes(colour),
+        left: game.left.includes(colour),
+      })),
       players,
-      turnSeat: game.turnSeat,
-      phase: game.step,
+      turnSeat: position.turn,
+      phase: position.ended ? "finished" : "play",
       hostSeat: 1,
-      winnerSeat: game.winnerSeat,
-      turn: game.turn,
+      winners: game.winners,
+      turn: position.moveNumber + 1,
       turnDeadline: 0,
       turnExpired: false,
+      botRunnerSeat: 0,
       spectators: 0,
       botSpeed: this.saved.speed ?? 1,
       rematchRoomId: rematchRoomId ?? "",
-      ...(this.daily && { targets: game.targets ?? [], par: this.saved.par ?? 0, undoable: (this.saved.history?.length ?? 0) > 0 }),
+      undo: !this.watching,
+      undoable: !position.ended && (this.saved.history?.length ?? 0) > 0,
     };
   }
 
@@ -196,24 +196,15 @@ export class LocalRoom implements GameRoomLike {
     return Promise.resolve(this.handle(type, payload, ME));
   }
 
-  /** Leaving on purpose: the game is over and forgotten; an unfinished daily puzzle stays saved to continue. */
+  /** Leaving on purpose: the game is over and forgotten. */
   leave(): Promise<void> {
     if (!this.gone) {
       this.gone = true;
       this.clearBotTimer();
-      const unfinished = this.game.step !== "finished";
-      if (this.watching) {
-        if (unfinished) this.logFinished(0);
-      } else if (!(unfinished && this.daily)) {
-        if (unfinished) this.logFinished(0);
-        clearLocalGame(this.roomId);
-      }
+      if (!this.game.position.ended) this.logFinished();
+      if (!this.watching) clearLocalGame(this.roomId);
     }
     return Promise.resolve();
-  }
-
-  private get daily(): boolean {
-    return isDailyRoomId(this.roomId);
   }
 
   /** A game of bots only that the viewer watches. */
@@ -229,13 +220,13 @@ export class LocalRoom implements GameRoomLike {
     switch (type) {
       case "place": {
         if (actor === ME && this.saved.autoplay) return { ok: false, code: "AUTOPLAYING" };
-        const { row, col } = (payload ?? {}) as { row?: unknown; col?: unknown };
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return { ok: false, code: "INVALID_COMMAND" };
+        const move = placementOf(payload);
+        if (!move) return { ok: false, code: "INVALID_COMMAND" };
         const before = this.game;
-        const result = applyPlace(before, seat, { row: row as number, col: col as number });
-        // The puzzle remembers the state before each placement, to undo it.
-        if (result.ok && this.daily) this.saved = { ...this.saved, history: [...(this.saved.history ?? []), { game: before }] };
-        return this.apply(result);
+        const result = playMove(before, seat, move);
+        // The state before each of the player's own moves, for "Peru".
+        const history = result.ok && actor === ME ? [...(this.saved.history ?? []), before] : this.saved.history;
+        return this.apply(result, history);
       }
       case "undo":
         return this.undo();
@@ -251,16 +242,11 @@ export class LocalRoom implements GameRoomLike {
     }
   }
 
-  private apply(result: GameCommandResult): CommandResult {
+  private apply(result: GameResult, history: Game[] | undefined): CommandResult {
     if (!result.ok) return result;
-    const finishing = result.state.step === "finished" && this.game.step !== "finished";
-    // The result is stored before the finished state is published, so the end screen can show it.
-    if (finishing && this.daily) {
-      saveDailyResult(this.roomId, { turns: result.state.turn });
-      log.info("client.daily.finished", { room: this.roomId, turns: result.state.turn, par: this.saved.par });
-    }
-    this.update({ ...this.saved, game: result.state });
-    if (finishing && !this.daily) this.logFinished(result.state.winnerSeat);
+    const finishing = result.game.position.ended && !this.game.position.ended;
+    this.update({ ...this.saved, game: result.game, ...(history && { history }) });
+    if (finishing) this.logFinished();
     return { ok: true };
   }
 
@@ -268,8 +254,7 @@ export class LocalRoom implements GameRoomLike {
   private setAutoplay(payload: unknown): CommandResult {
     const { on } = (payload ?? {}) as { on?: unknown };
     if (typeof on !== "boolean") return { ok: false, code: "INVALID_COMMAND" };
-    // The puzzle is the player's own to solve.
-    if (this.daily || this.game.step === "finished") return { ok: false, code: "WRONG_PHASE" };
+    if (this.game.position.ended) return { ok: false, code: "WRONG_PHASE" };
     if ((this.saved.autoplay ?? false) === on) return { ok: true };
     this.update({ ...this.saved, autoplay: on });
     return { ok: true };
@@ -279,25 +264,24 @@ export class LocalRoom implements GameRoomLike {
   private setSpeed(payload: unknown): CommandResult {
     const { speed } = (payload ?? {}) as { speed?: unknown };
     if (!BOT_SPEEDS.includes(speed as BotSpeed)) return { ok: false, code: "INVALID_COMMAND" };
-    if (this.game.step === "finished") return { ok: false, code: "WRONG_PHASE" };
+    if (this.game.position.ended) return { ok: false, code: "WRONG_PHASE" };
     this.saved = { ...this.saved, speed: speed as BotSpeed };
     this.emit();
     return { ok: true };
   }
 
-  /** Daily puzzle: back to the state before the last placement. */
+  /** "Peru": back to the game before the player's last move (the bots' moves after it go too). */
   private undo(): CommandResult {
     const history = this.saved.history ?? [];
     const last = history.at(-1);
-    if (!this.daily || !last || this.game.step === "finished") return { ok: false, code: "WRONG_PHASE" };
-    this.update({ ...this.saved, game: last.game, history: history.slice(0, -1) });
+    if (this.watching || !last || this.game.position.ended) return { ok: false, code: "WRONG_PHASE" };
+    this.update({ ...this.saved, game: last, history: history.slice(0, -1) });
     return { ok: true };
   }
 
   /** Creates the next game with the same seats and syncs its id; the session then moves there. */
   private rematch(): CommandResult {
-    // A daily puzzle has its own "Uudelleen".
-    if (this.game.step !== "finished" || this.daily) return { ok: false, code: "WRONG_PHASE" };
+    if (!this.game.position.ended) return { ok: false, code: "WRONG_PHASE" };
     if (this.saved.rematchRoomId) return { ok: true };
     const next = newGame(
       this.game.seats.find((s) => !s.bot)!.name,
@@ -327,35 +311,40 @@ export class LocalRoom implements GameRoomLike {
   private scheduleBot(): void {
     this.clearBotTimer();
     const { game } = this;
-    if (this.gone || game.step === "finished") return;
-    const current = game.seats.find((s) => s.seat === game.turnSeat);
+    if (this.gone || game.position.ended) return;
+    const current = game.seats.find((s) => s.seat === game.position.turn);
     // The bot plays its own seats, and the player's while it is handed over.
     if (!current || !(current.bot || this.saved.autoplay)) return;
     const actor = current.bot ? `bot:${current.seat}` : BOT_FOR_ME;
-    this.botTimer = this.deps.setTimeout(() => this.playBot(current.seat, actor), this.botDelay(BOT_DELAY_MS));
+    const generation = this.generation;
+    this.botTimer = this.deps.setTimeout(() => this.playBot(current.seat, actor, generation), BOT_DELAY_MS / (this.saved.speed ?? 1));
   }
 
-  /** A bot's turn, as on the server; a rejected choice falls back to the first empty cell. */
-  private playBot(seat: number, actor: string): void {
+  /** A bot's turn: its move from the bot, then the same path as the player's; a stale answer is dropped. */
+  private playBot(seat: number, actor: string, generation: number): void {
     this.botTimer = undefined;
-    const cell = this.deps.strategy(botViewOf(this.game, seat), botRngFor(this.game, seat));
-    const result = this.handle("place", cell, actor);
-    if (result.ok) return;
-    log.error("client.error", { kind: "bot.fallback", cmd: "place", code: result.code });
-    this.handle("place", cellAt(this.game.board.indexOf(0)), actor);
-  }
-
-  /** A bot pause at the chosen speed (1× unless a watched game was sped up). */
-  private botDelay(ms: number): number {
-    return ms / (this.saved.speed ?? 1);
+    const { position, seed } = this.game;
+    void this.deps
+      .askBot({ position, colour: seat, budget: BOT_BUDGET, seed: botSeed(seed, position.moveNumber, seat) })
+      .catch(() => undefined)
+      .then((move) => {
+        if (generation !== this.generation || this.gone) return;
+        const result = move ? this.handle("place", move, actor) : undefined;
+        if (result?.ok) return;
+        // The bot found nothing or a refused move (it should not): the simple bot moves instead.
+        log.error("client.error", { kind: "bot.fallback", cmd: "place", code: result?.code ?? "NO_MOVE" });
+        const fallback = simpleBotMove(position, seat, botRng(seed, position, seat));
+        if (fallback) this.handle("place", fallback, actor);
+      });
   }
 
   private clearBotTimer(): void {
     if (this.botTimer !== undefined) this.deps.clearTimeout(this.botTimer);
     this.botTimer = undefined;
+    this.generation++;
   }
 
-  private logFinished(winner: number): void {
-    log.info("client.local.finished", { room: this.roomId, winner, turns: this.game.turn });
+  private logFinished(): void {
+    log.info("client.local.finished", { room: this.roomId, winners: this.game.winners.join(","), moves: this.game.position.moveNumber });
   }
 }

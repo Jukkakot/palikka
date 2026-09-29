@@ -6,7 +6,7 @@ import { reloadSettings, updateSettings } from "./settings.ts";
 import { isAlertTurn, useTurnAlert } from "./turnAlert.ts";
 
 type View = Parameters<typeof isAlertTurn>[0];
-const base = { isMyTurn: true, spectating: false, myAutoplay: false, daily: false, finished: false, phase: "playing", seats: [{}, {}] } as unknown as View;
+const base = { isMyTurn: true, spectating: false, myAutoplay: false, finished: false, phase: "playing", seats: [{}, {}] } as unknown as View;
 const view = (patch: Partial<View> = {}): View => ({ ...base, ...patch });
 
 function setHidden(hidden: boolean) {
@@ -27,7 +27,6 @@ describe("settings › Turn notification", () => {
     expect(isAlertTurn(view({ isMyTurn: false }))).toBe(false);
     expect(isAlertTurn(view({ spectating: true }))).toBe(false);
     expect(isAlertTurn(view({ myAutoplay: true }))).toBe(false);
-    expect(isAlertTurn(view({ daily: true }))).toBe(false);
     expect(isAlertTurn(view({ finished: true }))).toBe(false);
     expect(isAlertTurn(view({ phase: "waiting" }))).toBe(false);
     expect(isAlertTurn(view({ seats: [{}] as View["seats"] }))).toBe(false);

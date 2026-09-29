@@ -1,37 +1,45 @@
 // @vitest-environment jsdom
-import { cellAt, chooseBotCell, DAILY_TARGETS, PLACEMENTS_PER_SEAT, type BotStrategy } from "@palikka/rules";
+import { createRng, decodeMove, legalMoves, simpleBotMove, type Placement } from "@palikka/rules";
+import { placement } from "@palikka/rules/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { dailyRecordOf, loadDailyRecord, todayString } from "./dailyRecord.ts";
-import { isDailyRoomId, loadLocalGame } from "./localGameStore.ts";
+import type { AskBot, MoveRequest } from "../bots/botMoves.ts";
+import { loadLocalGame } from "./localGameStore.ts";
 import { BOT_DELAY_MS, LocalRoom } from "./localRoom.ts";
 import { loadResume, saveResume } from "./resumeRecord.ts";
 import { createConnector } from "./useGameSession.ts";
 import { toGameView } from "./viewModel.ts";
 
-const DATE = "2026-09-27";
 const quiet = { setTimeout: () => 0, clearTimeout: () => {} };
+/** A quick stand-in for the bot worker: the simple bot, answered at once. */
+const simpleBot: AskBot = async ({ position, colour, seed }) => simpleBotMove(position, colour, createRng(seed));
 
 beforeEach(() => {
   localStorage.clear();
   vi.useRealTimers();
 });
 
-/** A new game with bot timers switched off (Maija, the host, has the first turn). */
-function quietGame(bots = 1, strategy: BotStrategy = chooseBotCell) {
-  return LocalRoom.create("Maija", bots, { seed: () => 7, strategy, ...quiet });
+/** A new game with bot timers switched off (Maija in seat 1 has the first turn). */
+function quietGame(bots = 1) {
+  return LocalRoom.create("Maija", bots, { seed: () => 7, askBot: simpleBot, ...quiet });
 }
 
 /** A game with real (fake-timer) bot pauses. */
-function timedGame(bots = 1) {
-  return LocalRoom.create("Maija", bots, { seed: () => 7, strategy: chooseBotCell });
+function timedGame(bots = 1, askBot: AskBot = simpleBot) {
+  return LocalRoom.create("Maija", bots, { seed: () => 7, askBot });
 }
 
 const viewOf = (room: LocalRoom) => toGameView(room.state, room.roomId, room.sessionId)!;
-/** Maija claims the first empty cell. */
-const placeFree = (room: LocalRoom) => room.request("place", cellAt(room.game.board.indexOf(0)));
+/** The first legal move of `colour` in the room's game. */
+const firstMove = (room: LocalRoom, colour = 1): Placement => decodeMove(legalMoves(room.game.position, colour)[0]!, 20);
+/** Maija makes a legal move. */
+const placeFree = (room: LocalRoom) => room.request("place", firstMove(room));
+/** Lets bot pauses run out (and their answers arrive) until `done`, at most `max` pauses. */
+async function runBots(done: () => boolean, max = 200) {
+  for (let i = 0; i < max && !done(); i++) await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
+}
 
-describe("bots › Quick game against bots (on the device)", () => {
-  it("One against three: Maija and the forest animals, Maija on turn with no clock", () => {
+describe("device-games › Game against bots on the device", () => {
+  it("One against three: Maija and the forest animals, Maija's colour 1 on turn with no clock", () => {
     const view = viewOf(quietGame(3));
     expect(view.seats.map((s) => [s.seat, s.name, s.isBot])).toEqual([
       [1, "Maija", false],
@@ -39,49 +47,70 @@ describe("bots › Quick game against bots (on the device)", () => {
       [3, "Ilves", true],
       [4, "Pöllö", true],
     ]);
-    expect(view).toMatchObject({ phase: "playing", isMyTurn: true, turnSeat: 1, turnDeadline: 0, canKick: false });
+    expect(view).toMatchObject({ phase: "playing", isMyTurn: true, turnSeat: 1, turnDeadline: 0, canKick: false, canUndo: true, undoable: false });
+    expect(view.position?.colours).toEqual([1, 2, 3, 4]);
   });
 
-  it("commands answer like the server and every step is saved", async () => {
+  it("commands answer like the server, with the rules' refusals, and every step is saved", async () => {
     const room = quietGame();
-    expect(await room.request("place", { row: 0, col: 0 })).toEqual({ ok: true });
-    expect(await room.request("place", { row: 0, col: 1 })).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
+    expect(await room.request("place", placement("I1", ["#"], 5, 5))).toEqual({ ok: false, code: "NOT_ON_START" });
+    expect(await room.request("place", { row: 0, col: 0 })).toEqual({ ok: false, code: "INVALID_COMMAND" });
+    expect(await placeFree(room)).toEqual({ ok: true });
+    expect(await room.request("place", firstMove(room, 1))).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
     expect(await room.request("kick", { seat: 2 })).toEqual({ ok: false, code: "WRONG_PHASE" });
-    expect(loadLocalGame(room.roomId)?.game.board[0]).toBe(1);
+    expect(loadLocalGame(room.roomId)?.game.position.cells[0]).toBe(1);
   });
 
-  it("bots play after the server's pause, and the game plays to its end", async () => {
+  it("Bot answers: after the pause the bot moves and Maija is on turn again; the game plays to its end", async () => {
     vi.useFakeTimers();
     const room = timedGame(2);
     await placeFree(room);
-    expect(room.game.turnSeat).toBe(2);
-    vi.advanceTimersByTime(BOT_DELAY_MS - 1);
-    expect(room.game.turnSeat).toBe(2);
-    vi.advanceTimersByTime(1);
-    expect(room.game.turnSeat).toBe(3);
-    while (room.game.step !== "finished") {
-      if (room.game.turnSeat === 1) await placeFree(room);
-      else vi.advanceTimersByTime(BOT_DELAY_MS);
+    expect(room.game.position.turn).toBe(2);
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS - 1);
+    expect(room.game.position.turn).toBe(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(room.game.position.turn).toBe(3);
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
+    expect(room.game.position.turn).toBe(1);
+    for (let i = 0; i < 500 && !room.game.position.ended; i++) {
+      if (room.game.position.turn === 1) await placeFree(room);
+      else await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
     }
-    expect(room.game.seats.every((s) => s.placed === PLACEMENTS_PER_SEAT)).toBe(true);
-    expect(viewOf(room).winnerSeat).toBeGreaterThan(0);
+    expect(room.game.position.ended).toBe(true);
+    expect(viewOf(room).winners.length).toBeGreaterThan(0);
+    expect(viewOf(room).finished).toBe(true);
   });
 
-  it("a rejected bot choice falls back to the first empty cell", async () => {
+  it("the default bot answers here where no worker can run (tests, old browsers)", async () => {
     vi.useFakeTimers();
-    const room = LocalRoom.create("Maija", 1, { seed: () => 7, strategy: () => ({ row: 0, col: 0 }) });
-    await room.request("place", { row: 0, col: 0 });
-    vi.advanceTimersByTime(BOT_DELAY_MS);
-    expect(room.game.board[1]).toBe(2);
+    const room = LocalRoom.create("Maija", 1, { seed: () => 7 });
+    await placeFree(room);
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
+    expect(room.game.position.placed[2]).toHaveLength(1);
+  });
+
+  it("a refused bot move falls back to the simple bot", async () => {
+    vi.useFakeTimers();
+    const room = timedGame(1, async () => placement("I1", ["#"], 5, 5));
+    await placeFree(room);
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
+    expect(room.game.position.placed[2]).toHaveLength(1);
+    expect(room.game.position.turn).toBe(1);
   });
 
   it("a restored game continues where it was", async () => {
     const room = quietGame();
-    await room.request("place", { row: 3, col: 3 });
+    await placeFree(room);
     room.removeAllListeners();
     const restored = LocalRoom.restore(room.roomId, quiet)!;
-    expect(restored.game.turnSeat).toBe(2);
-    expect(viewOf(restored).seats[0]!.score).toBe(1);
+    expect(restored.game.position.turn).toBe(2);
+    expect(viewOf(restored).seats[0]!.score).toBe(1 - 89);
+  });
+
+  it("Old save: a saved game of the placeholder format is dropped, not offered", () => {
+    localStorage.setItem("palikka.localGame", JSON.stringify({ roomId: "local-old", game: { seed: 1, board: [0, 0], seats: [], step: "play" } }));
+    expect(LocalRoom.restore("local-old", quiet)).toBeUndefined();
+    expect(localStorage.getItem("palikka.localGame")).toBeNull();
   });
 
   it("Leaving a quick bot game: the game is gone", async () => {
@@ -96,62 +125,105 @@ describe("bots › Quick game against bots (on the device)", () => {
     expect(await room.request("rematch", {})).toEqual({ ok: false, code: "WRONG_PHASE" });
     // The bot plays every seat to the end.
     await room.request("setAutoplay", { on: true });
-    vi.advanceTimersByTime(3 * PLACEMENTS_PER_SEAT * BOT_DELAY_MS);
-    expect(room.game.step).toBe("finished");
+    await runBots(() => room.game.position.ended);
+    expect(room.game.position.ended).toBe(true);
     expect(await room.request("rematch", {})).toEqual({ ok: true });
     const next = LocalRoom.restore(room.state.rematchRoomId!, quiet)!;
     expect(next.game.seats.map((s) => s.name)).toEqual(["Maija", "Kettu", "Ilves"]);
-    expect(next.game.step).toBe("play");
+    expect(next.game.position.moveNumber).toBe(0);
   });
 });
 
-describe("autoplay › Autoplay in games on the device", () => {
+describe("device-games › Undo against bots", () => {
+  it("Undo after the bots moved: the board is as before Maija's move and she is on turn", async () => {
+    vi.useFakeTimers();
+    const room = timedGame(2);
+    const before = room.game.position.cells;
+    await placeFree(room);
+    await runBots(() => room.game.position.turn === 1);
+    expect(room.game.position.moveNumber).toBe(3);
+    expect(viewOf(room).undoable).toBe(true);
+    expect(await room.request("undo", {})).toEqual({ ok: true });
+    expect(room.game.position.cells).toEqual(before);
+    expect(room.game.position.turn).toBe(1);
+    expect(viewOf(room)).toMatchObject({ undoable: false, isMyTurn: true });
+    expect(loadLocalGame(room.roomId)?.game.position.moveNumber).toBe(0);
+  });
+
+  it("Nothing to undo before the first move; repeated undo goes back move by move", async () => {
+    vi.useFakeTimers();
+    const room = timedGame(1);
+    expect(await room.request("undo", {})).toEqual({ ok: false, code: "WRONG_PHASE" });
+    await placeFree(room);
+    await runBots(() => room.game.position.turn === 1);
+    await placeFree(room);
+    await runBots(() => room.game.position.turn === 1);
+    expect(room.game.position.moveNumber).toBe(4);
+    await room.request("undo", {});
+    expect(room.game.position.moveNumber).toBe(2);
+    await room.request("undo", {});
+    expect(room.game.position.moveNumber).toBe(0);
+    expect(await room.request("undo", {})).toEqual({ ok: false, code: "WRONG_PHASE" });
+  });
+
+  it("an answer that arrives after an undo is dropped", async () => {
+    vi.useFakeTimers();
+    const asked: { request: MoveRequest; resolve(move: Placement | undefined): void }[] = [];
+    const room = timedGame(1, (request) => new Promise((resolve) => asked.push({ request, resolve })));
+    await placeFree(room);
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
+    expect(asked).toHaveLength(1);
+    await room.request("undo", {});
+    const { position, colour, seed } = asked[0]!.request;
+    asked[0]!.resolve(simpleBotMove(position, colour, createRng(seed)));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(room.game.position.moveNumber).toBe(0);
+    expect(room.game.position.turn).toBe(1);
+  });
+});
+
+describe("bot-seats › Bot plays a person's seat (on the device)", () => {
   it("the bot plays Maija's turns until she takes back; her own command is refused meanwhile", async () => {
     vi.useFakeTimers();
     const room = timedGame();
     expect(await room.request("setAutoplay", { on: true })).toEqual({ ok: true });
     expect(viewOf(room)).toMatchObject({ myAutoplay: true, isMyTurn: false, turnAutoplay: true });
     expect(await placeFree(room)).toEqual({ ok: false, code: "AUTOPLAYING" });
-    vi.advanceTimersByTime(BOT_DELAY_MS);
-    expect(room.game.turnSeat).toBe(2);
-    vi.advanceTimersByTime(2 * BOT_DELAY_MS);
-    expect(room.game.turn).toBeGreaterThanOrEqual(3);
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
+    expect(room.game.position.turn).toBe(2);
+    await vi.advanceTimersByTimeAsync(2 * BOT_DELAY_MS);
+    expect(room.game.position.moveNumber).toBeGreaterThanOrEqual(3);
 
     expect(await room.request("setAutoplay", { on: false })).toEqual({ ok: true });
-    while (room.game.turnSeat !== 1) vi.advanceTimersByTime(BOT_DELAY_MS);
-    const { turn } = room.game;
-    vi.advanceTimersByTime(10 * BOT_DELAY_MS);
-    expect(room.game).toMatchObject({ turn, turnSeat: 1 });
-  });
-
-  it("Daily puzzle: no autoplay", async () => {
-    const room = LocalRoom.createDaily("Maija", DATE, quiet);
-    expect(await room.request("setAutoplay", { on: true })).toEqual({ ok: false, code: "WRONG_PHASE" });
-    expect(viewOf(room).canAutoplay).toBe(false);
+    await runBots(() => room.game.position.turn === 1);
+    const { moveNumber } = room.game.position;
+    await vi.advanceTimersByTimeAsync(10 * BOT_DELAY_MS);
+    expect(room.game.position).toMatchObject({ moveNumber, turn: 1 });
   });
 });
 
-describe("spectators › Watching a game of bots (on the device)", () => {
-  it("Watch three bots: the viewer is a spectator; they play to the end by themselves", () => {
+describe("device-games › Watching bots on the device", () => {
+  it("Four bots: the viewer is a spectator; they play until no colour can move; no undo", async () => {
     vi.useFakeTimers();
-    const room = LocalRoom.createWatch(3, 1, { seed: () => 7 });
+    const room = LocalRoom.createWatch(4, 1, { seed: () => 7, askBot: simpleBot });
     const view = viewOf(room);
-    expect(view).toMatchObject({ spectating: true, botOnly: true });
-    expect(view.seats.map((s) => s.name)).toEqual(["Kettu", "Ilves", "Pöllö"]);
-    vi.advanceTimersByTime(3 * PLACEMENTS_PER_SEAT * BOT_DELAY_MS);
-    expect(room.game.step).toBe("finished");
+    expect(view).toMatchObject({ spectating: true, botOnly: true, canUndo: false });
+    expect(view.seats.map((s) => s.name)).toEqual(["Kettu", "Ilves", "Pöllö", "Näätä"]);
+    await runBots(() => room.game.position.ended, 400);
+    expect(room.game.position.ended).toBe(true);
+    expect(await room.request("undo", {})).toEqual({ ok: false, code: "NOT_SEATED" });
   });
 
   it("Faster bots: 4× shrinks the pause; the spectator cannot play", async () => {
     vi.useFakeTimers();
-    const room = LocalRoom.createWatch(2, 1, { seed: () => 7 });
+    const room = LocalRoom.createWatch(2, 1, { seed: () => 7, askBot: simpleBot });
     expect(await room.request("setSpeed", { speed: 4 })).toEqual({ ok: true });
     expect(viewOf(room).botSpeed).toBe(4);
     // The pause already running keeps its length; the next ones are a quarter.
-    vi.advanceTimersByTime(BOT_DELAY_MS);
-    const { turn } = room.game;
-    vi.advanceTimersByTime(BOT_DELAY_MS / 4);
-    expect(room.game.turn).toBe(turn + 1);
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
+    const { moveNumber } = room.game.position;
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS / 4);
+    expect(room.game.position.moveNumber).toBe(moveNumber + 1);
     expect(await placeFree(room)).toEqual({ ok: false, code: "NOT_SEATED" });
   });
 
@@ -159,56 +231,6 @@ describe("spectators › Watching a game of bots (on the device)", () => {
     const game = quietGame();
     LocalRoom.createWatch(2, 1, quiet);
     expect(loadLocalGame(game.roomId)).toBeDefined();
-  });
-});
-
-describe("daily-puzzle › The puzzle on the device", () => {
-  const solve = async (room: LocalRoom, misses = 0) => {
-    const targets = room.game.targets!;
-    const miss = room.game.board.findIndex((_, i) => !targets.includes(i));
-    for (let i = 0; i < misses; i++) await room.request("place", cellAt(miss + i));
-    for (const t of targets) await room.request("place", cellAt(t));
-  };
-
-  it("a new attempt is the date's puzzle in its own slot, with its par recorded", () => {
-    const room = LocalRoom.createDaily("Maija", DATE, quiet);
-    expect(isDailyRoomId(room.roomId)).toBe(true);
-    expect(dailyRecordOf(room.roomId)).toMatchObject({ date: DATE, par: DAILY_TARGETS });
-    expect(viewOf(room)).toMatchObject({ daily: true, par: DAILY_TARGETS, targets: room.game.targets });
-    expect(todayString(new Date(2026, 8, 7))).toBe("2026-09-07");
-  });
-
-  it("Undo a move: back before the last placement; nothing left to undo at the start", async () => {
-    const room = LocalRoom.createDaily("Maija", DATE, quiet);
-    expect(await room.request("undo", {})).toEqual({ ok: false, code: "WRONG_PHASE" });
-    await room.request("place", { row: 0, col: 0 });
-    expect(viewOf(room).undoable).toBe(true);
-    expect(await room.request("undo", {})).toEqual({ ok: true });
-    expect(room.game).toMatchObject({ turn: 1 });
-    expect(room.game.board[0]).toBe(0);
-  });
-
-  it("Solved: the best of several attempts is kept", async () => {
-    const first = LocalRoom.createDaily("Maija", DATE, quiet);
-    await solve(first, 2);
-    expect(first.game.step).toBe("finished");
-    expect(loadDailyRecord(DATE)?.best?.turns).toBe(DAILY_TARGETS + 2);
-    const second = LocalRoom.createDaily("Maija", DATE, quiet);
-    await solve(second);
-    expect(loadDailyRecord(DATE)?.best?.turns).toBe(DAILY_TARGETS);
-    const third = LocalRoom.createDaily("Maija", DATE, quiet);
-    await solve(third, 1);
-    expect(loadDailyRecord(DATE)?.best?.turns).toBe(DAILY_TARGETS);
-    expect(await third.request("rematch", {})).toEqual({ ok: false, code: "WRONG_PHASE" });
-  });
-
-  it("Leaving midway: the attempt stays saved and the connector continues it", async () => {
-    const room = LocalRoom.createDaily("Maija", todayString(), quiet);
-    await room.request("place", { row: 0, col: 0 });
-    await room.leave();
-    const again = await createConnector().playDaily({ nickname: "Maija", date: todayString() });
-    expect(again.roomId).toBe(room.roomId);
-    await again.leave();
   });
 });
 

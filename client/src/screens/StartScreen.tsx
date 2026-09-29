@@ -18,13 +18,11 @@ import { Screen } from "../ui/Screen.tsx";
 import { Switch } from "../ui/Switch.tsx";
 import { BuildInfo } from "./BuildInfo.tsx";
 import styles from "./StartScreen.module.css";
-import { loadDailyRecord } from "../session/dailyRecord.ts";
-import { loadLocalGame } from "../session/localGameStore.ts";
 
 export interface StartScreenProps {
   session: Pick<
     GameSession,
-    "status" | "slow" | "play" | "joinById" | "playBots" | "playDaily" | "joinInvite" | "watch" | "watchBots" | "retry" | "startNotice" | "resumable" | "resume"
+    "status" | "slow" | "play" | "joinById" | "playBots" | "joinInvite" | "watch" | "watchBots" | "retry" | "startNotice" | "resumable" | "resume"
   >;
   /** The early server wake-up: the join actions stay disabled until it is over. */
   wake: ServerWake;
@@ -65,19 +63,17 @@ function minutesSeconds(total: number): string {
 
 /**
  * Before a game: the nickname field and the ways in (quick play, a quick game with bots to play or
- * to watch, the daily puzzle, the open games list, the running games to watch, or the invite in
+ * to watch, the open games list, the running games to watch, or the invite in
  * invite mode), then the connecting and join-error states.
  */
 export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInviteDone }: StartScreenProps) {
   const { t, i18n } = useTranslation();
-  const { status, slow, play, joinById, playBots, playDaily, joinInvite, watch, watchBots, retry, startNotice, resumable, resume } = session;
+  const { status, slow, play, joinById, playBots, joinInvite, watch, watchBots, retry, startNotice, resumable, resume } = session;
   // A new player gets a random name, so they can start at once; it is remembered only once used.
   const [input, setInput] = useState(() => loadNickname() || randomNickname(i18n.language));
   const [touched, setTouched] = useState(false);
   const nickname = checkNickname(input);
   // Today's puzzle attempt, read when the screen opens (after a game it opens anew).
-  const [daily] = useState(() => loadDailyRecord());
-  const [dailyUnfinished] = useState(() => daily !== undefined && loadLocalGame(daily.roomId)?.game.step !== undefined && loadLocalGame(daily.roomId)?.game.step !== "finished");
   const waited = useSecondsWaited(wake.state === "waking" && status !== "connecting" && status !== "error");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [howToOpen, setHowToOpen] = useState(false);
@@ -217,17 +213,6 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
                           {t("start.watchBotCount", { count: bots })}
                         </Button>
                       ))}
-                </div>
-                <div className={styles.daily} role="group" aria-labelledby="daily-title">
-                  <p id="daily-title" className={styles.botsTitle}>
-                    {t("daily.title")}
-                  </p>
-                  <p className={styles.dailyBody}>
-                    {daily?.best ? t("daily.today", { count: daily.best.turns, par: daily.par }) : t("daily.explain")}
-                  </p>
-                  <Button variant="secondary" disabled={!nickname.ok} onClick={() => playDaily(name)}>
-                    {t(dailyUnfinished ? "daily.continue" : daily?.best ? "daily.again" : "daily.play")}
-                  </Button>
                 </div>
               </>
             )}

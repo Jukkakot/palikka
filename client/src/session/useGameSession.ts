@@ -19,11 +19,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { serverUrl } from "../config.ts";
 import { log, setLogContext } from "../logging/logger.ts";
 import { isLocalRoomId, isLocalToken, roomIdOfToken } from "./localGameStore.ts";
-import { loadDailyRecord, todayString } from "./dailyRecord.ts";
 import { LocalRoom } from "./localRoom.ts";
 import { loadNickname, randomNickname, saveNickname } from "./nickname.ts";
 import { clearResume, loadResume, saveResume, type ResumeRecord } from "./resumeRecord.ts";
 import { clearToken, loadToken, saveToken } from "./sessionToken.ts";
+import { useBotRunner } from "./useBotRunner.ts";
 import { toGameView, type GameView, type SyncedState } from "./viewModel.ts";
 
 /** The parts of a Colyseus SDK room the session uses (kept small for testing). */
@@ -59,8 +59,6 @@ export interface Connector {
   /** A new game of 2–4 bots only on the device, watched by the caller. */
   createBotWatch(options: { bots: number; speed: BotSpeed }): Promise<GameRoomLike>;
   reconnect(token: string): Promise<GameRoomLike>;
-  /** The daily puzzle of `date` on the device: an unfinished attempt continued, else a new attempt. */
-  playDaily(options: JoinRequest & { date: string }): Promise<GameRoomLike>;
 }
 
 /** Optional quick-play pool from `?pool=…`: players only meet others in the same pool. */
@@ -111,11 +109,6 @@ export function createConnector(): Connector {
     createBotWatch: async ({ bots, speed }) => LocalRoom.createWatch(bots, speed),
     reconnect: (token) =>
       isLocalToken(token) ? restoreLocal(roomIdOfToken(token)) : (sdkClient().reconnect(token) as unknown as Promise<GameRoomLike>),
-    playDaily: async ({ nickname, date }) => {
-      const record = loadDailyRecord(date);
-      const current = record && LocalRoom.restore(record.roomId);
-      return current && current.game.step !== "finished" ? current : LocalRoom.createDaily(nickname, date);
-    },
   };
 }
 
@@ -183,9 +176,7 @@ export interface GameSession {
   joinById(roomId: string, nickname: string): void;
   /** A quick game against 1–3 bots, straight into the game. */
   playBots(nickname: string, bots: number): void;
-  /** Today's daily puzzle: continued where it was left, else a new attempt (also after a solve). */
-  playDaily(nickname: string): void;
-  /** Daily puzzle: takes back the last placement. */
+  /** Games against bots on the device: takes back the player's last move and the bots' moves after it. */
   undo(): Promise<CommandResult | undefined>;
   /** Joins an invited game; if it has already started, watches it instead. */
   joinInvite(roomId: string, nickname: string): void;
@@ -215,8 +206,8 @@ export interface GameSession {
   addBot(seat: number): Promise<CommandResult | undefined>;
   /** The host removes the bot in `seat` from the waiting room. Resolves undefined without sending while another command is pending. */
   removeBot(seat: number): Promise<CommandResult | undefined>;
-  /** Claims a cell (the whole turn). Resolves undefined without sending while another command is pending. */
-  place(cell: PlacePayload): Promise<CommandResult | undefined>;
+  /** Places a piece (the whole turn). Resolves undefined without sending while another command is pending. */
+  place(move: PlacePayload): Promise<CommandResult | undefined>;
   /** Kicks the current player once their time is up. Resolves undefined without sending while another command is pending. */
   kick(seat: number): Promise<CommandResult | undefined>;
   /** Leaves the game or waiting room; the start screen shows at once. */
@@ -240,6 +231,8 @@ export function useGameSession(connector?: Connector): GameSession {
   const [view, setView] = useState<GameView>();
   const [slow, setSlow] = useState(false);
   const roomRef = useRef<GameRoomLike | undefined>(undefined);
+  /** The same room as state, for what renders from it (the bot runner). */
+  const [activeRoom, setActiveRoom] = useState<GameRoomLike>();
   const pendingRef = useRef(false);
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<NoticeKey>();
@@ -258,6 +251,7 @@ export function useGameSession(connector?: Connector): GameSession {
   /** Forgets the game locally and shows the start screen. */
   const detach = useCallback(() => {
     roomRef.current = undefined;
+    setActiveRoom(undefined);
     resumableRef.current = false;
     clearToken();
     clearResume();
@@ -271,6 +265,7 @@ export function useGameSession(connector?: Connector): GameSession {
   const attach = useCallback(
     (room: GameRoomLike) => {
       roomRef.current = room;
+      setActiveRoom(room);
       saveToken(room.reconnectionToken);
       setLogContext({ room: room.roomId, player: room.sessionId });
       const update = (state: SyncedState) => {
@@ -388,10 +383,6 @@ export function useGameSession(connector?: Connector): GameSession {
     (nickname: string, bots: number) => connect(() => getConnector().createBotGame({ nickname, bots }), nickname),
     [connect],
   );
-  const playDaily = useCallback(
-    (nickname: string) => connect(() => getConnector().playDaily({ nickname, date: todayString() }), nickname),
-    [connect],
-  );
   const joinById = useCallback(
     (roomId: string, nickname: string) => connect(() => getConnector().joinById(roomId, { nickname }), nickname),
     [connect],
@@ -472,7 +463,7 @@ export function useGameSession(connector?: Connector): GameSession {
   const start = useCallback(() => send("start", {}), [send]);
   const addBot = useCallback((seat: number) => send("addBot", { seat }), [send]);
   const removeBot = useCallback((seat: number) => send("removeBot", { seat }), [send]);
-  const place = useCallback(({ row, col }: PlacePayload) => send("place", { row, col }), [send]);
+  const place = useCallback(({ piece, orientation, row, col }: PlacePayload) => send("place", { piece, orientation, row, col }), [send]);
   const kick = useCallback((seat: number) => send("kick", { seat }), [send]);
   const setSpeed = useCallback((speed: BotSpeed) => send("setSpeed", { speed }), [send]);
   const undo = useCallback(() => send("undo", {}), [send]);
@@ -517,6 +508,9 @@ export function useGameSession(connector?: Connector): GameSession {
     });
   }, [rematching, send, nickname, connect]);
 
+  // Online: this browser computes the bots' moves while it is the bot runner.
+  useBotRunner(status === "playing" ? activeRoom : undefined, view);
+
   /**
    * Leaves locally first: the start screen shows at once, and no late callback or reconnect
    * through Render's proxy can bring the game back. The server still hears the leave.
@@ -536,7 +530,6 @@ export function useGameSession(connector?: Connector): GameSession {
     play,
     joinById,
     playBots,
-    playDaily,
     undo,
     joinInvite,
     watch,

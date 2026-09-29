@@ -30,7 +30,7 @@
   },
   "board": {
     "label": "Game board",
-    "cell": "Empty square: row {{row}}, column {{col}}"
+    "cell": "Corner square: row {{row}}, column {{col}}"
   },
   "start": {
     "play": "Play",
@@ -84,7 +84,7 @@
     "copyLineNoGame": "{{date}} {{time}} · v {{ver}}"
   },
   "turn": {
-    "mine": "Your turn – claim a square",
+    "mine": "Your turn – tap a corner square",
     "other": "{{name}} is thinking…",
     "timeUp": "Time is up",
     "disconnected": "{{name}} – connection lost",
@@ -93,14 +93,13 @@
     "autoplay": "The bot plays: {{name}}"
   },
   "place": {
-    "hint": "Tap an empty square",
+    "hint": "Tap a marked square: the largest piece that fits goes there",
     "wait": "Wait for your turn"
   },
   "errors": {
     "NOT_SEATED": "You are not in this game",
     "NOT_YOUR_TURN": "It is not your turn",
     "WRONG_PHASE": "That cannot be done right now",
-    "CELL_TAKEN": "Someone got there first – the square is taken",
     "generic": "The move did not go through. Try again.",
     "NOT_KICKABLE": "This player cannot be removed now",
     "TURN_NOT_EXPIRED": "The player's time is not up yet",
@@ -111,29 +110,40 @@
     "NOT_SPECTATOR": "Only a spectator can change the speed",
     "PEOPLE_PLAYING": "The speed can only change while only bots play",
     "SERVER_FULL": "The server is full – try again in a moment",
-    "AUTOPLAYING": "The bot is playing your turn – take it back first"
+    "AUTOPLAYING": "The bot is playing your turn – take it back first",
+    "PIECE_USED": "That piece is already on the board",
+    "OFF_BOARD": "The piece does not fit on the board",
+    "OVERLAP": "Someone got there first – the square is taken",
+    "EDGE_CONTACT": "Your own pieces may only touch at the corners",
+    "NOT_ON_START": "Your first piece must cover your starting corner",
+    "NO_CORNER_CONTACT": "The piece must touch one of your own pieces at a corner",
+    "NOT_BOT_RUNNER": "Another player is computing the bots’ moves now",
+    "NOT_BOT_SEAT": "No bot plays in that seat"
   },
   "hint": {
     "button": "Hint",
-    "title": "Show the square the bot would pick"
+    "title": "Show where the bot would place a piece"
   },
   "progress": {
     "label": "Players and scores",
     "seat": "{{name}}",
     "seatMe": "{{name}} (you)",
-    "score_one": "{{count}} square",
-    "score_other": "{{count}} squares",
+    "score_one": "{{count}} point",
+    "score_other": "{{count}} points",
     "disconnected": "connection lost",
     "left": "{{name}} wandered off into the forest – left the game",
     "bot": "bot",
     "autoplay": "the bot plays for them",
-    "autoplayMine": "the bot plays for you"
+    "autoplayMine": "the bot plays for you",
+    "out": "no moves left"
   },
   "result": {
     "mine": "You won! The winter is yours.",
-    "other": "{{name}} claimed the most and won",
+    "other": "{{name}} won – the winter is theirs",
     "rematch": "Play again",
-    "home": "Home"
+    "home": "Home",
+    "shared": "A draw: {{names}} share the win",
+    "sharedMine": "A shared win! {{names}} share the winter."
   },
   "kick": {
     "timeUp": "{{name}} – time is up",
@@ -178,27 +188,11 @@
     "newBotGame": "New bot game"
   },
   "tips": {
-    "goal": "Everyone gets five turns. Whoever claims the most squares wins.",
-    "place": "Tap an empty square – it turns your colour.",
+    "goal": "Place pieces on the board. Every square left off the board costs a point.",
+    "place": "Tap a marked corner square – the largest piece that fits goes there.",
     "close": "Close tip",
     "reset": "Show tips again",
     "resetDone": "Tips will show in the next game."
-  },
-  "daily": {
-    "title": "Daily puzzle",
-    "explain": "The same puzzle for everyone today: claim the marked squares in as few turns as possible.",
-    "play": "Play the daily puzzle",
-    "continue": "Continue the daily puzzle",
-    "again": "Play again",
-    "today_one": "Your best today: {{count}} turn (best possible {{par}})",
-    "today_other": "Your best today: {{count}} turns (best possible {{par}})",
-    "turn": "Turn {{turn}} · best possible {{par}}",
-    "won_one": "Solved in {{count}} turn (best {{par}})",
-    "won_other": "Solved in {{count}} turns (best {{par}})",
-    "wonPar_one": "Solved in {{count}} turn – the best possible! ❄",
-    "wonPar_other": "Solved in {{count}} turns – the best possible! ❄",
-    "undo": "Undo move",
-    "retry": "Again"
   },
   "autoplay": {
     "handOver": "Let the bot play",
@@ -236,16 +230,14 @@
     "title": "How to play",
     "goal": {
       "title": "Goal",
-      "body": "Claim more squares on the board than the others. Everyone gets five turns, and whoever claims the most wins. (This is a temporary practice game: the real pieces and rules are coming soon.)"
+      "body": "Every colour has 21 pieces. Get as many of them onto the board as you can: every square left off the board is a minus point, and placing all your pieces earns 15 points (and 5 more if the last one was the single square). The most points wins."
     },
     "turn": {
       "title": "A turn",
-      "body": "Tap an empty square: it turns your colour and the turn passes on. Hint shows the square the bot would pick."
-    },
-    "daily": {
-      "title": "Daily puzzle",
-      "body": "One solo game a day, the same for everyone: claim the marked squares in as few turns as possible. You see the best possible result, and there is no time limit.",
-      "more": "You can undo moves and try again. Your best attempt counts as the day's result."
+      "body": "Your first piece covers your own starting corner. After that every piece must touch your colour at a corner, but never along a side. Other colours may be touched freely. With no moves left, your turns are skipped. For now a piece is placed by tapping a marked corner square; Hint shows where the bot would place a piece."
     }
+  },
+  "undo": {
+    "label": "Undo move"
   }
 }
