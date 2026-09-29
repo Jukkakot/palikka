@@ -2,12 +2,11 @@ import { IconRobot, IconWifiOff, IconX } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GameIdBadge } from "../game/GameIdBadge.tsx";
-import { Pawn } from "../game/Pawn.tsx";
+import { SeatMark } from "../game/SeatMark.tsx";
 import { inviteUrl } from "../session/inviteLink.ts";
 import { NOTICE_MS, type GameSession } from "../session/useGameSession.ts";
 import type { GameView } from "../session/viewModel.ts";
 import { Button } from "../ui/Button.tsx";
-import { LookPicker } from "../ui/LookPicker.tsx";
 import { LanguageSwitcher } from "../ui/LanguageSwitcher.tsx";
 import { Notice } from "../ui/Notice.tsx";
 import { Screen } from "../ui/Screen.tsx";
@@ -18,25 +17,23 @@ const SEATS = [1, 2, 3, 4] as const;
 
 export interface WaitingRoomScreenProps {
   view: Pick<GameView, "roomId" | "seats" | "hostSeat" | "mySeat">;
-  session: Pick<GameSession, "start" | "addBot" | "removeBot" | "setLook" | "leave" | "pending" | "notice">;
+  session: Pick<GameSession, "start" | "addBot" | "removeBot" | "leave" | "pending" | "notice">;
   sharer?: Sharer;
 }
 
 /**
- * Before the start: who is seated (pawn, nickname, host, "you" and bot marks), inviting others, and
+ * Before the start: who is seated (colour, nickname, host, "you" and bot marks), inviting others, and
  * the host's start. The host fills free seats with bots and removes them again. Guests wait for the host. Leaving is confirmed only for a host with others seated,
  * because it closes the game for them.
  */
 export function WaitingRoomScreen({ view, session, sharer = browserSharer() }: WaitingRoomScreenProps) {
   const { t } = useTranslation();
-  const { start, addBot, removeBot, setLook, leave, pending, notice } = session;
+  const { start, addBot, removeBot, leave, pending, notice } = session;
   const [confirming, setConfirming] = useState(false);
   const [shareNote, setShareNote] = useState<string>();
   const isHost = view.mySeat !== undefined && view.mySeat === view.hostSeat;
   const host = view.seats.find((s) => s.seat === view.hostSeat);
   const enough = view.seats.length >= 2;
-  const me = view.seats.find((s) => s.isMe);
-  const takenLooks = new Set(view.seats.filter((s) => !s.isMe).map((s) => s.look ?? s.seat));
 
   useEffect(() => {
     if (!shareNote) return;
@@ -65,7 +62,9 @@ export function WaitingRoomScreen({ view, session, sharer = browserSharer() }: W
           if (!s) {
             return (
               <li key={seat} className={`${styles.seat} ${styles.free}`} data-seat={seat} data-free="">
-                <span className={styles.pawn} aria-hidden="true" />
+                <span className={styles.freeMark} aria-hidden="true">
+                  <SeatMark seat={seat} size={24} />
+                </span>
                 <span>{t("waiting.freeSeat")}</span>
                 {isHost && (
                   <Button
@@ -85,9 +84,7 @@ export function WaitingRoomScreen({ view, session, sharer = browserSharer() }: W
           const marks = [s.isMe && t("waiting.you"), s.seat === view.hostSeat && t("waiting.host"), s.isBot && t("waiting.bot")].filter(Boolean);
           return (
             <li key={seat} className={[styles.seat, !s.connected && styles.offline].filter(Boolean).join(" ")} data-seat={seat}>
-              <svg viewBox="0 0 100 100" className={styles.pawn} aria-hidden="true">
-                <Pawn seat={seat} look={s.look} isMe={s.isMe} />
-              </svg>
+              <SeatMark seat={seat} isMe={s.isMe} size={24} />
               {s.isBot && <IconRobot size={18} stroke={2} aria-hidden="true" className={styles.botIcon} />}
               <span className={styles.name}>{s.name}</span>
               {marks.map((m) => (
@@ -118,12 +115,6 @@ export function WaitingRoomScreen({ view, session, sharer = browserSharer() }: W
         })}
       </ul>
 
-      {me && (
-        <div className={styles.look}>
-          <LookPicker value={me.look ?? me.seat} taken={takenLooks} disabled={pending} onPick={(look) => void setLook(look)} />
-        </div>
-      )}
-
       <div className={styles.actions}>
         {confirming ? (
           <>
@@ -146,7 +137,7 @@ export function WaitingRoomScreen({ view, session, sharer = browserSharer() }: W
                   aria-busy={pending || undefined}
                   aria-describedby={enough ? undefined : "start-hint"}
                 >
-                  {pending ? t("shift.waiting") : t("waiting.start")}
+                  {pending ? t("common.waiting") : t("waiting.start")}
                 </Button>
                 {!enough && (
                   <p id="start-hint" className={styles.hint}>

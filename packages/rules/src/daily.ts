@@ -1,26 +1,23 @@
-import { fewestTurns } from "./dailySolver.js";
-import { applyMove, type GameCommandResult, type GameState } from "./game.js";
-import type { Square } from "./geometry.js";
+import { CELL_COUNT } from "./board.js";
+import type { GameState } from "./game.js";
 import { createRng, shuffle } from "./rng.js";
-import { setupBoard } from "./setup.js";
-import { TREASURES, type TreasureId } from "./tileSet.js";
-import { homeSquare } from "./treasures.js";
 
 /**
- * The daily puzzle: a solo game whose board, spare and destination come only from the calendar
- * date, so everyone on the same day plays the same puzzle. The goal is one treasure in as few
- * turns as possible; the puzzle knows the best possible (its par).
+ * The daily puzzle (placeholder): a solo game whose target cells come only from the calendar date,
+ * so everyone on the same day plays the same puzzle. The goal is to claim every target in as few
+ * turns as possible; its par is one turn per target. The real puzzle (fill a shape with pieces)
+ * replaces it later, keeping this shape: seed from the date, a solo `GameState`, a par.
  */
 
-/** The seat the puzzle player sits in (its home corner). */
+/** The seat the puzzle player sits in. */
 export const DAILY_SEAT = 1;
 
-/** The par the destination is chosen for; from the start corner every treasure takes at most 2. */
-export const DAILY_PAR = 2;
+/** Target cells per puzzle. */
+export const DAILY_TARGETS = 6;
 
 export interface DailyPuzzle {
   game: GameState;
-  /** The fewest turns that reach the destination. */
+  /** The fewest turns that solve it. */
   par: number;
 }
 
@@ -34,36 +31,22 @@ export function dailySeed(date: string): number {
   return hash >>> 0;
 }
 
-/**
- * The puzzle of `date`: the board of its seed, one seat on turn at home, and as the only card the
- * first treasure of a seeded shuffle whose best is `DAILY_PAR` turns (else the hardest one found).
- */
+/** The puzzle of `date`: an empty board, one seat on turn, and DAILY_TARGETS target cells drawn from the date. */
 export function startDailyPuzzle(date: string, name: string): DailyPuzzle {
   const seed = dailySeed(date);
-  const board = setupBoard(seed);
-  const home = homeSquare(DAILY_SEAT);
-  const best = fewestTurns(board, home, DAILY_PAR);
-  const order = shuffle(createRng(seed), TREASURES).filter((t) => best.has(t));
-  const hardest = Math.max(...order.map((t) => best.get(t)!));
-  const target: TreasureId = order.find((t) => best.get(t) === hardest)!;
+  const all = Array.from({ length: CELL_COUNT }, (_, i) => i);
+  const targets = shuffle(createRng(seed), all)
+    .slice(0, DAILY_TARGETS)
+    .sort((a, b) => a - b);
   const game: GameState = {
     seed,
-    board,
-    seats: [{ seat: DAILY_SEAT, name, bot: false, pawn: home, stack: [target], found: [] }],
-    step: "shift",
+    board: all.map(() => 0),
+    seats: [{ seat: DAILY_SEAT, name, bot: false, placed: 0 }],
+    step: "play",
     turnSeat: DAILY_SEAT,
     turn: 1,
-    lastInsertion: undefined,
     winnerSeat: 0,
+    targets,
   };
-  return { game, par: hardest };
-}
-
-/** A move in the puzzle: the normal move, and finding the destination solves it in this turn. */
-export function applyPuzzleMove(state: GameState, seat: number, to: Square): GameCommandResult {
-  const result = applyMove(state, seat, to);
-  if (!result.ok) return result;
-  const mover = result.state.seats.find((s) => s.seat === seat)!;
-  if (mover.found.length < mover.stack.length || result.state.step === "finished") return result;
-  return { ok: true, state: { ...result.state, step: "finished", winnerSeat: seat, turn: state.turn, turnSeat: seat } };
+  return { game, par: targets.length };
 }

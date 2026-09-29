@@ -27,39 +27,7 @@
   font-weight: 600;
 }
 
-/* A picture scales to the column but never beyond its natural size. */
-.picture {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin: var(--space-1) 0;
-  overflow: visible;
-}
-
-.arrow line {
-  stroke: var(--highlight);
-  stroke-width: 6;
-  stroke-linecap: round;
-}
-
-.arrow path {
-  fill: var(--highlight);
-}
-
-/* Same marks as the reachable squares in a game: dashed outline plus a dot. */
-.reach rect {
-  fill: none;
-  stroke: var(--highlight);
-  stroke-width: 4;
-  stroke-dasharray: 10 6;
-}
-
-.reach circle {
-  fill: var(--highlight);
-  stroke: var(--surface);
-  stroke-width: 2;
-}
-
-.dailyIcon {
+.icon {
+  display: flex;
   color: var(--accent);
 }

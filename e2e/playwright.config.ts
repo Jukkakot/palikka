@@ -15,23 +15,23 @@ export default defineConfig({
   retries: CI ? 1 : 0,
   reporter: CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:5183",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [{ name: "galaxy-s24", use: { ...devices["Galaxy S24"] } }],
   webServer: [
     {
-      command: "npm run dev -w @labyrinth/server",
+      command: "npm run dev -w @palikka/server",
       cwd: "..",
-      url: "http://localhost:2567/health",
+      url: "http://localhost:2577/health",
       reuseExistingServer: !CI,
       timeout: 60_000,
     },
     {
-      command: "npm run dev -w @labyrinth/client",
+      command: "npm run dev -w @palikka/client",
       cwd: "..",
-      url: "http://localhost:5173",
+      url: "http://localhost:5183",
       reuseExistingServer: !CI,
       timeout: 60_000,
     },

@@ -1,35 +1,32 @@
+import { cellIndex, cellsOf, emptyBoard, isOnBoard, type Board, type Cell } from "./board.js";
 import { botSeed, type BotView } from "./bot.js";
-import type { Board } from "./board.js";
-import type { Square } from "./geometry.js";
-import { isReachable } from "./move.js";
 import { createRng, MAX_SEED, type Rng } from "./rng.js";
-import { setupBoard } from "./setup.js";
-import { reverseOf, shiftBoard, type InsertionId } from "./shift.js";
-import type { Rotation } from "./tile.js";
-import type { TreasureId } from "./tileSet.js";
-import { dealGame, firstSeat, homeSquare, settleMove } from "./treasures.js";
 import { nextSeat, soleSurvivor } from "./turns.js";
 
 /*
- * A whole game as plain, JSON-serialisable data, and the commands that change it. The same rule
- * checks as the server's game room, in the same order, with the same rejection codes; used where a
- * game runs without the server (quick games against bots on the device).
+ * The placeholder game ("claim a cell"), kept until the real rules replace it: on their turn a player
+ * claims one empty cell; after PLACEMENTS_PER_SEAT turns each, the most cells wins. It exists so the
+ * whole chain (lobby, room, bots, device games, daily puzzle, end screen) runs end to end.
+ *
+ * A whole game as plain, JSON-serialisable data and the commands that change it; the server's room
+ * and the games on the device both use it, with the same rejection codes.
  */
+
+/** Turns each seat plays before the game ends. */
+export const PLACEMENTS_PER_SEAT = 5;
 
 export interface GameSeat {
   readonly seat: number;
   readonly name: string;
   readonly bot: boolean;
-  readonly pawn: Square;
-  /** The whole treasure stack, in order; the target is `stack[found.length]`. */
-  readonly stack: readonly TreasureId[];
-  readonly found: readonly TreasureId[];
+  /** Cells claimed so far (turns played). */
+  readonly placed: number;
 }
 
-export type GameStep = "shift" | "move" | "finished";
+export type GameStep = "play" | "finished";
 
 export interface GameState {
-  /** Seeds the board, the deal and the start seat; with the turn number, the bots' choices too. */
+  /** Seeds the start seat and, with the turn number, the bots' choices. */
   readonly seed: number;
   readonly board: Board;
   /** Seated players in ascending seat order. */
@@ -38,9 +35,10 @@ export interface GameState {
   readonly turnSeat: number;
   /** Turns started so far (the first turn is 1). */
   readonly turn: number;
-  readonly lastInsertion: InsertionId | undefined;
-  /** The winning seat; 0 while the game runs. */
+  /** The winning seat; 0 while the game runs (and after a game nobody won). */
   readonly winnerSeat: number;
+  /** Daily puzzle only: the cells to claim (indexes); the puzzle ends once all are claimed. */
+  readonly targets?: readonly number[];
 }
 
 export interface NewSeat {
@@ -49,83 +47,77 @@ export interface NewSeat {
   readonly bot: boolean;
 }
 
-/** The server's codes for the ways a shift or move can be refused. */
-export type GameRejection = "NOT_SEATED" | "WRONG_PHASE" | "NOT_YOUR_TURN" | "REVERSE_PUSH_FORBIDDEN" | "UNREACHABLE";
+/** The server's codes for the ways a placement can be refused. */
+export type GameRejection = "NOT_SEATED" | "WRONG_PHASE" | "NOT_YOUR_TURN" | "CELL_TAKEN" | "INVALID_COMMAND";
 
 export type GameCommandResult = { ok: true; state: GameState } | { ok: false; code: GameRejection };
 
-/**
- * A started game: deal (and board, unless one is given) from `seed`, pawns on their start
- * corners; the host on turn (else the drawn seat).
- */
-export function startGame(seed: number, seats: readonly NewSeat[], hostSeat?: number, board: Board = setupBoard(seed)): GameState {
+/** The first seat: the host when seated, else one drawn from the seed. */
+function firstSeat(seed: number, seats: readonly number[], hostSeat?: number): number {
+  if (hostSeat !== undefined && seats.includes(hostSeat)) return hostSeat;
+  return seats[createRng(seed).int(0, seats.length - 1)]!;
+}
+
+/** A started game on an empty board: the host on turn (else a seat drawn from `seed`). */
+export function startGame(seed: number, seats: readonly NewSeat[], hostSeat?: number): GameState {
   const ordered = [...seats].sort((a, b) => a.seat - b.seat);
-  const { stacks, startSeat } = dealGame(
-    seed,
-    ordered.map((s) => s.seat),
-  );
   return {
     seed,
-    board,
-    seats: ordered.map(({ seat, name, bot }) => ({ seat, name, bot, pawn: homeSquare(seat), stack: stacks.get(seat)!, found: [] })),
-    step: "shift",
-    turnSeat: firstSeat(hostSeat, ordered.map((s) => s.seat), startSeat),
+    board: emptyBoard(),
+    seats: ordered.map(({ seat, name, bot }) => ({ seat, name, bot, placed: 0 })),
+    step: "play",
+    turnSeat: firstSeat(
+      seed,
+      ordered.map((s) => s.seat),
+      hostSeat,
+    ),
     turn: 1,
-    lastInsertion: undefined,
     winnerSeat: 0,
   };
 }
 
-/** The seat's current target; undefined once every card is found (heading home). */
-export function targetOf(seat: GameSeat): TreasureId | undefined {
-  return seat.stack[seat.found.length];
+/** The seat with the most cells; a tie goes to the lowest seat among them. 0 without seats. */
+export function leader(state: { board: Board; seats: readonly { seat: number }[] }): number {
+  let best = 0;
+  let bestCells = -1;
+  for (const { seat } of state.seats) {
+    const cells = cellsOf(state.board, seat);
+    if (cells > bestCells) {
+      best = seat;
+      bestCells = cells;
+    }
+  }
+  return best;
 }
 
-/** Rejects like the server: unseated, before a move in the wrong step, out of turn. */
-function turnRejection(state: GameState, seat: number, step: "shift" | "move"): GameRejection | undefined {
-  if (!state.seats.some((s) => s.seat === seat)) return "NOT_SEATED";
-  if (state.step === "finished") return "WRONG_PHASE";
-  if (seat !== state.turnSeat) return "NOT_YOUR_TURN";
-  if (state.step !== step) return "WRONG_PHASE";
-  return undefined;
-}
+/** The current player claims `cell`: the turn passes, or the game ends after everyone's last turn. */
+export function applyPlace(state: GameState, seat: number, cell: Cell): GameCommandResult {
+  if (!state.seats.some((s) => s.seat === seat)) return { ok: false, code: "NOT_SEATED" };
+  if (state.step === "finished") return { ok: false, code: "WRONG_PHASE" };
+  if (seat !== state.turnSeat) return { ok: false, code: "NOT_YOUR_TURN" };
+  if (!isOnBoard(cell)) return { ok: false, code: "INVALID_COMMAND" };
+  const index = cellIndex(cell);
+  if (state.board[index] !== 0) return { ok: false, code: "CELL_TAKEN" };
 
-/** The current player's shift: every pawn rides along, then the move step follows. */
-export function applyShift(state: GameState, seat: number, insertion: InsertionId, rotation: Rotation): GameCommandResult {
-  const code = turnRejection(state, seat, "shift");
-  if (code) return { ok: false, code };
-  if (state.lastInsertion !== undefined && insertion === reverseOf(state.lastInsertion)) return { ok: false, code: "REVERSE_PUSH_FORBIDDEN" };
-  const { board, pawns } = shiftBoard(
-    state.board,
-    insertion,
-    rotation,
-    state.seats.map((s) => s.pawn),
-  );
-  return {
-    ok: true,
-    state: { ...state, board, seats: state.seats.map((s, i) => ({ ...s, pawn: pawns[i]! })), step: "move", lastInsertion: insertion },
-  };
-}
-
-/** The current player's move (its own square = stay): collects, wins at home, or passes the turn. */
-export function applyMove(state: GameState, seat: number, to: Square): GameCommandResult {
-  const code = turnRejection(state, seat, "move");
-  if (code) return { ok: false, code };
-  const mover = state.seats.find((s) => s.seat === seat)!;
-  if (!isReachable(state.board, mover.pawn, to)) return { ok: false, code: "UNREACHABLE" };
-  const outcome = settleMove(state.board, { seat, square: to, target: targetOf(mover) });
-  const moved: GameSeat = { ...mover, pawn: { row: to.row, col: to.col }, found: outcome.collected ? [...mover.found, outcome.collected] : mover.found };
-  const seats = state.seats.map((s) => (s.seat === seat ? moved : s));
-  if (outcome.won) return { ok: true, state: { ...state, seats, step: "finished", winnerSeat: seat } };
+  const board = state.board.map((owner, i) => (i === index ? seat : owner));
+  const seats = state.seats.map((s) => (s.seat === seat ? { ...s, placed: s.placed + 1 } : s));
+  if (state.targets) {
+    // The daily puzzle ends once every target is claimed; the solving turn counts.
+    const solved = state.targets.every((t) => board[t] === seat);
+    return { ok: true, state: solved ? { ...state, board, seats, step: "finished", winnerSeat: seat } : { ...state, board, seats, turn: state.turn + 1 } };
+  }
+  if (seats.every((s) => s.placed >= PLACEMENTS_PER_SEAT)) {
+    return { ok: true, state: { ...state, board, seats, step: "finished", winnerSeat: leader({ board, seats }) } };
+  }
   const next = nextSeat(
-    seats.map((s) => s.seat),
+    seats.filter((s) => s.placed < PLACEMENTS_PER_SEAT).map((s) => s.seat),
     seat,
   );
-  return { ok: true, state: { ...state, seats, step: "shift", turnSeat: next, turn: state.turn + 1 } };
+  return { ok: true, state: { ...state, board, seats, turnSeat: next, turn: state.turn + 1 } };
 }
 
 /**
- * A seat leaves a running game (left, kicked, timed out): its pawn and cards go. The last seat
+ * A seat leaves a running game (left, kicked, timed out): its cells stay on the board. The last seat
  * standing wins; if the leaver was on turn, the next seat's turn starts.
  */
 export function removeSeat(state: GameState, seat: number): GameState {
@@ -138,7 +130,7 @@ export function removeSeat(state: GameState, seat: number): GameState {
     seats.map((s) => s.seat),
     seat,
   );
-  return { ...state, seats, step: "shift", turnSeat: next, turn: state.turn + 1 };
+  return { ...state, seats, turnSeat: next, turn: state.turn + 1 };
 }
 
 /** Ends the game at once with `winnerSeat` (0: no winner, e.g. no person left). */
@@ -146,22 +138,9 @@ export function endGame(state: GameState, winnerSeat: number): GameState {
   return { ...state, step: "finished", winnerSeat };
 }
 
-/** What `seat` may fairly know: everything public plus its own target, never anyone else's. */
+/** What `seat` may know when choosing: everything is public in this game. */
 export function botViewOf(state: GameState, seat: number): BotView {
-  const own = state.seats.find((s) => s.seat === seat);
-  return {
-    board: state.board,
-    seat,
-    seats: state.seats.map((s) => ({
-      seat: s.seat,
-      pawn: s.pawn,
-      found: s.found.length,
-      cardsLeft: s.stack.length - s.found.length,
-      foundTreasures: s.found,
-    })),
-    lastInsertion: state.lastInsertion,
-    target: own && targetOf(own),
-  };
+  return { board: state.board, seat, seats: state.seats.map((s) => ({ seat: s.seat, placed: s.placed })), targets: state.targets };
 }
 
 /** A bot's rng for the current turn: from the game seed, its seat and the turn, so nothing needs saving. */

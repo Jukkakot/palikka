@@ -1,5 +1,5 @@
 import { defineServer, defineRoom, LobbyRoom, monitor, playground } from "colyseus";
-import { RULES_VERSION } from "@labyrinth/rules";
+import { RULES_VERSION } from "@palikka/rules";
 import { readBuiltAt } from "./buildInfo.js";
 import { configureCors } from "./cors.js";
 import { frameworkLogger } from "./logging/frameworkLogger.js";

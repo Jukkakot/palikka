@@ -1,8 +1,8 @@
 {
-  "name": "@labyrinth/rules",
+  "name": "@palikka/rules",
   "version": "0.1.0",
   "private": true,
-  "description": "Pure game rules for Labyrinth, shared by server and client",
+  "description": "Pure game rules for Palikka, shared by server and client",
   "type": "module",
   "sideEffects": false,
   "exports": {

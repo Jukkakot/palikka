@@ -1,8 +1,8 @@
 schema: spec-driven
 
 context: |
-  Labyrinth: web multiplayer clone of Ravensburger "Das verrückte Labyrinth"
-  (fi: Muuttuva labyrintti), original rules, humans and bots, mobile first.
+  Palikka: web multiplayer clone of Ravensburger "Das verrückte Palikka"
+  (fi: Palikka), original rules, humans and bots, mobile first.
 
   Monorepo (npm workspaces, TypeScript):
   - packages/rules: pure deterministic game logic (seeded randomness), shared

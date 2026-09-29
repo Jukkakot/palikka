@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadSeenTips, pickTip, resetTips, saveSeenTips, type TipId, type TipSituation } from "./tips.ts";
 
-const playing: TipSituation = { playing: true, isMyTurn: false, step: "shift", heading: "treasure" };
+const playing: TipSituation = { playing: true, isMyTurn: false };
 const seen = (...tips: TipId[]) => new Set(tips);
 
 /** A Map-backed Storage for tests. */
@@ -32,23 +32,18 @@ const blocked = {
 } as unknown as Storage;
 
 describe("first-game-tips › One-time tips in the first game", () => {
-  it("First turn: the target tip comes first, then push on the own shift step", () => {
-    const myShift = { ...playing, isMyTurn: true };
-    expect(pickTip(myShift, seen())).toBe("target");
-    expect(pickTip(myShift, seen("target"))).toBe("push");
+  it("First turn: the goal tip comes first, then how to place on the own turn", () => {
+    const myTurn = { ...playing, isMyTurn: true };
+    expect(pickTip(myTurn, seen())).toBe("goal");
+    expect(pickTip(myTurn, seen("goal"))).toBe("place");
   });
 
-  it("Walk on the own move step, nothing on another player's turn once the target is known", () => {
-    expect(pickTip({ ...playing, isMyTurn: true, step: "move" }, seen("target", "push"))).toBe("walk");
-    expect(pickTip(playing, seen("target"))).toBeUndefined();
-  });
-
-  it("Heading home: the home tip", () => {
-    expect(pickTip({ ...playing, heading: "home" }, seen("target"))).toBe("home");
+  it("Nothing on another player's turn once the goal was seen", () => {
+    expect(pickTip(playing, seen("goal"))).toBeUndefined();
   });
 
   it("Shown only once: nothing when every tip was seen", () => {
-    expect(pickTip({ ...playing, isMyTurn: true }, seen("target", "push", "walk", "home"))).toBeUndefined();
+    expect(pickTip({ ...playing, isMyTurn: true }, seen("goal", "place"))).toBeUndefined();
   });
 
   it("Spectator or finished game: no tip", () => {
@@ -57,21 +52,21 @@ describe("first-game-tips › One-time tips in the first game", () => {
 
   it("Seen tips round-trip through storage; blocked or garbage storage gives none", () => {
     const storage = memoryStorage();
-    saveSeenTips(seen("target", "push"), storage);
-    expect(loadSeenTips(storage)).toEqual(seen("target", "push"));
-    storage.setItem("labyrinth.tips.seen", "{not json");
+    saveSeenTips(seen("goal", "place"), storage);
+    expect(loadSeenTips(storage)).toEqual(seen("goal", "place"));
+    storage.setItem("palikka.tips.seen", "{not json");
     expect(loadSeenTips(storage)).toEqual(seen());
-    storage.setItem("labyrinth.tips.seen", '["walk","bogus"]');
-    expect(loadSeenTips(storage)).toEqual(seen("walk"));
+    storage.setItem("palikka.tips.seen", '["place","bogus"]');
+    expect(loadSeenTips(storage)).toEqual(seen("place"));
     expect(loadSeenTips(blocked)).toEqual(seen());
-    expect(() => saveSeenTips(seen("walk"), blocked)).not.toThrow();
+    expect(() => saveSeenTips(seen("place"), blocked)).not.toThrow();
   });
 });
 
 describe("first-game-tips › Show the tips again", () => {
   it("Resetting forgets every seen tip", () => {
     const storage = memoryStorage();
-    saveSeenTips(seen("target"), storage);
+    saveSeenTips(seen("goal"), storage);
     resetTips(storage);
     expect(loadSeenTips(storage)).toEqual(seen());
     expect(() => resetTips(blocked)).not.toThrow();

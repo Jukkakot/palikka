@@ -90,7 +90,7 @@ function ReportLine({ roomId, copy }: { roomId?: string; copy: CopyFn }) {
 }
 
 /**
- * The device's settings: confirmations, theme, sounds, the turn notification and the bug-report
+ * The device's settings: theme, sounds, the turn notification and the bug-report
  * line. Every change applies at once and is remembered on this device only.
  */
 export function SettingsScreen({
@@ -115,14 +115,6 @@ export function SettingsScreen({
     >
       <div className={styles.page}>
         <h1 className={styles.title}>{t("settings.title")}</h1>
-
-        <section className={styles.group} aria-labelledby="settings-confirm">
-          <h2 id="settings-confirm" className={styles.heading}>
-            {t("settings.confirmations")}
-          </h2>
-          <Toggle name="confirmShift" />
-          <Toggle name="confirmMove" />
-        </section>
 
         <section className={styles.group} aria-labelledby="settings-theme">
           <h2 id="settings-theme" className={styles.heading}>

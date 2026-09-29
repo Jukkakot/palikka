@@ -1,12 +1,12 @@
 services:
   - type: web
-    name: labyrinth-server
+    name: palikka-server
     runtime: node
     plan: free
     region: frankfurt
     # Built from the repo root so npm workspaces can link the shared packages.
-    buildCommand: npm ci --include=dev && npm run build -w @labyrinth/rules -w @labyrinth/protocol -w @labyrinth/server
-    startCommand: npm start -w @labyrinth/server
+    buildCommand: npm ci --include=dev && npm run build -w @palikka/rules -w @palikka/protocol -w @palikka/server
+    startCommand: npm start -w @palikka/server
     healthCheckPath: /health
     # Deploys come from the deploy-server job in .github/workflows/ci.yml (deploy hook).
     autoDeployTrigger: "off"
@@ -19,7 +19,7 @@ services:
         value: https://jukkakot.github.io
       # Central log store (docs/operations.md → Logs). The ingest token is set in the dashboard.
       - key: AXIOM_DATASET
-        value: labyrinth
+        value: palikka
       # The dataset lives in Axiom's EU region; ingest must go to its edge domain.
       - key: AXIOM_EDGE
         value: eu-central-1.aws.edge.axiom.co

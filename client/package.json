@@ -1,5 +1,5 @@
 {
-  "name": "@labyrinth/client",
+  "name": "@palikka/client",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@colyseus/sdk": "^0.18.4",
-    "@labyrinth/protocol": "*",
-    "@labyrinth/rules": "*",
+    "@palikka/protocol": "*",
+    "@palikka/rules": "*",
     "@tabler/icons-react": "^3.48.0",
     "i18next": "^26.4.2",
     "i18next-browser-languagedetector": "^8.2.0",

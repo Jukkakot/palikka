@@ -31,7 +31,7 @@ describe("rematch", () => {
     GameRoom.maxOpenGames = MAX_OPEN_GAMES;
   });
 
-  /** A finished public game of Maija (seat 1), Pekka (seat 2) and Robo (seat 3). */
+  /** A finished public game of Maija (seat 1), Pekka (seat 2) and Kettu (seat 3). */
   async function finishedGame(create: Record<string, unknown> = {}) {
     const game = await waitingRoom(colyseus, 2, { create });
     await game.clients[0]!.request("addBot", { seat: 3 });
@@ -51,13 +51,13 @@ describe("rematch", () => {
     return id;
   };
 
-  it("First player asks for a rematch: a new public waiting room with Robo in seat 3, Maija hosts", async () => {
+  it("First player asks for a rematch: a new public waiting room with Kettu in seat 3, Maija hosts", async () => {
     const { room, clients } = await finishedGame();
     expect(await clients[0]!.request("rematch", {})).toEqual({ ok: true });
     const id = await rematchId(clients[0]!);
     const next = roomOf(colyseus, id);
     expect(next.state.phase).toBe("waiting");
-    expect([...next.state.players.values()].map((p) => [p.seat, p.name, p.bot])).toEqual([[3, "Robo", true]]);
+    expect([...next.state.players.values()].map((p) => [p.seat, p.name, p.bot])).toEqual([[3, "Kettu", true]]);
     expect((await listing(id))?.private).toBe(false);
     const maija = await join(colyseus, next, "Maija");
     expect(next.state.players.get(maija.sessionId)?.seat).toBe(1);

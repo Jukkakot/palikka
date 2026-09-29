@@ -2,8 +2,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../i18n";
-import { startDailyPuzzle, targetOf, tileAt, treasureOf } from "@labyrinth/rules";
-import { solutionFrames } from "../game/solutionReplay.ts";
 import { saveDailyRecord, todayString } from "../session/dailyRecord.ts";
 import { LocalRoom } from "../session/localRoom.ts";
 import type { GameSession } from "../session/useGameSession.ts";
@@ -34,8 +32,7 @@ function startScreen(playDaily = vi.fn()) {
 
 function gameScreen(roomId: string, state: Parameters<typeof toGameView>[0]) {
   const session = {
-    shift: vi.fn<GameSession["shift"]>(async () => ({ ok: true })),
-    move: vi.fn<GameSession["move"]>(async () => ({ ok: true })),
+    place: vi.fn<GameSession["place"]>(async () => ({ ok: true })),
     kick: vi.fn<GameSession["kick"]>(async () => ({ ok: true })),
     undo: vi.fn<GameSession["undo"]>(async () => ({ ok: true })),
     playDaily: vi.fn(),
@@ -51,7 +48,7 @@ function gameScreen(roomId: string, state: Parameters<typeof toGameView>[0]) {
   return session;
 }
 
-beforeEach(() => localStorage.setItem("labyrinth.nickname", "Maija"));
+beforeEach(() => localStorage.setItem("palikka.nickname", "Maija"));
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -81,17 +78,18 @@ describe("daily-puzzle › Start screen puzzle entry", () => {
 });
 
 describe("daily-puzzle › Puzzle game screen with par", () => {
-  it("During the puzzle: turn and best shown, hint on, Peru disabled with nothing to undo", () => {
+  it("During the puzzle: turn and best shown, targets marked, hint on, Peru disabled with nothing to undo", () => {
     const room = LocalRoom.createDaily("Maija", "2026-09-27", quiet);
     gameScreen(room.roomId, room.state);
+    expect(document.querySelectorAll("[data-board] [class*='target']")).toHaveLength(room.game.targets!.length);
     expect(screen.getByText(`Vuoro 1 · paras mahdollinen ${room.state.par}`)).toBeTruthy();
     expect(screen.getByRole<HTMLButtonElement>("button", { name: "Vihje" }).disabled).toBe(false);
     expect(screen.getByRole<HTMLButtonElement>("button", { name: "Peru siirto" }).disabled).toBe(true);
   });
 
-  it("Peru takes back the last shift", async () => {
+  it("Peru takes back the last placement", async () => {
     const room = LocalRoom.createDaily("Maija", "2026-09-27", quiet);
-    await room.request("shift", { insertion: "N1", rotation: 0 });
+    await room.request("place", { row: 0, col: 0 });
     const { undo } = gameScreen(room.roomId, room.state);
     fireEvent.click(screen.getByRole("button", { name: "Peru siirto" }));
     expect(undo).toHaveBeenCalled();
@@ -119,33 +117,7 @@ describe("daily-puzzle › Puzzle game screen with par", () => {
   it("Best reached: the end says so", () => {
     const room = LocalRoom.createDaily("Maija", "2026-09-27", quiet);
     gameScreen(room.roomId, { ...room.state, phase: "finished", winnerSeat: 1, turn: 2, par: 2 });
-    expect(screen.getByText("Ratkaisit pulman 2 vuorossa – paras mahdollinen! ⭐")).toBeTruthy();
+    expect(screen.getByText("Ratkaisit pulman 2 vuorossa – paras mahdollinen! ❄")).toBeTruthy();
   });
 });
 
-describe("daily-puzzle › Best route replay", () => {
-  it("Replay of a two-turn best: five steps ending on the destination", () => {
-    const frames = solutionFrames("2026-09-27", "Maija");
-    const { game, par } = startDailyPuzzle("2026-09-27", "Maija");
-    expect(par).toBe(2);
-    expect(frames.map((f) => f.step)).toEqual(["start", "shift", "move", "shift", "move"]);
-    const last = frames.at(-1)!;
-    expect(treasureOf(tileAt(last.board, last.pawn).id)).toBe(targetOf(game.seats[0]!));
-  });
-
-  it("Closing the replay: steps forward to the end, then back to the end screen", () => {
-    const room = LocalRoom.createDaily("Maija", "2026-09-27", quiet);
-    saveDailyRecord({ date: "2026-09-27", roomId: room.roomId, par: 2, best: { turns: 3 } });
-    gameScreen(room.roomId, { ...room.state, phase: "finished", winnerSeat: 1, turn: 3, par: 2 });
-    fireEvent.click(screen.getByRole("button", { name: "Näytä paras reitti" }));
-    expect(screen.getByText("Paras reitti · vaihe 1/5 · Lähtötilanne")).toBeTruthy();
-    const next = screen.getByRole<HTMLButtonElement>("button", { name: "Seuraava vaihe" });
-    for (let i = 0; i < 4; i++) fireEvent.click(next);
-    expect(screen.getByText("Paras reitti · vaihe 5/5 · Vuoro 2: kävele")).toBeTruthy();
-    expect(next.disabled).toBe(true);
-    expect(document.querySelector("[data-push]")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Sulje" }));
-    expect(screen.getByRole("button", { name: "Näytä paras reitti" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Uudelleen" })).toBeTruthy();
-  });
-});

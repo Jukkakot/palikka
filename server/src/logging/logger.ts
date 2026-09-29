@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import pino, { type DestinationStream, type Logger } from "pino";
 import pretty from "pino-pretty";
-import type { ClientLogEntry, LogLevel } from "@labyrinth/protocol";
+import type { ClientLogEntry, LogLevel } from "@palikka/protocol";
 import type { ServerLogEvent } from "./events.js";
 
 /** Extra fields of a log line. `room` and `player` are placed right after `evt`. */

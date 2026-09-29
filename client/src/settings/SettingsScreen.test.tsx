@@ -20,7 +20,7 @@ describe("settings › settings screen", () => {
     expect((sounds as HTMLInputElement).checked).toBe(true);
     fireEvent.click(sounds);
     expect(getSettings().sounds).toBe(false);
-    expect(JSON.parse(localStorage.getItem("labyrinth.settings")!)).toMatchObject({ sounds: false });
+    expect(JSON.parse(localStorage.getItem("palikka.settings")!)).toMatchObject({ sounds: false });
 
     fireEvent.click(screen.getByRole("button", { name: "Tumma" }));
     expect(getSettings().theme).toBe("dark");

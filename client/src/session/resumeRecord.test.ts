@@ -15,15 +15,15 @@ describe("game-session › Resume after closing the app (record)", () => {
   it("Too late: a record older than the hold is dropped", () => {
     saveResume("tok", "r", 0);
     expect(loadResume(RESUME_HOLD_MS)).toBeUndefined();
-    expect(localStorage.getItem("labyrinth.resume")).toBeNull();
+    expect(localStorage.getItem("palikka.resume")).toBeNull();
   });
 
   it("a broken record is dropped", () => {
-    localStorage.setItem("labyrinth.resume", "{not json");
+    localStorage.setItem("palikka.resume", "{not json");
     expect(loadResume()).toBeUndefined();
-    localStorage.setItem("labyrinth.resume", JSON.stringify({ token: 1 }));
+    localStorage.setItem("palikka.resume", JSON.stringify({ token: 1 }));
     expect(loadResume()).toBeUndefined();
-    expect(localStorage.getItem("labyrinth.resume")).toBeNull();
+    expect(localStorage.getItem("palikka.resume")).toBeNull();
   });
 
   it("blocked storage: nothing offered, nothing thrown", () => {

@@ -6,6 +6,9 @@ export const DISCONNECT_LIMIT_SECONDS = 300;
 
 export const SEAT_COUNT = 4;
 
+/** A game needs at least this many seated players (people and bots) to start. */
+export const MIN_SEATS = 2;
+
 /**
  * The next taken seat clockwise after `from` (1 → 2 → 3 → 4 → 1): `from` itself when it is the
  * only taken seat, 0 when no seat is taken.

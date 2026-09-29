@@ -20,7 +20,7 @@ describe("board-view › Game link badge", () => {
     await tap(/brave-otters-sing/);
 
     const data = vi.mocked(sharer.share!).mock.calls[0]![0];
-    expect(data.text).toBe("Katso Labyrintti-peliäni");
+    expect(data.text).toBe("Katso Palikka-peliäni");
     expect(data.url).toContain("game=brave-otters-sing");
     expect(sharer.copy).not.toHaveBeenCalled();
   });
@@ -29,7 +29,7 @@ describe("board-view › Game link badge", () => {
     const sharer: Sharer = { share: vi.fn(async () => {}), copy: vi.fn(async () => {}) };
     render(<GameIdBadge roomId="brave-otters-sing" invite="join" sharer={sharer} />);
     await tap(/brave-otters-sing/);
-    expect(vi.mocked(sharer.share!).mock.calls[0]![0].text).toBe("Liity Labyrintti-peliini");
+    expect(vi.mocked(sharer.share!).mock.calls[0]![0].text).toBe("Liity Palikka-peliini");
   });
 
   it("No share sheet: copies the link and confirms", async () => {

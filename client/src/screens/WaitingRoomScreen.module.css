@@ -33,10 +33,10 @@
   color: var(--muted);
 }
 
-.pawn {
-  width: 32px;
-  height: 32px;
-  flex: none;
+/* A free seat shows its colour faded. */
+.freeMark {
+  display: inline-flex;
+  opacity: 0.35;
 }
 
 .name {
@@ -61,7 +61,7 @@
   border-style: dashed;
 }
 
-.offline .pawn {
+.offline [data-seat] {
   opacity: 0.45;
 }
 
@@ -112,7 +112,3 @@
   color: var(--muted);
 }
 
-/* The viewer's own pawn choice, under the seats. */
-.look {
-  width: min(100%, 22rem);
-}

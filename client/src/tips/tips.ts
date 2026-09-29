@@ -1,5 +1,5 @@
 /** The one-time tips of the first game, in the order they are offered. */
-export const TIPS = ["target", "push", "walk", "home"] as const;
+export const TIPS = ["goal", "place"] as const;
 export type TipId = (typeof TIPS)[number];
 
 /** What the game screen tells the tips; plain values, independent of the session and the view model. */
@@ -7,23 +7,16 @@ export interface TipSituation {
   /** The viewer plays in a running game: seated, not watching, not finished. */
   playing: boolean;
   isMyTurn: boolean;
-  step: "shift" | "move";
-  /** What the viewer looks for: a treasure, or home once every treasure is found; undefined before it is known. */
-  heading?: "treasure" | "home";
 }
 
 /** Whether a tip's moment is now. */
 export function isRelevant(tip: TipId, s: TipSituation): boolean {
   if (!s.playing) return false;
   switch (tip) {
-    case "target":
-      return s.heading === "treasure";
-    case "push":
-      return s.isMyTurn && s.step === "shift";
-    case "walk":
-      return s.isMyTurn && s.step === "move";
-    case "home":
-      return s.heading === "home";
+    case "goal":
+      return true;
+    case "place":
+      return s.isMyTurn;
   }
 }
 
@@ -32,7 +25,7 @@ export function pickTip(s: TipSituation, seen: ReadonlySet<TipId>): TipId | unde
   return TIPS.find((tip) => !seen.has(tip) && isRelevant(tip, s));
 }
 
-const KEY = "labyrinth.tips.seen";
+const KEY = "palikka.tips.seen";
 
 /** The tips seen in this browser; empty when storage is blocked or holds garbage. */
 export function loadSeenTips(storage?: Storage): Set<TipId> {

@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { matchMaker } from "colyseus";
-import { CLOSE_CODES } from "@labyrinth/protocol";
+import { CLOSE_CODES } from "@palikka/protocol";
 import appConfig from "../src/app.config.js";
 import { configureLogger } from "../src/logging/logger.js";
 import { GameRoom, MAX_OPEN_GAMES } from "../src/rooms/GameRoom.js";
@@ -71,29 +71,25 @@ describe("lobby in a room", () => {
   });
 
   describe("Waiting room", () => {
-    it("No current player and no cards before the start; the first joiner hosts", async () => {
+    it("No current player before the start; the first joiner hosts", async () => {
       const { room, clients, player } = await waitingRoom(colyseus, 2);
       expect(room.state.phase).toBe("waiting");
       expect(room.state.turnSeat).toBe(0);
       expect(room.state.turnDeadline).toBe(0);
       expect(room.state.hostSeat).toBe(1);
-      expect(player(1).cards).toBe(0);
+      expect(player(1).placed).toBe(0);
       await vi.waitFor(() => expect((clients[1]!.state as DecodedState).hostSeat).toBe(1));
       expect(logs.byEvt("turn.changed")).toHaveLength(0);
     });
   });
 
   describe("Starting the game", () => {
-    it("Host starts: 8 cards each, one of the three on turn with a running clock, the room closed to joining", async () => {
-      const { room, clients, player } = await waitingRoom(colyseus, 3);
+    it("Host starts: the host on turn with a running clock, the room closed to joining", async () => {
+      const { room, clients } = await waitingRoom(colyseus, 3);
       expect(await clients[0]!.request("start", {})).toEqual({ ok: true });
-      [0, 1, 2].forEach((i) => {
-        expect(player(i).cards).toBe(8);
-        expect(player(i).target).not.toBe("");
-      });
       // turns › First player starts: the host (seat 1) has the first turn.
       expect(room.state.turnSeat).toBe(1);
-      expect(room.state.phase).toBe("shift");
+      expect(room.state.phase).toBe("play");
       expect(room.state.turnDeadline).toBeGreaterThan(Date.now());
       expect(room.locked).toBe(true);
       expect(logs.byEvt("game.started")).toEqual([

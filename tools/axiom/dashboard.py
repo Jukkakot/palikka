@@ -1,4 +1,4 @@
-"""Builds the Axiom dashboard "Labyrintti – lokit" (schemaVersion 2) as dashboard.json next to this file.
+"""Builds the Axiom dashboard "Palikka – lokit" (schemaVersion 2) as dashboard.json next to this file.
 
 Create:  python tools/axiom/dashboard.py; pwsh tools/axiom/axiom.ps1 POST /v2/dashboards tools/axiom/dashboard.json
 Update:  the same with PUT /v2/dashboards/uid/<uid> (the uid is in docs/operations.md → Logs;
@@ -8,7 +8,7 @@ import os
 import json
 import uuid
 
-DS = "labyrinth"
+DS = "palikka"
 PARAMS = ('declare query_parameters (source_filter:string = "", kind_filter:string = "", '
           'room_filter:string = "", bot_filter:string = "", ver_filter:string = "");\n')
 BASE = PARAMS + f"""['{DS}']
@@ -93,8 +93,8 @@ add({"name": "Pelityypit", "type": "Table", "datasetId": DS,
      "tableSettings": table_settings}, 6, 23, 6, 6)
 
 dashboard = {
-    "name": "Labyrintti – lokit",
-    "description": "Labyrintin tuotantolokit (palvelin + client). Suodata yläpalkista lähteen, tyypin, pelin, bottien ja version mukaan.",
+    "name": "Palikka – lokit",
+    "description": "Palikan tuotantolokit (palvelin + client). Suodata yläpalkista lähteen, tyypin, pelin, bottien ja version mukaan.",
     "owner": "X-AXIOM-EVERYONE",
     "charts": charts,
     "layout": layout,

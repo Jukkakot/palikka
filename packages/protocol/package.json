@@ -1,8 +1,8 @@
 {
-  "name": "@labyrinth/protocol",
+  "name": "@palikka/protocol",
   "version": "0.1.0",
   "private": true,
-  "description": "Client-server protocol definitions for Labyrinth: log events, message schemas, error codes",
+  "description": "Client-server protocol definitions for Palikka: log events, message schemas, error codes",
   "type": "module",
   "sideEffects": false,
   "exports": {

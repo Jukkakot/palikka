@@ -6,7 +6,7 @@ import {
   type ClientLogEntry,
   type ClientLogEvent,
   type LogLevel,
-} from "@labyrinth/protocol";
+} from "@palikka/protocol";
 import { serverUrl } from "../config.ts";
 import { LogShipper, type SendFn } from "./shipper.ts";
 

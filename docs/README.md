@@ -1,10 +1,10 @@
-# Labyrinth wiki
+# Palikka wiki
 
-A web multiplayer version of the shifting-labyrinth board game: original rules, humans and bots,
+A web multiplayer version of the shifting-palikka board game: original rules, humans and bots,
 mobile first (Android primary). Everything you need to know about the solution starts here.
 
-- Play: https://jukkakot.github.io/labyrinth/
-- Server health: https://labyrinth-server-3z1m.onrender.com/health
+- Play: https://jukkakot.github.io/palikka/
+- Server health: https://palikka-server.onrender.com/health
 
 ## Where to find what
 

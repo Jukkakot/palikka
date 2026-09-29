@@ -4,8 +4,8 @@
 
 | | URL | Hosted on | Deploys when |
 |---|---|---|---|
-| Client | https://jukkakot.github.io/labyrinth/ | GitHub Pages | push to `main` touching `client/`, `packages/rules/`, lockfile ("Deploy client" workflow) |
-| Server | https://labyrinth-server-3z1m.onrender.com | Render free web service `labyrinth-server` (Frankfurt) | green CI on `main` when the server code (`server/`, `packages/rules/`, `packages/protocol/`, lockfile, `render.yaml`) differs from the live server's commit: the `deploy-server` job in CI calls Render's deploy hook (secret `RENDER_DEPLOY_HOOK_URL`); Render auto-deploy is off |
+| Client | https://jukkakot.github.io/palikka/ | GitHub Pages | push to `main` touching `client/`, `packages/rules/`, lockfile ("Deploy client" workflow) |
+| Server | https://palikka-server.onrender.com | Render free web service `palikka-server` (Frankfurt) | green CI on `main` when the server code (`server/`, `packages/rules/`, `packages/protocol/`, lockfile, `render.yaml`) differs from the live server's commit: the `deploy-server` job in CI calls Render's deploy hook (secret `RENDER_DEPLOY_HOOK_URL`); Render auto-deploy is off |
 
 - Render ids: service `srv-darps5navr4c73fmplh0`, workspace `tea-d7vbs7l7vvec73dbddt0`.
 - **Free tier:** the server sleeps after ~15 min without traffic; the next request wakes it in
@@ -19,7 +19,7 @@
 commit → push to `main` (Claude pushes before each summary) → CI (lint, typecheck, tests, build, bundle
 size, E2E smoke) → Pages deploy (client) and Render deploy hook (server, CI's `deploy-server` job after green checks) →
 **production smoke** (`prod-smoke.yml`: waits until the live server's `/health` version and the
-client's `version.json` carry this commit's code, then `npm run e2e:prod -w @labyrinth/e2e` starts a
+client's `version.json` carry this commit's code, then `npm run e2e:prod -w @palikka/e2e` starts a
 1v1 bot game on the device, then a server game (Pelaa, one bot, start) on the live site and leaves; also daily at 05:17 UTC and by hand). No staging
 environment.
 
@@ -29,7 +29,7 @@ stale client when checking a deploy, compare the footer's "Client …" build tim
 
 ### After a deploy (manual checks)
 
-1. Open https://jukkakot.github.io/labyrinth/ on the phone (or Playwright MCP `playwright-mobile`).
+1. Open https://jukkakot.github.io/palikka/ on the phone (or Playwright MCP `playwright-mobile`).
    If the server was asleep, Pelaa is greyed out with "Herätetään palvelinta…" (up to about a
    minute); then Pelaa becomes available. The footer shows "Client …" and "Server …" build times:
    they must match the Pages and Render deploys you just made (newer than the push). Enter a
@@ -51,18 +51,18 @@ stale client when checking a deploy, compare the footer's "Client …" build tim
 | Name | Where | Purpose |
 |---|---|---|
 | `VITE_SERVER_URL` | GitHub repository variable → client build | Server base URL |
-| `VITE_BASE` | set in deploy workflow | `/labyrinth/` path on Pages |
+| `VITE_BASE` | set in deploy workflow | `/palikka/` path on Pages |
 | `ALLOWED_ORIGINS` | `render.yaml` env | CORS allow-list (comma-separated) |
 | `NODE_ENV=production` | `render.yaml` env | Disables `/monitor` and `/playground` |
 | `PORT` | set by Render | Server listen port |
-| `AXIOM_DATASET` | `render.yaml` env (`labyrinth`) | Axiom dataset the production server ships its log lines to |
+| `AXIOM_DATASET` | `render.yaml` env (`palikka`) | Axiom dataset the production server ships its log lines to |
 | `AXIOM_EDGE` | `render.yaml` env | Edge domain of the dataset's region (`eu-central-1.aws.edge.axiom.co`); Axiom refuses ingest through `api.axiom.co` for EU datasets |
-| `AXIOM_TOKEN` | Render dashboard (secret, `sync: false`) | Axiom API token, **ingest-only** for `labyrinth`; without it nothing is shipped |
+| `AXIOM_TOKEN` | Render dashboard (secret, `sync: false`) | Axiom API token, **ingest-only** for `palikka`; without it nothing is shipped |
 
 ## Logs — Implemented
 
 All logs, server and client, are written to the server's stdout (Render's log view) and, in
-production with `AXIOM_TOKEN` set, also shipped to the **Axiom** dataset `labyrinth` (30-day
+production with `AXIOM_TOKEN` set, also shipped to the **Axiom** dataset `palikka` (30-day
 retention, queryable with APL). Axiom is the main place to read them: Claude uses the Axiom MCP
 (`queryApl`), people the Axiom web UI. Render's view (dashboard or Render MCP
 `list_logs(resource=[service id], text=[…], startTime, endTime)`) is the fallback, e.g. while
@@ -72,23 +72,23 @@ lines, never slows a game.
 **Ready queries** (APL; narrow the time range with `where _time > ago(1d)`):
 
 ```
-['labyrinth'] | where room == "brave-otters-sing" | sort by _time asc          // one game's timeline
-['labyrinth'] | where level == "error" and _time > ago(1d)                      // errors today
-['labyrinth'] | where evt == "cmd.rejected" | summarize count() by code, cmd     // rejections by code
-['labyrinth'] | where evt == "bot.fallback" | project _time, room, seat, cmd, code
-['labyrinth'] | where evt == "game.finished" | summarize count() by reason, bin(_time, 1d)
-['labyrinth'] | where evt == "game.started" | summarize count() by quick = tostring(quick), bin(_time, 1d)
+['palikka'] | where room == "brave-otters-sing" | sort by _time asc          // one game's timeline
+['palikka'] | where level == "error" and _time > ago(1d)                      // errors today
+['palikka'] | where evt == "cmd.rejected" | summarize count() by code, cmd     // rejections by code
+['palikka'] | where evt == "bot.fallback" | project _time, room, seat, cmd, code
+['palikka'] | where evt == "game.finished" | summarize count() by reason, bin(_time, 1d)
+['palikka'] | where evt == "game.started" | summarize count() by quick = tostring(quick), bin(_time, 1d)
 ```
 
-**Dashboard for people:** Axiom → Dashboards → **"Labyrintti – lokit"** (uid
+**Dashboard for people:** Axiom → Dashboards → **"Palikka – lokit"** (uid
 `944f69f1-0eb1-46b1-b88c-5c0635b8aed6`). Filter bar: source (server/client), type (audit = commands,
 game flow, connections, HTTP, errors and warnings), game id, people/bots, version. Panels: games
 started, errors, rejected commands, bot fallbacks, lines by level, finished games by reason, the
 log table (newest first) and rejections by code. Built by `tools/axiom/dashboard.py`; change it there
 and upload with `tools/axiom/axiom.ps1` (see the script header), not by hand in the UI.
 
-**Setup (done 2026-09-27):** dataset `labyrinth` (EU region, plan retention 30 days), ingest-only
-token "labyrinth ingest (Render server)" in Render's `AXIOM_TOKEN`. Claude administers Axiom
+**Setup (done 2026-09-27):** dataset `palikka` (EU region, plan retention 30 days), ingest-only
+token "palikka ingest (Render server)" in Render's `AXIOM_TOKEN`. Claude administers Axiom
 (datasets, tokens, dashboards, monitors) through its REST API with the user's personal token
 `AXIOM_PAT` + `AXIOM_ORG_ID` from the Windows user environment (`tools/axiom/axiom.ps1` reads them
 there, as a running VS Code may not have inherited them). No error alerts or
@@ -154,7 +154,7 @@ they have no server room, so only client logs can have it (`client.local.*` / `c
 info lines ship only with `?debug=1`).
 
 1. Convert the reported local time (Europe/Helsinki) to UTC.
-2. Query Axiom (Axiom MCP `queryApl`): `['labyrinth'] | where room == "<game id>" | sort by _time
+2. Query Axiom (Axiom MCP `queryApl`): `['palikka'] | where room == "<game id>" | sort by _time
    asc`, with a ±15 min window around the reported time. If Axiom has nothing (older than 30 days,
    or not set up), fetch Render logs: `list_logs(resource=[service id], text=["<game id>"],
    startTime, endTime)` (`direction: "forward"` gives chronological order). Locally, read

@@ -18,7 +18,7 @@ afterEach(() => {
   setHidden(false);
   localStorage.clear();
   reloadSettings();
-  document.title = "Labyrintti";
+  document.title = "Palikka";
 });
 
 describe("settings › Turn notification", () => {
@@ -34,28 +34,28 @@ describe("settings › Turn notification", () => {
   });
 
   it("Backgrounded tab: the title announces the turn while hidden and returns when visible or the turn ends", () => {
-    document.title = "Labyrintti";
+    document.title = "Palikka";
     setHidden(true);
     const { rerender } = renderHook((v: View) => useTurnAlert(v), { initialProps: view({ isMyTurn: false }) });
-    expect(document.title).toBe("Labyrintti");
+    expect(document.title).toBe("Palikka");
     rerender(view());
-    expect(document.title).toBe("● Sinun vuorosi – Labyrintti");
+    expect(document.title).toBe("● Sinun vuorosi – Palikka");
     setHidden(false);
-    expect(document.title).toBe("Labyrintti");
+    expect(document.title).toBe("Palikka");
     setHidden(true);
-    expect(document.title).toBe("● Sinun vuorosi – Labyrintti");
+    expect(document.title).toBe("● Sinun vuorosi – Palikka");
     rerender(view({ isMyTurn: false }));
-    expect(document.title).toBe("Labyrintti");
+    expect(document.title).toBe("Palikka");
   });
 
   it("Visible page: the title does not change; the tab title setting off keeps it too", () => {
     const visible = renderHook(() => useTurnAlert(view()));
-    expect(document.title).toBe("Labyrintti");
+    expect(document.title).toBe("Palikka");
     visible.unmount();
     updateSettings({ turnTitle: false });
     setHidden(true);
     renderHook(() => useTurnAlert(view()));
-    expect(document.title).toBe("Labyrintti");
+    expect(document.title).toBe("Palikka");
   });
 
   it("vibrates once when the turn begins", () => {

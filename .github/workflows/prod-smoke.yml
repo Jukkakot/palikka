@@ -21,8 +21,8 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     env:
-      HEALTH_URL: https://labyrinth-server-3z1m.onrender.com/health
-      SITE_URL: https://jukkakot.github.io/labyrinth/
+      HEALTH_URL: ${{ vars.VITE_SERVER_URL }}/health
+      SITE_URL: https://jukkakot.github.io/palikka/
       SERVER_PATHS: server packages/rules packages/protocol package-lock.json render.yaml
       CLIENT_PATHS: client packages/rules packages/protocol package-lock.json
     steps:
@@ -50,9 +50,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install Chromium for Playwright
-        run: npx -w @labyrinth/e2e playwright install --with-deps chromium
+        run: npx -w @palikka/e2e playwright install --with-deps chromium
       - name: Smoke test on the live site (Galaxy S24)
-        run: npm run e2e:prod -w @labyrinth/e2e
+        run: npm run e2e:prod -w @palikka/e2e
         env:
           PROD_URL: ${{ env.SITE_URL }}
       - name: Upload report and traces

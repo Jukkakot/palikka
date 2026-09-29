@@ -1,8 +1,8 @@
 {
-  "name": "@labyrinth/server",
+  "name": "@palikka/server",
   "version": "0.1.0",
   "private": true,
-  "description": "Authoritative Colyseus game server for Labyrinth",
+  "description": "Authoritative Colyseus game server for Palikka",
   "type": "module",
   "main": "build/index.js",
   "engines": {
@@ -19,8 +19,8 @@
     "@axiomhq/pino": "^2.0.0",
     "@colyseus/schema": "^5.0.34",
     "@colyseus/tools": "^0.18.4",
-    "@labyrinth/protocol": "*",
-    "@labyrinth/rules": "*",
+    "@palikka/protocol": "*",
+    "@palikka/rules": "*",
     "colyseus": "^0.18.8",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",

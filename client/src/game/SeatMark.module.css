@@ -1,0 +1,11 @@
+.mark {
+  display: inline-block;
+  flex: none;
+  border-radius: 3px;
+}
+
+/* The viewer's own colour: a ring in the text colour, so it reads without the name. */
+.me {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}

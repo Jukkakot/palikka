@@ -1,6 +1,6 @@
 import express, { type Application, type Request, type Response } from "express";
 import { matchMaker } from "colyseus";
-import { watchRequestSchema, type JoinOptions } from "@labyrinth/protocol";
+import { watchRequestSchema, type JoinOptions } from "@palikka/protocol";
 import type { GameMetadata } from "./rooms/GameRoom.js";
 
 /**

@@ -1,5 +1,5 @@
 {
-  "name": "@labyrinth/e2e",
+  "name": "@palikka/e2e",
   "version": "0.1.0",
   "private": true,
   "description": "End-to-end tests: real server and client in real browsers (Galaxy S24 profile)",

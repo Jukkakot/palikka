@@ -12,7 +12,7 @@ delivered by that roadmap change.
 ┌──────────────────────────────┐   WebSocket   ┌─────────────────────────────┐
 │ client  React 19 + Vite      │◀────────────▶│ server  Colyseus 0.18        │
 │  i18next (fi default, en)    │   + HTTP      │  one Room per game + lobby  │
-│  uses @labyrinth/rules for   │               │  authoritative: validates   │
+│  uses @palikka/rules for   │               │  authoritative: validates   │
 │  previews and highlights     │               │  every command              │
 └──────────────┬───────────────┘               └──────────────┬──────────────┘
                │ imports                                       │ imports
@@ -67,7 +67,7 @@ delivered by that roadmap change.
   the same checks and audit line, marked `bot: true`.
 - **Adding a command:** (1) codes/types in `protocol/src/game-codes.ts`, payload schema in
   `game-schema.ts`; (2) `GameRoom.messages` entry; phase and turn checks first, then rule
-  preconditions via `@labyrinth/rules`, then write state; (3) a `useGameSession` method, and
+  preconditions via `@palikka/rules`, then write state; (3) a `useGameSession` method, and
   `errors.<CODE>` strings in fi/en.
 
 ## Game flow — Implemented
@@ -151,7 +151,7 @@ Specs: `lobby`, `game-session`, `turns`, `tile-shift`, `pawn-movement`, `treasur
   and the spare as `{ id, rotation }`, `phase`, `turnSeat`, `hostSeat`, `winnerSeat`,
   `lastInsertion`, `turnDeadline`, `turnExpired`, `spectators` (count), `botSpeed`, `rematchRoomId`.
 - Never synced: seeds, treasure stacks, tile kinds and treasures (static per tile id). The client
-  rebuilds a rules `Board` from ids and derives everything else with `@labyrinth/rules`.
+  rebuilds a rules `Board` from ids and derives everything else with `@palikka/rules`.
 - **Hidden information:** `Player.target` is `.view()`-tagged; each player's `StateView` holds only
   its own player, a spectator's holds all. A room test decodes another client's state to prove
   nothing leaks.
@@ -179,7 +179,7 @@ server's rejection codes and order, `removeSeat`, `endGame`, `botViewOf`, `botRn
 rules engine of the device's games, the server's rooms and the tournament), `botTournament`
 (whole games among strategies through the engine, win rates and ms per turn; not in the package
 entry). Test fixtures in
-`@labyrinth/rules/testing` (`boardFromRows`, `boardToText`). Board coordinates: `(row, col)`
+`@palikka/rules/testing` (`boardFromRows`, `boardToText`). Board coordinates: `(row, col)`
 0–6 from the top-left; tile ids never change, which is what the client animates by.
 
 ## Client — Implemented
@@ -219,7 +219,7 @@ client/src/
   saved with the game), and has no turn clock. The connector routes by
   prefix: room ids `local-…` and tokens `local:…` (`reconnect`, and `joinById` for rematch) go to
   the device, everything else to the server; the SDK client is created only for server games. The
-  one local game (with its pawns by seat) is saved in localStorage (`labyrinth.localGame`) after every step, so a reload,
+  one local game (with its pawns by seat) is saved in localStorage (`palikka.localGame`) after every step, so a reload,
   an app update or "Jatka peliä" (no time limit for a local token) continues it, also offline.
   A game of bots to watch ("Pelaan itse" off) is a `LocalRoom` too: ids `local-watch-…`, bots in
   seats 1..n, no seat for the viewer (so the view model sees a spectator), every target synced,
@@ -230,8 +230,8 @@ client/src/
   local date seeds the board, and a breadth-first search over shifts (`fewestTurns`, a board plus
   the set of squares the pawn could be on per node) picks a destination treasure whose best is 2
   turns, the puzzle's par. Its room ids start with `local-daily-` and it has its own save slot
-  (`labyrinth.dailyGame`, with a history of states for the client-only `undo` command), so it and
-  a quick game never replace each other; leaving an unfinished puzzle keeps it. `labyrinth.daily`
+  (`palikka.dailyGame`, with a history of states for the client-only `undo` command), so it and
+  a quick game never replace each other; leaving an unfinished puzzle keeps it. `palikka.daily`
   records the date, the current attempt, the par and the day's best solve (fewest turns over any
   number of attempts). The view model spots a puzzle by its room id; local games also report
   `turn` (and a puzzle its `par` and `undoable`). The puzzle's hint and the end screen's
@@ -242,9 +242,9 @@ client/src/
   app shell (auto-update: a new version takes over on the next load and reloads once; both kinds
   of game survive a reload). Off in `vite dev`. Icons are generated from `public/favicon.svg`.
 - **First-game tips:** which one-time tips were seen is kept in localStorage
-  (`labyrinth.tips.seen`); the tips take plain props from the game screen, so they do not depend on
+  (`palikka.tips.seen`); the tips take plain props from the game screen, so they do not depend on
   the session or its transport.
-- **Device settings:** one localStorage record (`labyrinth.settings`), merged over the defaults
+- **Device settings:** one localStorage record (`palikka.settings`), merged over the defaults
   and read through a small subscribe store, so a change applies at once; never sent to the server.
   The settings screen opens from the gear on the start screen and in the game's top bar (in the game
   it covers the board while the game runs on; the language choice lives there). Theme = `data-theme`

@@ -1,83 +1,56 @@
-import {
-  ALL_SQUARES,
-  BOARD_SIZE,
-  DIRECTIONS,
-  directionTo,
-  neighbour,
-  opposite,
-  square,
-  squareIndex,
-  type Square,
-} from "./geometry.js";
-import { isOpen, ROTATIONS, TILE_KINDS, type Tile } from "./tile.js";
-
-const SQUARE_COUNT = BOARD_SIZE * BOARD_SIZE;
-
-/** An immutable board: one tile per square (row-major) plus the spare tile. Plain data. */
-export interface Board {
-  readonly squares: readonly Tile[];
-  readonly spare: Tile;
-}
-
-/** Input to `createBoard`: same shape as a board, e.g. restored from JSON. */
-export interface BoardLayout {
-  readonly squares: readonly Tile[];
-  readonly spare: Tile;
-}
-
-function validateTile(tile: unknown, where: string): Tile {
-  const t = tile as Partial<Tile> | null | undefined;
-  if (!t || typeof t !== "object") throw new Error(`Missing tile at ${where}`);
-  if (!Number.isInteger(t.id)) throw new Error(`Tile at ${where} has an invalid id`);
-  if (!TILE_KINDS.includes(t.kind!)) throw new Error(`Tile ${t.id} has an invalid kind "${String(t.kind)}"`);
-  if (!ROTATIONS.includes(t.rotation!)) throw new Error(`Tile ${t.id} has an invalid rotation ${String(t.rotation)}`);
-  return Object.freeze({ id: t.id!, kind: t.kind!, rotation: t.rotation! });
-}
-
 /**
- * Builds a board from an explicit layout. Rejects a layout without exactly 49
- * squares and a spare tile, with invalid tiles, or with duplicate tile ids.
+ * The board of the placeholder game: a square grid of cells, each empty (0) or owned by a seat 1–4.
+ * Stored as a flat, row-major array so it is plain JSON and syncs as a list of numbers.
  */
-export function createBoard(layout: BoardLayout): Board {
-  if (!Array.isArray(layout.squares) || layout.squares.length !== SQUARE_COUNT) {
-    throw new Error(`A board needs ${SQUARE_COUNT} squares, got ${layout.squares?.length ?? 0}`);
+
+/** Cells per side; the real game uses the same 20×20 board. */
+export const BOARD_SIZE = 20;
+export const CELL_COUNT = BOARD_SIZE * BOARD_SIZE;
+
+export interface Cell {
+  readonly row: number;
+  readonly col: number;
+}
+
+/** Owner seat of every cell, row-major; 0 = empty. */
+export type Board = readonly number[];
+
+export function emptyBoard(): Board {
+  return Array.from({ length: CELL_COUNT }, () => 0);
+}
+
+export function isOnBoard({ row, col }: Cell): boolean {
+  return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && col >= 0 && row < BOARD_SIZE && col < BOARD_SIZE;
+}
+
+export function cellIndex({ row, col }: Cell): number {
+  return row * BOARD_SIZE + col;
+}
+
+export function cellAt(index: number): Cell {
+  return { row: Math.floor(index / BOARD_SIZE), col: index % BOARD_SIZE };
+}
+
+/** The four orthogonal neighbours that are on the board. */
+export function neighbours({ row, col }: Cell): Cell[] {
+  return [
+    { row: row - 1, col },
+    { row, col: col + 1 },
+    { row: row + 1, col },
+    { row, col: col - 1 },
+  ].filter(isOnBoard);
+}
+
+/** How many cells `seat` owns. */
+export function cellsOf(board: Board, seat: number): number {
+  return board.reduce((n, owner) => (owner === seat ? n + 1 : n), 0);
+}
+
+/** A board of the right size with owners 0–4 only; throws otherwise (checks saved and synced boards). */
+export function checkBoard(board: readonly unknown[]): Board {
+  if (board.length !== CELL_COUNT) throw new Error(`Board needs ${CELL_COUNT} cells, got ${board.length}`);
+  for (const owner of board) {
+    if (!Number.isInteger(owner) || (owner as number) < 0 || (owner as number) > 4) throw new Error(`Bad cell owner ${String(owner)}`);
   }
-  const squares = layout.squares.map((tile, i) => validateTile(tile, `square ${i}`));
-  const spare = validateTile(layout.spare, "spare");
-
-  const seen = new Set<number>();
-  for (const tile of [...squares, spare]) {
-    if (seen.has(tile.id)) throw new Error(`Duplicate tile id ${tile.id}`);
-    seen.add(tile.id);
-  }
-  return Object.freeze({ squares: Object.freeze(squares), spare });
-}
-
-export function tileAt(board: Board, sq: Square): Tile {
-  return board.squares[squareIndex(square(sq.row, sq.col))]!;
-}
-
-/** Squares with an even row and an even column hold fixed tiles that never move. */
-export function isFixed(sq: Square): boolean {
-  return sq.row % 2 === 0 && sq.col % 2 === 0;
-}
-
-/** The 16 fixed squares, row-major. */
-export const FIXED_SQUARES: readonly Square[] = ALL_SQUARES.filter(isFixed);
-
-/** The players' start corners in clockwise order from the top-left. */
-export const START_CORNERS: readonly Square[] = [square(0, 0), square(0, BOARD_SIZE - 1), square(BOARD_SIZE - 1, BOARD_SIZE - 1), square(BOARD_SIZE - 1, 0)];
-
-/** Two orthogonal neighbours are connected when each tile is open toward the other. */
-export function isConnected(board: Board, a: Square, b: Square): boolean {
-  const dir = directionTo(a, b);
-  return dir !== undefined && isOpen(tileAt(board, a), dir) && isOpen(tileAt(board, b), opposite(dir));
-}
-
-/** The neighbours of `sq` it is connected to. Openings toward the edge lead nowhere. */
-export function connectedNeighbours(board: Board, sq: Square): Square[] {
-  return DIRECTIONS.flatMap((dir) => {
-    const n = neighbour(sq, dir);
-    return n && isConnected(board, sq, n) ? [n] : [];
-  });
+  return board as Board;
 }

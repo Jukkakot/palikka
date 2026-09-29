@@ -1,39 +1,37 @@
 /*
  * Design tokens: the only place colours, spacing and radii are defined.
  * Components use these through CSS Modules; never hard-code a colour.
+ *
+ * Theme "Kuura" (frost): flat squares, no shadows or textures, colours of the northern
+ * outdoors. Light is a frosty morning, dark the polar night. The seat colours are the players'
+ * identity (Järvi, Lakka, Puolukka, Kuusi), in the classic turn order blue, yellow, red, green.
  */
 :root {
   /* Surfaces and text */
-  --bg: #f4efe4;
-  --surface: #fffaf0;
-  --text: #1f2a24;
-  --muted: #5d6b63;
-  --accent: #1f3a2e;
-  --accent-contrast: #fffaf0;
-  --border: #d6cdb8;
-  --danger: #9b2c2c;
+  --bg: #f5f7f9;
+  --surface: #ffffff;
+  --surface-2: #e8edf2;
+  --text: #1c2430;
+  --muted: #667085;
+  --accent: #3a78c2;
+  --accent-contrast: #ffffff;
+  --border: #d5dde6;
+  --danger: #b42336;
 
-  /* Board (corridor style) */
-  --tile: #ebe3d2;
-  --tile-fixed: #ddd2bb;
-  --tile-mark: #b9ab8e;
-  --corridor: #1f3a2e;
-  --corridor-icon: #fffaf0;
-  /* Preview marks (inserted tile, selected arrow) */
-  --highlight: #d55e00;
-  /* The viewer's own target: solid ring + badge (move targets are dashed, previews orange) */
-  --target: #7b2cbf;
-  --target-contrast: #fffaf0;
-  /* The hint's square: yellow ring with a dark halo, apart from the orange reach rings */
-  --hint: #f0e442;
-  --hint-halo: var(--text);
+  /* Board: a frosty ground with a slightly lighter cell per square */
+  --board: #e2e8ef;
+  --cell: #f8fafc;
+  /* A cell the viewer can claim now (hover and focus) */
+  --cell-open: #dbe6f3;
+  /* Daily puzzle targets and the hint's cell */
+  --target: #1c2430;
+  --hint: #f0a53a;
 
-  /* Seats: Okabe–Ito, colour-blind safe; always paired with a pawn shape */
-  --seat-1: #0072b2;
-  --seat-2: #e69f00;
-  --seat-3: #009e73;
-  --seat-4: #cc79a7;
-  --pawn-outline: #fffaf0;
+  /* Seats: Järvi, Lakka, Puolukka, Kuusi */
+  --seat-1: #3a78c2;
+  --seat-2: #f0a53a;
+  --seat-3: #d64550;
+  --seat-4: #3d8b5f;
 
   /* Spacing (4 px scale), radii, sizes */
   --space-1: 4px;
@@ -62,48 +60,50 @@
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #141a17;
-    --surface: #1d2521;
-    --text: #e8ece9;
-    --muted: #9aa8a0;
-    --accent: #8fc9a8;
-    --accent-contrast: #141a17;
-    --border: #34403a;
-    --danger: #f19999;
+    --bg: #11151b;
+    --surface: #1b212a;
+    --surface-2: #232b36;
+    --text: #e6ebf2;
+    --muted: #8d97a8;
+    --accent: #5d9cf0;
+    --accent-contrast: #08111d;
+    --border: #2c3542;
+    --danger: #ff7a85;
 
-    --tile: #26302b;
-    --tile-fixed: #303c35;
-    --tile-mark: #56675d;
-    --corridor: #8fc9a8;
-    --corridor-icon: #141a17;
-    --highlight: #f0a060;
-    --target: #c79bff;
-    --target-contrast: #141a17;
-    --hint-halo: var(--bg);
-    --pawn-outline: #141a17;
+    --board: #0c1016;
+    --cell: #1a2029;
+    --cell-open: #253245;
+    --target: #e6ebf2;
+    --hint: #ffbe5c;
+
+    --seat-1: #5d9cf0;
+    --seat-2: #ffbe5c;
+    --seat-3: #ff6b75;
+    --seat-4: #5cc285;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #141a17;
-  --surface: #1d2521;
-  --text: #e8ece9;
-  --muted: #9aa8a0;
-  --accent: #8fc9a8;
-  --accent-contrast: #141a17;
-  --border: #34403a;
-  --danger: #f19999;
+  --bg: #11151b;
+  --surface: #1b212a;
+  --surface-2: #232b36;
+  --text: #e6ebf2;
+  --muted: #8d97a8;
+  --accent: #5d9cf0;
+  --accent-contrast: #08111d;
+  --border: #2c3542;
+  --danger: #ff7a85;
 
-  --tile: #26302b;
-  --tile-fixed: #303c35;
-  --tile-mark: #56675d;
-  --corridor: #8fc9a8;
-  --corridor-icon: #141a17;
-  --highlight: #f0a060;
-  --target: #c79bff;
-  --target-contrast: #141a17;
-  --hint-halo: var(--bg);
-  --pawn-outline: #141a17;
+  --board: #0c1016;
+  --cell: #1a2029;
+  --cell-open: #253245;
+  --target: #e6ebf2;
+  --hint: #ffbe5c;
+
+  --seat-1: #5d9cf0;
+  --seat-2: #ffbe5c;
+  --seat-3: #ff6b75;
+  --seat-4: #5cc285;
   color-scheme: dark;
 }
 

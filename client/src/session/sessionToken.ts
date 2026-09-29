@@ -1,5 +1,5 @@
 /** Per-tab reconnection token: sessionStorage makes every tab its own player. */
-const KEY = "labyrinth.session";
+const KEY = "palikka.session";
 
 export function loadToken(storage: Storage | undefined = globalThis.sessionStorage): string | undefined {
   try {

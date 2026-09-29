@@ -7,12 +7,8 @@ import { useSyncExternalStore } from "react";
 export type Theme = "system" | "light" | "dark";
 
 export interface Settings {
-  /** Tapping an edge arrow only previews; a second tap or "Työnnä" sends. Off: one tap shifts. */
-  confirmShift: boolean;
-  /** Tapping a reachable square only chooses it; a second tap or "Kävele tänne" moves. */
-  confirmMove: boolean;
   theme: Theme;
-  /** Short generated sounds (turn begins, treasure collected). */
+  /** Short generated sounds (turn begins). */
   sounds: boolean;
   /** While the page is hidden, the tab title announces the viewer's turn. */
   turnTitle: boolean;
@@ -21,15 +17,13 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  confirmShift: true,
-  confirmMove: false,
   theme: "system",
   sounds: true,
   turnTitle: true,
   vibration: true,
 };
 
-const KEY = "labyrinth.settings";
+const KEY = "palikka.settings";
 const THEMES: readonly Theme[] = ["system", "light", "dark"];
 
 function storageOf(storage?: Storage): Storage | undefined {
@@ -48,8 +42,6 @@ export function loadSettings(storage?: Storage): Settings {
     const r = raw as Record<string, unknown>;
     const flag = (name: keyof Omit<Settings, "theme">) => (typeof r[name] === "boolean" ? (r[name] as boolean) : DEFAULT_SETTINGS[name]);
     return {
-      confirmShift: flag("confirmShift"),
-      confirmMove: flag("confirmMove"),
       theme: THEMES.includes(r.theme as Theme) ? (r.theme as Theme) : DEFAULT_SETTINGS.theme,
       sounds: flag("sounds"),
       turnTitle: flag("turnTitle"),

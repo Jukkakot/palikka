@@ -1,17 +1,15 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
-import type { CommandResult } from "@labyrinth/protocol";
-import { treasureOf } from "@labyrinth/rules";
+import type { CommandResult } from "@palikka/protocol";
 import appConfig from "../src/app.config.js";
 import { configureLogger } from "../src/logging/logger.js";
 import type { GameRoom } from "../src/rooms/GameRoom.js";
 import { captureLogs } from "./support/captureLogs.js";
-import { arrange, forceStartSeat, gameOf, startedGame, waitingRoom, type TestClient } from "./support/game.js";
+import { forceStartSeat, placeFree, startedGame, waitingRoom, type TestClient } from "./support/game.js";
 
 const LONG_MS = 60_000;
 
 const setAutoplay = (client: TestClient, on: boolean) => client.request("setAutoplay", { on }) as Promise<CommandResult>;
-const shift = (client: TestClient) => client.request("shift", { insertion: "N1", rotation: 0 }) as Promise<CommandResult>;
 
 describe("autoplay in a room", () => {
   let colyseus: ColyseusTestServer<typeof appConfig>;
@@ -30,10 +28,9 @@ describe("autoplay in a room", () => {
   });
 
   /** A started game of `people` (seat 1 on turn) with quick bot pauses. */
-  async function game(people: number, { shiftMs = 20, moveMs = 20, disconnectSeconds = 300 } = {}) {
+  async function game(people: number, { botMs = 20, disconnectSeconds = 300 } = {}) {
     const g = await startedGame(colyseus, people, { turnMs: LONG_MS, disconnectSeconds });
-    g.room.botShiftDelayMs = shiftMs;
-    g.room.botMoveDelayMs = moveMs;
+    g.room.botDelayMs = botMs;
     return g;
   }
 
@@ -55,7 +52,7 @@ describe("autoplay in a room", () => {
         expect.objectContaining({ seat: 2, on: true, reason: "player" }),
         expect.objectContaining({ seat: 2, on: false, reason: "player" }),
       ]);
-      expect(room.state.phase).toBe("shift");
+      expect(room.state.phase).toBe("play");
     });
 
     it("Before the start: WRONG_PHASE", async () => {
@@ -83,74 +80,38 @@ describe("autoplay in a room", () => {
   });
 
   describe("Bot plays an auto-played seat", () => {
-    it("Bot plays the turn: shift and move as a bot, the turn passes on", async () => {
+    it("Bot plays the turn: places as a bot, the turn passes on", async () => {
       const { room, clients } = await game(2);
       expect(await setAutoplay(clients[1]!, true)).toEqual({ ok: true });
-      const me = room.state.players.get(clients[0]!.sessionId)!;
-      expect(await shift(clients[0]!)).toEqual({ ok: true });
-      expect(await clients[0]!.request("move", { row: me.row, col: me.col })).toEqual({ ok: true });
+      expect(await placeFree(clients[0]!, room)).toEqual({ ok: true });
 
       await vi.waitFor(() => expect(room.state.turnSeat).toBe(1));
-      expect(botCommands("shift")).toEqual([expect.objectContaining({ player: clients[1]!.sessionId, seat: 2 })]);
-      expect(botCommands("move")).toHaveLength(1);
+      expect(botCommands("place")).toEqual([expect.objectContaining({ player: clients[1]!.sessionId, seat: 2 })]);
     });
 
-    it("Handed over on the own turn before the shift: the bot plays all of it", async () => {
+    it("Handed over on the own turn: the bot plays it", async () => {
       const { room, clients } = await game(2);
       expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
       await vi.waitFor(() => expect(room.state.turnSeat).toBe(2));
-      expect(botCommands("shift")).toHaveLength(1);
+      expect(botCommands("place")).toHaveLength(1);
     });
 
-    it("Handed over mid-turn: after the player's shift the bot only walks", async () => {
-      const { room, clients } = await game(2);
-      expect(await shift(clients[0]!)).toEqual({ ok: true });
-      expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
-      await vi.waitFor(() => expect(room.state.turnSeat).toBe(2));
-      expect(botCommands("shift")).toHaveLength(0);
-      expect(botCommands("move")).toHaveLength(1);
-    });
-
-    it("Collecting: the bot collects the seat's own target", async () => {
-      const { room, clients } = await game(2);
-      expect(await shift(clients[0]!)).toEqual({ ok: true });
-      // The pawn stands on a treasure that is its target: the bot walks (or stays) onto it.
-      const i = gameOf(room).board.squares.findIndex((t) => treasureOf(t.id) !== undefined);
-      const treasure = treasureOf(gameOf(room).board.squares[i]!.id)!;
-      arrange(room, 1, { pawn: { row: Math.floor(i / 7), col: i % 7 }, target: treasure });
-      expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
-      await vi.waitFor(() => expect(room.state.turnSeat).toBe(2));
-      expect(room.state.players.get(clients[0]!.sessionId)!.found).toContain(treasure);
-    });
-
-    it("Taken back before the shift: no step is made for the player", async () => {
-      const { room, clients } = await game(2, { shiftMs: 150 });
+    it("Taken back before the bot's pause ends: no turn is played for the player", async () => {
+      const { room, clients } = await game(2, { botMs: 150 });
       expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
       expect(await setAutoplay(clients[0]!, false)).toEqual({ ok: true });
       await pause(250);
-      expect(room.state.phase).toBe("shift");
-      expect(botCommands("shift")).toHaveLength(0);
-      expect(await shift(clients[0]!)).toEqual({ ok: true });
-    });
-
-    it("Taken back after the bot's shift: the pawn does not move by itself", async () => {
-      const { room, clients } = await game(2, { moveMs: 150 });
-      expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
-      await vi.waitFor(() => expect(room.state.phase).toBe("move"));
-      expect(await setAutoplay(clients[0]!, false)).toEqual({ ok: true });
-      await pause(250);
-      expect(room.state.phase).toBe("move");
       expect(room.state.turnSeat).toBe(1);
-      expect(botCommands("move")).toHaveLength(0);
+      expect(botCommands("place")).toHaveLength(0);
+      expect(await placeFree(clients[0]!, room)).toEqual({ ok: true });
     });
 
     it("Own command while auto-played: AUTOPLAYING, board unchanged", async () => {
-      const { room, clients } = await game(2, { shiftMs: LONG_MS });
+      const { room, clients } = await game(2, { botMs: LONG_MS });
       expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
-      const before = room.state.spare.id;
-      expect(await shift(clients[0]!)).toEqual({ ok: false, code: "AUTOPLAYING" });
-      expect(room.state.spare.id).toBe(before);
-      expect(room.state.phase).toBe("shift");
+      expect(await placeFree(clients[0]!, room)).toEqual({ ok: false, code: "AUTOPLAYING" });
+      expect([...room.state.cells].every((c) => c === 0)).toBe(true);
+      expect(room.state.phase).toBe("play");
     });
   });
 
@@ -167,11 +128,11 @@ describe("autoplay in a room", () => {
       await drop(room, clients[0]!, false);
       await vi.waitFor(() => expect(room.state.turnSeat).toBe(2));
       expect(logs.byEvt("autoplay.changed")).toEqual([expect.objectContaining({ seat: 1, on: true, reason: "drop" })]);
-      expect(botCommands("shift")).toEqual([expect.objectContaining({ player: clients[0]!.sessionId })]);
+      expect(botCommands("place")).toEqual([expect.objectContaining({ player: clients[0]!.sessionId })]);
     });
 
     it("Back in time: the drop's autoplay ends", async () => {
-      const { room, clients, player } = await game(2, { shiftMs: LONG_MS });
+      const { room, clients, player } = await game(2, { botMs: LONG_MS });
       await drop(room, clients[1]!, true);
       await vi.waitFor(() => expect(logs.byEvt("player.reconnected")).toHaveLength(1), { timeout: 10_000 });
       expect(player(1).autoplay).toBe(false);
@@ -179,19 +140,19 @@ describe("autoplay in a room", () => {
     });
 
     it("Chosen autoplay survives a drop", async () => {
-      const { room, clients, player } = await game(2, { shiftMs: LONG_MS });
+      const { room, clients, player } = await game(2, { botMs: LONG_MS });
       expect(await setAutoplay(clients[1]!, true)).toEqual({ ok: true });
       clients[1]!.reconnection.minUptime = 0;
       clients[1]!.connection.close(4010);
       await vi.waitFor(() => expect(logs.byEvt("player.reconnected")).toHaveLength(1), { timeout: 10_000 });
       expect(player(1).autoplay).toBe(true);
       expect(logs.byEvt("autoplay.changed")).toHaveLength(1);
-      expect(room.state.phase).toBe("shift");
+      expect(room.state.phase).toBe("play");
     });
 
     it("Dropped in the waiting room: auto-played from the start", async () => {
       const { room, clients, player } = await waitingRoom(colyseus, 3, { turnMs: LONG_MS });
-      room.botShiftDelayMs = LONG_MS;
+      room.botDelayMs = LONG_MS;
       clients[2]!.connection.close(1000);
       await vi.waitFor(() => expect(player(2).connected).toBe(false));
       forceStartSeat(room, 1);
@@ -209,13 +170,12 @@ describe("autoplay in a room", () => {
   describe("Auto-played players are people", () => {
     it("Everyone hands over: the game goes on", async () => {
       const { room: r, clients } = await waitingRoom(colyseus, 1, { turnMs: LONG_MS });
-      r.botShiftDelayMs = 10;
-      r.botMoveDelayMs = 10;
+      r.botDelayMs = 10;
       await clients[0]!.request("addBot", { seat: 2 });
       forceStartSeat(r, 1);
       await clients[0]!.request("start", {});
       expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
-      await vi.waitFor(() => expect(botCommands("move").length).toBeGreaterThanOrEqual(3));
+      await vi.waitFor(() => expect(botCommands("place").length).toBeGreaterThanOrEqual(3));
       expect(r.state.winnerSeat === 0 ? r.state.phase : "won").not.toBe("finished");
     });
   });

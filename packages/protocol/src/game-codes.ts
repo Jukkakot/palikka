@@ -1,21 +1,12 @@
-/**
- * Insertion points for the `shift` command. Mirrors `INSERTIONS` in
- * `@labyrinth/rules` (protocol must not depend on rules); a server test keeps
- * the two lists equal.
- */
-export const INSERTION_IDS = ["N1", "N3", "N5", "E1", "E3", "E5", "S1", "S3", "S5", "W1", "W3", "W5"] as const;
-export type InsertionIdCode = (typeof INSERTION_IDS)[number];
-
-/** Clockwise tile rotations in degrees. */
-export const ROTATION_VALUES = [0, 90, 180, 270] as const;
+/** Cells per board side. Mirrors `BOARD_SIZE` in `@palikka/rules` (protocol must not depend on rules); a server test keeps them equal. */
+export const BOARD_CELLS_PER_SIDE = 20;
 
 /** Error codes of game commands, on top of `COMMON_ERROR_CODES`. */
 export const GAME_ERROR_CODES = [
   "NOT_SEATED",
   "NOT_YOUR_TURN",
   "WRONG_PHASE",
-  "REVERSE_PUSH_FORBIDDEN",
-  "UNREACHABLE",
+  "CELL_TAKEN",
   "NOT_KICKABLE",
   "TURN_NOT_EXPIRED",
   "NOT_HOST",
@@ -26,24 +17,18 @@ export const GAME_ERROR_CODES = [
   "PEOPLE_PLAYING",
   "AUTOPLAYING",
   "SERVER_FULL",
-  "LOOK_TAKEN",
 ] as const;
 export type GameErrorCode = (typeof GAME_ERROR_CODES)[number];
 
 /**
- * Game phases: "waiting" in the waiting room before the host starts, then each turn's steps (the
- * current player shifts, then moves or stays), and "finished" once someone has won.
+ * Game phases: "waiting" in the waiting room before the host starts, "play" while turns are played,
+ * and "finished" once the game is over.
  */
-export const TURN_PHASES = ["waiting", "shift", "move", "finished"] as const;
+export const TURN_PHASES = ["waiting", "play", "finished"] as const;
 export type TurnPhase = (typeof TURN_PHASES)[number];
 
-export interface ShiftPayload {
-  insertion: InsertionIdCode;
-  rotation: (typeof ROTATION_VALUES)[number];
-}
-
-/** Target square of the `move` command; the pawn's own square means "stay". */
-export interface MovePayload {
+/** The cell the `place` command claims. */
+export interface PlacePayload {
   row: number;
   col: number;
 }
@@ -77,7 +62,7 @@ export type RematchPayload = Record<string, never>;
 export const MAX_SPECTATORS = 8;
 
 /** Bot names, language-neutral; a new bot gets the first one no other bot in the game has. */
-export const BOT_NAMES = ["Robo", "Pixel", "Byte", "Nova"] as const;
+export const BOT_NAMES = ["Kettu", "Ilves", "Pöllö", "Näätä"] as const;
 
 /** Nickname length in code points, after trimming. */
 export const NICKNAME_MIN_LENGTH = 2;
@@ -106,8 +91,6 @@ export interface JoinOptions {
   watch?: boolean;
   /** Seats that get a bot as soon as the room is created (a rematch keeps the finished game's bots). */
   botSeats?: number[];
-  /** The pawn (1–4) the player would like; they get it when nobody in the game has it. */
-  look?: number;
 }
 
 /** Body of `POST /watch`: join a running game as a spectator. */

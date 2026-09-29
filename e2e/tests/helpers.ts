@@ -3,7 +3,7 @@ import { expect, type Page } from "@playwright/test";
 /** A quick-play pool unique to one test, so tests never share games. */
 export const uniquePool = (name: string) => `e2e-${name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-export const board = (page: Page) => page.getByRole("group", { name: "Pelilauta" });
+export const board = (page: Page) => page.getByRole("grid", { name: "Pelilauta" });
 
 /** Opens the start screen in `pool`, enters `nickname`, taps Play and waits for the waiting room. */
 export async function quickPlay(page: Page, pool: string, nickname: string) {

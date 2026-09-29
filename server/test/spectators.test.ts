@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { matchMaker } from "colyseus";
-import { MAX_SPECTATORS, type CommandResult } from "@labyrinth/protocol";
+import { MAX_SPECTATORS, type CommandResult } from "@palikka/protocol";
 import appConfig from "../src/app.config.js";
 import { configureLogger } from "../src/logging/logger.js";
 import type { GameRoom } from "../src/rooms/GameRoom.js";
@@ -58,8 +58,7 @@ describe("spectators", () => {
   }
 
   const quick = (room: GameRoom) => {
-    room.botShiftDelayMs = 20;
-    room.botMoveDelayMs = 20;
+    room.botDelayMs = 20;
   };
 
   describe("Running games to watch", () => {
@@ -105,27 +104,13 @@ describe("spectators", () => {
   });
 
   describe("What a spectator sees", () => {
-    it("All targets visible to the spectator; players still see only their own", async () => {
-      const { room, clients } = await startedGame(colyseus, 2);
-      const spectator = await watch(room.roomId);
-      const [a, b] = [clients[0]!.sessionId, clients[1]!.sessionId];
-      await vi.waitFor(() => {
-        expect(seen(spectator).players.get(a)?.target).toBe(room.state.players.get(a)!.target);
-        expect(seen(spectator).players.get(b)?.target).toBe(room.state.players.get(b)!.target);
-      });
-      await vi.waitFor(() => expect(seen(clients[0]!).spectators).toBe(1));
-      expect(seen(clients[0]!).players.get(b)?.target ?? "").toBe("");
-      expect(seen(clients[0]!).players.get(a)?.target).toBe(room.state.players.get(a)!.target);
-    });
-
     it("Spectator tries to act: NOT_SEATED for every command, nothing changes", async () => {
       const { room } = await startedGame(colyseus, 2);
       const spectator = await watch(room.roomId);
-      expect(await spectator.request("shift", { insertion: "N1", rotation: 0 })).toEqual({ ok: false, code: "NOT_SEATED" });
-      expect(await spectator.request("move", { row: 0, col: 0 })).toEqual({ ok: false, code: "NOT_SEATED" });
+      expect(await spectator.request("place", { row: 0, col: 0 })).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(await spectator.request("kick", { seat: 1 })).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(await spectator.request("rematch", {})).toEqual({ ok: false, code: "NOT_SEATED" });
-      expect(room.state.phase).toBe("shift");
+      expect(room.state.phase).toBe("play");
     });
 
     it("Spectator leaves: the count drops and the game goes on", async () => {
@@ -133,7 +118,7 @@ describe("spectators", () => {
       const spectator = await watch(room.roomId);
       await spectator.leave();
       await vi.waitFor(() => expect(seen(clients[0]!).spectators).toBe(0));
-      expect(room.state.phase).toBe("shift");
+      expect(room.state.phase).toBe("play");
       expect(logs.byEvt("spectator.left")).toEqual([expect.objectContaining({ spectators: 0 })]);
     });
   });
@@ -174,7 +159,7 @@ describe("spectators", () => {
       await clients[0]!.leave();
       await vi.waitFor(() => expect(room.state.players.size).toBe(2));
       expect(room.state.phase).not.toBe("finished");
-      const moves = () => logs.byEvt("cmd.accepted").filter((l) => l.cmd === "move").length;
+      const moves = () => logs.byEvt("cmd.accepted").filter((l) => l.cmd === "place").length;
       const before = moves();
       await vi.waitFor(() => expect(moves()).toBeGreaterThan(before));
       await spectator.leave();

@@ -1,7 +1,7 @@
 import { IconRobot } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button.tsx";
-import styles from "./ShiftControls.module.css";
+import styles from "./Controls.module.css";
 
 /** Hands the seat to the bot, from the game's top bar: always at hand, never competing with the turn's controls. */
 export function AutoplayButton({ disabled, onClick }: { disabled: boolean; onClick(): void }) {
@@ -29,7 +29,7 @@ export function AutoplayPanel({ pending, onTakeBack }: { pending: boolean; onTak
       <p className={styles.hint}>{t("autoplay.playing")}</p>
       <div className={styles.actions}>
         <Button onClick={onTakeBack} disabled={pending} aria-busy={pending || undefined}>
-          {pending ? t("shift.waiting") : t("autoplay.takeBack")}
+          {pending ? t("common.waiting") : t("autoplay.takeBack")}
         </Button>
       </div>
     </div>

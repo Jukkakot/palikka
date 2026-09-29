@@ -37,5 +37,5 @@ The modes (ask / säästö / rinnakkain) and what fits are in `.claude/CLAUDE.md
    the jobs' "Coordinator to do" lists.
 
 If the user prefers to steer a job themselves, create the worktree instead
-(`git worktree add ../labyrintti-<change> -b <change>`) and give a one-line start message for a
+(`git worktree add ../palikka-<change> -b <change>`) and give a one-line start message for a
 new session there; the merge and archive steps stay the same.

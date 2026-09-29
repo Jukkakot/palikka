@@ -3,9 +3,9 @@ import { board, gameId, quickPlay, uniquePool } from "./helpers.ts";
 
 /**
  * Smoke: against a real server, two players meet in a waiting room through quick play, the host
- * starts, and both see the whole board on a Galaxy S24.
+ * starts, both see the whole board on a Galaxy S24, and the host's first square reaches the guest.
  */
-test("two players meet in the waiting room, the host starts, and the board shows", async ({ browser }) => {
+test("two players meet in the waiting room, the host starts, and a claimed square syncs", async ({ browser }) => {
   const pool = uniquePool("smoke");
   const host = await (await browser.newContext({ ...test.info().project.use })).newPage();
   const guest = await (await browser.newContext({ ...test.info().project.use })).newPage();
@@ -23,16 +23,18 @@ test("two players meet in the waiting room, the host starts, and the board shows
     [host, "Maija (sinä)"],
     [guest, "Pekka (sinä)"],
   ] as const) {
-    await expect(board(page).locator("[data-tile-id]")).toHaveCount(49);
-    await expect(page.getByText("Ylimääräinen laatta")).toBeVisible();
-    await expect(page.getByRole("img", { name: me })).toBeVisible();
+    await expect(board(page).locator("[data-cell]")).toHaveCount(400);
+    await expect(page.getByRole("list", { name: "Pelaajat ja pisteet" })).toContainText(me);
 
     // board-view › Board fits a phone screen (360×780, no horizontal scroll).
     expect(page.viewportSize()).toEqual({ width: 360, height: 780 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const boardBox = (await board(page).boundingBox())!;
-    const spareBox = (await page.getByRole("group", { name: "Ylimääräinen laatta" }).boundingBox())!;
     expect(boardBox.x + boardBox.width).toBeLessThanOrEqual(360);
-    expect(spareBox.y + spareBox.height).toBeLessThanOrEqual(780);
+    expect(boardBox.y + boardBox.height).toBeLessThanOrEqual(780);
   }
+
+  await host.getByRole("button", { name: "Vapaa ruutu: rivi 1, sarake 1", exact: true }).click();
+  await expect(board(guest).locator("[data-cell='0']")).toHaveAttribute("data-owner", "1");
+  await expect(guest.getByText("Sinun vuorosi – valtaa ruutu")).toBeVisible();
 });

@@ -29,7 +29,7 @@ Apply to every change. Designs and task lists must show how they are met.
 
 ## Logging and audit
 - All logs, server and client, end up in Render's log stream and, in production,
-  in the Axiom dataset `labyrinth` (free tier, 30 days, APL queries). No other
+  in the Axiom dataset `palikka` (free tier, 30 days, APL queries). No other
   log service.
 - Format: one JSON object per line (pino). `level` and `evt` always come first,
   then `room`, `player`, event fields, `src` (`server`/`client`), `ver` (short
@@ -82,7 +82,7 @@ Apply to every change. Designs and task lists must show how they are met.
 
 ## Legal and privacy
 - Never use Ravensburger names, logos or artwork in the UI or assets; own name
-  ("Labyrintti"/"Labyrinth") and own icons only.
+  ("Palikka"/"Palikka") and own icons only.
 - No license: all rights reserved.
 - No analytics, no cookies, no consent banner.
 

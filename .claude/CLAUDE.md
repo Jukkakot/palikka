@@ -1,4 +1,4 @@
-# Labyrinth – working instructions
+# Palikka – working instructions
 
 ## Knowledge base
 
@@ -69,13 +69,13 @@ Autopilot ends when the user says so. (The user switched it back on for refineme
   landscape and a narrow desktop only when a change reshapes a layout (new screen, new layout
   structure); this narrows the global default. Save screenshots under `.playwright-mcp/`.
 - Dev servers stay running locally (the user's wish). Before a UI check or E2E run, check that
-  this checkout's `npm run dev` listens on 2567/5173 and use it (it reloads by itself); otherwise
+  this checkout's `npm run dev` listens on 2577/5183 and use it (it reloads by itself); otherwise
   start, restart or stop servers as needed (also the user's) following
   [docs/development.md → Local dev servers](../docs/development.md#local-dev-servers), say so in
   the summary, and leave them running.
 - Before committing, run the check chain **once**, right before the commit (not after every task
   group; while working, run only the tests of the workspace you touch; quick fixes skip it):
-  `npm run lint && npm run typecheck && npm test && npm run build && npm run size -w @labyrinth/client`.
+  `npm run lint && npm run typecheck && npm test && npm run build && npm run size -w @palikka/client`.
 - Changes may be large (a whole roadmap item at once); the user prefers progress over small steps.
 
 ## Handover (overrides the global handover format)

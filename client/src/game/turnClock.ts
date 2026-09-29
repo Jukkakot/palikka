@@ -1,4 +1,4 @@
-import { TURN_TIME_LIMIT_SECONDS } from "@labyrinth/rules";
+import { TURN_TIME_LIMIT_SECONDS } from "@palikka/rules";
 
 /** Seconds left from which the countdown is emphasised. */
 export const URGENT_SECONDS = 10;

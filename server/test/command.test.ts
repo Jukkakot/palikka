@@ -1,5 +1,5 @@
 import { schema, t, type SchemaType } from "@colyseus/schema";
-import type { CommandResult } from "@labyrinth/protocol";
+import type { CommandResult } from "@palikka/protocol";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { z } from "zod";

@@ -1,5 +1,4 @@
 import { randomInt } from "node:crypto";
-import { StateView } from "@colyseus/schema";
 import { ErrorCode, matchMaker, ServerError, type Client, type CloseCode, type Deferred } from "colyseus";
 import {
   autoplayPayloadSchema,
@@ -8,54 +7,41 @@ import {
   CLOSE_CODES,
   joinOptionsSchema,
   kickPayloadSchema,
-  lookPayloadSchema,
   MAX_SPECTATORS,
-  pickLook,
-  movePayloadSchema,
+  placePayloadSchema,
   rematchPayloadSchema,
-  shiftPayloadSchema,
   speedPayloadSchema,
   startPayloadSchema,
   type JoinErrorCode,
   type JoinOptions,
   type TurnPhase,
-} from "@labyrinth/protocol";
+} from "@palikka/protocol";
 import {
-  allowedShifts,
-  applyMove,
-  applyShift,
-  botMoveAfterShift,
-  botSeed,
+  applyPlace,
+  botRngFor,
   botViewOf,
-  chooseBotTurn,
-  createRng,
-  endGame,
-  MIN_SEATS,
+  CELL_COUNT,
+  cellAt,
+  cellIndex,
+  chooseBotCell,
   DISCONNECT_LIMIT_SECONDS,
+  endGame,
   kickRejection,
   MAX_SEED,
+  MIN_SEATS,
   removeSeat,
-  setupBoard,
   startGame,
-  START_CORNERS,
-  targetOf,
   TURN_TIME_LIMIT_SECONDS,
-  type Board,
   type BotStrategy,
+  type Cell,
   type GameCommandResult,
-  type GameSeat,
   type GameState as Game,
-  type Rng,
-  type Rotation,
-  type Square,
-  type Tile,
-  type TreasureId,
-} from "@labyrinth/rules";
+} from "@palikka/rules";
 import type { z } from "zod";
 import { log, type LogFields } from "../logging/logger.js";
 import { CommandRejection, type Actor } from "./command.js";
 import { LoggedRoom } from "./LoggedRoom.js";
-import { GameState, Player, TileState } from "./schema/GameState.js";
+import { GameState, Player } from "./schema/GameState.js";
 
 export const MAX_SEATS = 4;
 
@@ -86,17 +72,14 @@ type RemovalReason = "left" | "kicked" | "timeout";
 type AutoplayReason = "player" | "drop";
 
 /** Why a started game ended (`game.finished`). */
-type FinishReason = "home" | "lastPlayer" | "noPeople";
+type FinishReason = "complete" | "lastPlayer" | "noPeople";
 
 /** A bot's key in `state.players`; it can never clash with a Colyseus sessionId. */
 const botKey = (seat: number) => `bot:${seat}`;
 
-/** Default pauses of a bot's turn, so people can follow it (the move waits for the tile slide). */
-export const BOT_SHIFT_DELAY_MS = 1500;
-export const BOT_MOVE_DELAY_MS = 1000;
+/** Default pause before a bot's turn, so people can follow it. */
+export const BOT_DELAY_MS = 1000;
 
-const toTileState = (tile: Tile) => new TileState({ id: tile.id, rotation: tile.rotation });
-const squareOf = (player: Player): Square => ({ row: player.row, col: player.col });
 /** Refuses a join or room creation: the client reads `code` from the error message. */
 const refuse = (code: JoinErrorCode) =>
   new ServerError(code === "INVALID_NICKNAME" ? ErrorCode.AUTH_FAILED : ErrorCode.APPLICATION_ERROR, code);
@@ -105,13 +88,8 @@ const refuse = (code: JoinErrorCode) =>
 const refusalOf = (error: z.ZodError): "nickname" | "options" =>
   error.issues.some((issue) => issue.path[0] === "nickname") ? "nickname" : "options";
 
-const placePawn = (player: Player, sq: Square) => {
-  player.row = sq.row;
-  player.col = sq.col;
-};
-
 /**
- * One Labyrinth game: a seeded starting board and up to four seated players. It starts in the
+ * One Palikka game: a board and up to four seated players. It starts in the
  * waiting room, where players take seats; the host (the first to join) starts the game.
  */
 export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetadata }> {
@@ -128,21 +106,16 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   /** How long a dropped player keeps their seat; room tests shorten it. */
   disconnectLimitSeconds = DISCONNECT_LIMIT_SECONDS;
 
-  /** Draws the seed of the deal at the start; room tests replace it to fix the start seat. */
+  /** Draws the game's seed at the start; room tests replace it. */
   drawDealSeed = () => randomInt(0, MAX_SEED + 1);
   /** The first seat: the rule's choice (the host); room tests replace it to start elsewhere. */
   chooseStartSeat = (seat: number) => seat;
 
   /** How bots choose their turns; replaceable (a smarter strategy, or a bad one in tests). */
-  botStrategy: BotStrategy = chooseBotTurn;
-  /** Pauses of a bot's turn; room tests shorten them. */
-  botShiftDelayMs = BOT_SHIFT_DELAY_MS;
-  botMoveDelayMs = BOT_MOVE_DELAY_MS;
+  botStrategy: BotStrategy = chooseBotCell;
+  /** Pause before a bot's turn; room tests shorten it. */
+  botDelayMs = BOT_DELAY_MS;
 
-  /** Server-only: never part of the synced state. */
-  private seed = 0;
-  /** The board of the waiting room, set up from `seed`; the game starts on it. */
-  private setupBoard?: Board;
   /**
    * The started game as the rules engine holds it (the one source of the rules' truth); the
    * synced state mirrors it. Undefined in the waiting room.
@@ -163,8 +136,6 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   private turnTimer?: { clear(): void };
   /** The pending step of a bot's turn; at most one per room. */
   private botTimer?: { clear(): void };
-  /** Each bot's rng, seeded from the deal seed and its seat, kept for the whole game. */
-  private botRngs = new Map<number, Rng>();
   /** Auto-played people by sessionId, with why (a reconnect ends only a drop's autoplay). */
   private autoplay = new Map<string, AutoplayReason>();
   /** Seat holds of dropped players, by sessionId; rejecting one removes that player at once. */
@@ -197,53 +168,28 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
       this.syncSeats();
     }),
 
-    setLook: this.command("setLook", lookPayloadSchema, (client, { look }) => {
-      const player = this.state.players.get(client.sessionId);
-      if (!player) throw new CommandRejection("NOT_SEATED");
-      if (this.state.phase !== "waiting") throw new CommandRejection("WRONG_PHASE", { expected: "waiting" });
-      if (player.look === look) return;
-      if ([...this.state.players.values()].some((p) => p !== player && p.look === look)) throw new CommandRejection("LOOK_TAKEN", { look });
 
-      log.info("player.look", this.logCtx(client, { seat: player.seat, from: player.look, to: look }));
-      player.look = look;
-    }),
-
-    shift: this.command("shift", shiftPayloadSchema, (client, { insertion, rotation }) => {
+    place: this.command("place", placePayloadSchema, (client, cell) => {
       const player = this.requirePlaying(client);
-      this.game = this.accepted(this.game && applyShift(this.game, player.seat, insertion, rotation), player.seat, "shift");
+      this.game = this.accepted(this.game && applyPlace(this.game, player.seat, cell), player.seat, cell);
 
-      const { board } = this.game;
-      board.squares.forEach((tile, i) => {
-        const current = this.state.squares[i]!;
-        if (current.id !== tile.id || current.rotation !== tile.rotation) this.state.squares[i] = toTileState(tile);
-      });
-      this.state.spare = toTileState(board.spare);
-      for (const p of this.state.players.values()) placePawn(p, this.gameSeat(p.seat).pawn);
-      this.state.lastInsertion = insertion;
-      this.setPhase("move");
-    }),
-
-    move: this.command("move", movePayloadSchema, (client, target) => {
-      const player = this.requirePlaying(client);
-      this.game = this.accepted(this.game && applyMove(this.game, player.seat, target), player.seat, "move", target);
-
-      placePawn(player, target);
-      const moved = this.gameSeat(player.seat);
-      if (moved.found.length > player.found.length) this.collect(player, moved);
-      if (this.game.step === "finished") this.finish(player.seat, "home");
+      this.state.cells[cellIndex(cell)] = player.seat;
+      player.placed = this.gameSeat(player.seat).placed;
+      this.state.turn = this.game.turn;
+      if (this.game.step === "finished") this.finish(this.game.winnerSeat, "complete");
       else this.setTurn(this.game.turnSeat);
     }),
 
     setAutoplay: this.command("setAutoplay", autoplayPayloadSchema, (client, { on }) => {
       this.requireSeated(client);
-      if (!this.running()) throw new CommandRejection("WRONG_PHASE", { expected: "shift|move" });
+      if (!this.running()) throw new CommandRejection("WRONG_PHASE", { expected: "play" });
       if (on) this.startAutoplay(client.sessionId, "player");
       else this.stopAutoplay(client.sessionId, "player");
     }),
 
     setSpeed: this.command("setSpeed", speedPayloadSchema, (client, { speed }) => {
       if (!this.spectators.has(client.sessionId)) throw new CommandRejection("NOT_SPECTATOR");
-      if (!this.running()) throw new CommandRejection("WRONG_PHASE", { expected: "shift|move" });
+      if (!this.running()) throw new CommandRejection("WRONG_PHASE", { expected: "play" });
       if (this.people().length > 0) throw new CommandRejection("PEOPLE_PLAYING", { people: this.people().length });
       this.state.botSpeed = speed;
     }),
@@ -284,7 +230,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   };
 
   /**
-   * Deals the cards to the seated players (bots included), locks the room and gives the first turn
+   * Starts the game for the seated players (bots included), locks the room and gives the first turn
    * to the host. The one way a game starts.
    */
   private startGame(): void {
@@ -292,19 +238,13 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     this.startBotSeats = this.bots().map((p) => p.seat).sort((a, b) => a - b);
     const dealSeed = this.drawDealSeed();
     const players = [...this.state.players.values()].map(({ seat, name, bot }) => ({ seat, name, bot }));
-    const game = startGame(dealSeed, players, this.state.hostSeat, this.setupBoard);
+    const game = startGame(dealSeed, players, this.state.hostSeat);
     const startSeat = this.chooseStartSeat(game.turnSeat);
     this.game = { ...game, turnSeat: startSeat };
-    this.botRngs = new Map(this.bots().map((p) => [p.seat, createRng(botSeed(dealSeed, p.seat))]));
-    for (const p of this.state.players.values()) {
-      const seat = this.gameSeat(p.seat);
-      p.cards = seat.stack.length;
-      p.target = targetOf(seat)!;
-    }
+    this.state.turn = this.game.turn;
     void this.lock();
     // Locked for players; the room admits spectators itself (through the watch route).
     this.maxClients = MAX_SEATS + MAX_SPECTATORS;
-    for (const client of this.clients) if (this.spectators.has(client.sessionId)) this.showAllPlayers(client);
     for (const [id, p] of this.state.players) if (!p.bot && !p.connected) this.startAutoplay(id, "drop");
     log.info("game.started", this.logCtx(undefined, { dealSeed, seats, startSeat }));
     this.setTurn(startSeat);
@@ -334,7 +274,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
 
   /** True while turns are being played (not in the waiting room, not finished). */
   private running(): boolean {
-    return this.state.phase === "shift" || this.state.phase === "move";
+    return this.state.phase === "play";
   }
 
   /** The seated people (dropped ones in their hold included). */
@@ -348,13 +288,11 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     void this.setMetadata({ ...this.metadata, ...extra, watchable });
   }
 
-  /** Seats a bot with the first free bot name on its seat's start corner. */
+  /** Seats a bot with the first free bot name. */
   private seatBot(seat: number): void {
     const used = new Set(this.bots().map((p) => p.name));
     const name = BOT_NAMES.find((n) => !used.has(n))!; // four names for at most three bots
-    const corner = START_CORNERS[seat - 1]!;
-    const look = pickLook(this.takenLooks(), seat);
-    this.state.players.set(botKey(seat), new Player({ seat, look, name, bot: true, row: corner.row, col: corner.col }));
+    this.state.players.set(botKey(seat), new Player({ seat, name, bot: true }));
     log.info("bot.added", this.logCtx(undefined, { seat, name }));
     this.syncSeats();
   }
@@ -365,11 +303,6 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     if (!player) throw new CommandRejection("NOT_SEATED");
     if (player.seat !== this.state.hostSeat) throw new CommandRejection("NOT_HOST", { seat: player.seat });
     if (this.state.phase !== "waiting") throw new CommandRejection("WRONG_PHASE", { expected: "waiting" });
-  }
-
-  /** The pawns seated players hold. */
-  private takenLooks(): number[] {
-    return [...this.state.players.values()].map((p) => p.look);
   }
 
   /** The player (person or bot) in `seat`, if any. */
@@ -411,24 +344,14 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   }
 
   protected commandStateFacts() {
-    const current = [...this.state.players.values()].find((p) => p.seat === this.state.turnSeat);
     return {
       phase: this.state.phase,
       hostSeat: this.state.hostSeat,
       seated: this.state.players.size,
       turnSeat: this.state.turnSeat,
       turnExpired: this.state.turnExpired,
-      lastInsertion: this.state.lastInsertion,
-      pawn: current ? [current.row, current.col] : undefined,
+      turn: this.state.turn,
     };
-  }
-
-  /** Mirrors a collect: the engine's newest found treasure joins the player's, its next card (or home) is the target. */
-  private collect(player: Player, seat: GameSeat): void {
-    const treasure: TreasureId = seat.found[seat.found.length - 1]!;
-    player.found.push(treasure);
-    player.target = targetOf(seat) ?? "";
-    log.info("treasure.collected", this.logCtx(undefined, { seat: player.seat, treasure, found: player.found.length, cards: player.cards }));
   }
 
   /** The end of the game (a win, or no person left: winner 0): no further turn, no clock, no joining. */
@@ -444,7 +367,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   }
 
   /**
-   * The one way out of a game (left, kicked, disconnected too long): pawn, stack and seat go. In
+   * The one way out of a game (left, kicked, disconnected too long): the seat goes, its cells stay. In
    * the waiting room the seat is simply free again, unless the host went: then the room closes.
    * In a started game the last player standing wins, or the turn passes if it was theirs.
    */
@@ -504,7 +427,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     return [...this.state.players.values()].map((p) => p.seat).sort((a, b) => a - b);
   }
 
-  /** The seated player sending a shift or move; a person whose seat the bot plays may not. Changes nothing. */
+  /** The seated player sending a placement; a person whose seat the bot plays may not. Changes nothing. */
   private requirePlaying(actor: Actor): Player {
     const player = this.requireSeated(actor);
     if (player.autoplay && !actor.bot) throw new CommandRejection("AUTOPLAYING", { seat: player.seat });
@@ -513,8 +436,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
 
   /**
    * The bot takes over a person's seat (idempotent). A drop does not replace a hand-over, so
-   * coming back keeps the autoplay the player chose. On the seat's own turn the bot plays on
-   * from the step the turn is in.
+   * coming back keeps the autoplay the player chose. On the seat's own turn the bot plays it.
    */
   private startAutoplay(sessionId: string, reason: AutoplayReason): void {
     const player = this.state.players.get(sessionId);
@@ -550,16 +472,6 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     return entry && { sessionId: entry[0], bot: true };
   }
 
-  /** The bot rng of a seat, seeded from the deal seed and the seat (made on first use for an auto-played person). */
-  private botRngOf(seat: number): Rng {
-    let rng = this.botRngs.get(seat);
-    if (!rng) {
-      rng = createRng(botSeed(this.game!.seed, seat));
-      this.botRngs.set(seat, rng);
-    }
-    return rng;
-  }
-
   /** The seated player sending a command; rejects anyone else (spectators too). Changes nothing. */
   private requireSeated(actor: Actor): Player {
     const player = this.state.players.get(actor.sessionId);
@@ -568,44 +480,42 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   }
 
   /**
-   * The engine's new state for an accepted shift or move; its refusal as a rejection with the
-   * audit facts. Nobody acts in the waiting room (no game yet).
+   * The engine's new state for an accepted placement; its refusal as a rejection with the audit
+   * facts. Nobody acts in the waiting room (no game yet).
    */
-  private accepted(result: GameCommandResult | undefined, seat: number, expected: "shift" | "move", to?: Square): Game {
-    if (!result) throw new CommandRejection("WRONG_PHASE", { expected });
+  private accepted(result: GameCommandResult | undefined, seat: number, cell: Cell): Game {
+    if (!result) throw new CommandRejection("WRONG_PHASE", { expected: "play" });
     if (result.ok) return result.state;
     const facts: Partial<Record<typeof result.code, Record<string, unknown>>> = {
       NOT_YOUR_TURN: { seat },
-      WRONG_PHASE: { expected },
-      ...(to && { UNREACHABLE: { to: [to.row, to.col] } }),
+      WRONG_PHASE: { expected: "play" },
+      CELL_TAKEN: { cell: [cell.row, cell.col] },
     };
     throw new CommandRejection(result.code, facts[result.code]);
   }
 
   /** The seat as the engine holds it (seated players are always in the running game). */
-  private gameSeat(seat: number): GameSeat {
+  private gameSeat(seat: number): Game["seats"][number] {
     return this.game!.seats.find((s) => s.seat === seat)!;
   }
 
-  /** A new turn always starts with the shift step and a fresh clock; the engine has already moved to it. */
+  /** A new turn starts with a fresh clock; the engine has already moved to it. */
   private setTurn(seat: number): void {
     const from = this.state.turnSeat;
     this.state.turnSeat = seat;
-    this.state.phase = "shift";
+    if (this.state.phase !== "play") this.setPhase("play");
     log.info("turn.changed", this.logCtx(undefined, { from, to: seat }));
     this.restartClock();
     this.clearBotTimer();
     if (this.isBotPlayed(seat)) this.scheduleBotStep(seat);
   }
 
-  /** The bot plays the step the seat's turn is in, after the usual pause: the whole turn, or where to walk after a shift already made. */
+
+  /** The bot plays the seat's turn after the usual pause. */
   private scheduleBotStep(seat: number): void {
     this.clearBotTimer();
-    if (this.state.phase === "shift") {
-      this.botTimer = this.clock.setTimeout(() => void this.playBotShift(seat), this.botDelay(this.botShiftDelayMs));
-    } else if (this.state.phase === "move") {
-      this.botTimer = this.clock.setTimeout(() => void this.playBotTakeover(seat), this.botDelay(this.botMoveDelayMs));
-    }
+    if (!this.running()) return;
+    this.botTimer = this.clock.setTimeout(() => void this.playBotTurn(seat), this.botDelay(this.botDelayMs));
   }
 
   /** A bot pause at the current speed. */
@@ -619,44 +529,20 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   }
 
   /**
-   * A bot's shift, through the same command path as a person's. The whole turn is chosen here; the
-   * move follows after a pause. A rejected choice falls back to an allowed shift and staying.
+   * A bot's turn, through the same command path as a person's. A rejected choice (a bad strategy)
+   * falls back to the first empty cell.
    */
-  private async playBotShift(seat: number): Promise<void> {
+  private async playBotTurn(seat: number): Promise<void> {
     this.botTimer = undefined;
     const actor = this.botActorOf(seat);
     // Taken back (or the turn moved on) before the pause ended: nothing to play.
-    if (!actor || !this.isBotPlayed(seat) || this.state.turnSeat !== seat) return;
-    const turn = this.botStrategy(botViewOf(this.game!, seat), this.botRngOf(seat));
-    let to: Square | undefined = turn.to;
-    const result = await this.messages.shift(actor, { insertion: turn.insertion, rotation: turn.rotation });
-    if (!result.ok) {
-      log.error("bot.fallback", this.logCtx(actor, { cmd: "shift", code: result.code }));
-      const fallback = allowedShifts(this.game?.lastInsertion)[0]!;
-      const retry = await this.messages.shift(actor, { insertion: fallback.insertion, rotation: this.state.spare.rotation as Rotation });
-      if (!retry.ok) return; // nothing allowed (the turn changed meanwhile): the next setTurn takes over
-      to = undefined;
-    }
-    this.botTimer = this.clock.setTimeout(() => void this.playBotMove(seat, to), this.botDelay(this.botMoveDelayMs));
-  }
-
-  /** The bot takes over after a shift the player made: it chooses only where to walk. */
-  private async playBotTakeover(seat: number): Promise<void> {
-    if (!this.isBotPlayed(seat) || this.state.turnSeat !== seat || this.state.phase !== "move") return;
-    await this.playBotMove(seat, botMoveAfterShift(botViewOf(this.game!, seat), this.botRngOf(seat)));
-  }
-
-  /** A bot's move to `to`, or staying (always allowed) when there is none or it is rejected. */
-  private async playBotMove(seat: number, to: Square | undefined): Promise<void> {
-    this.botTimer = undefined;
-    const actor = this.botActorOf(seat);
-    const own = actor && this.state.players.get(actor.sessionId);
-    if (!actor || !own || !this.isBotPlayed(seat) || this.state.turnSeat !== seat) return;
-    const result = await this.messages.move(actor, to ?? squareOf(own));
-    if (!result.ok && to) {
-      log.error("bot.fallback", this.logCtx(actor, { cmd: "move", code: result.code }));
-      await this.messages.move(actor, squareOf(own));
-    }
+    if (!actor || !this.isBotPlayed(seat) || this.state.turnSeat !== seat || !this.game) return;
+    const cell = this.botStrategy(botViewOf(this.game, seat), botRngFor(this.game, seat));
+    const result = await this.messages.place(actor, cell);
+    if (result.ok || !this.game) return;
+    log.error("bot.fallback", this.logCtx(actor, { cmd: "place", code: result.code }));
+    const empty = this.game.board.indexOf(0);
+    if (empty >= 0) await this.messages.place(actor, cellAt(empty));
   }
 
   /**
@@ -665,7 +551,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
    * if it no longer applies.
    */
   private restartClock(keepRunning = false): void {
-    const applies = (this.state.phase === "shift" || this.state.phase === "move") && this.state.turnSeat !== 0;
+    const applies = this.running() && this.state.turnSeat !== 0;
     if (keepRunning && applies && this.state.turnDeadline !== 0) return;
     this.turnTimer?.clear();
     this.turnTimer = undefined;
@@ -711,12 +597,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     const { data } = parsed;
     this.pool = data.pool ?? "";
     await this.setMetadata({ host: "", open: true, pool: data.pool ?? "", seated: 0, watchable: false });
-    this.seed = randomInt(0, MAX_SEED + 1);
-    const board = setupBoard(this.seed);
-    this.setupBoard = board;
-    this.state.squares.push(...board.squares.map(toTileState));
-    this.state.spare = toTileState(board.spare);
-    log.info("game.setup", this.logCtx(undefined, { seed: this.seed }));
+    this.state.cells.push(...Array.from({ length: CELL_COUNT }, () => 0));
     // A rematch keeps the finished game's bots in their seats.
     for (const seat of data.botSeats ?? []) this.seatBot(seat);
   }
@@ -748,11 +629,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     }
     super.onJoin(client, undefined, undefined, { name });
     const seat = this.freeSeat();
-    const corner = START_CORNERS[seat - 1]!;
-    const look = pickLook(this.takenLooks(), seat, auth!.look);
-    const player = new Player({ seat, look, name, row: corner.row, col: corner.col });
-    this.state.players.set(client.sessionId, player);
-    this.showOwnPlayer(client, player);
+    this.state.players.set(client.sessionId, new Player({ seat, name }));
     if (this.state.hostSeat === 0) {
       this.state.hostSeat = seat;
       void this.setMetadata({ ...this.metadata, host: name });
@@ -772,7 +649,6 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     super.onJoin(client, undefined, undefined, { name, spectator: true });
     this.spectators.add(client.sessionId);
     this.state.spectators = this.spectators.size;
-    this.showAllPlayers(client);
     log.info("spectator.joined", this.logCtx(client, { spectators: this.spectators.size }));
     this.syncListing();
   }
@@ -781,7 +657,6 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   onLeave(client: Client, code?: CloseCode) {
     super.onLeave(client, code);
     this.holds.delete(client.sessionId);
-    client.view?.dispose();
     if (this.spectators.has(client.sessionId)) {
       this.removeSpectator(client.sessionId);
       return;
@@ -810,14 +685,10 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   onReconnect(client: Client) {
     super.onReconnect(client);
     this.holds.delete(client.sessionId);
-    if (this.spectators.has(client.sessionId)) {
-      this.showAllPlayers(client);
-      return;
-    }
+    if (this.spectators.has(client.sessionId)) return;
     const player = this.state.players.get(client.sessionId);
     if (player) {
       player.connected = true;
-      this.showOwnPlayer(client, player);
       this.stopAutoplay(client.sessionId, "reconnect");
     }
   }
@@ -827,17 +698,5 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     this.turnTimer?.clear();
     this.clearBotTimer();
     if (this.counted) GameRoom.openGames--;
-  }
-
-  /** The client's view holds its own player only, so it alone receives that player's secret target. */
-  private showOwnPlayer(client: Client, player: Player): void {
-    client.view ??= new StateView();
-    client.view.add(player);
-  }
-
-  /** A spectator's view holds every player, so they see every current target. */
-  private showAllPlayers(client: Client): void {
-    client.view ??= new StateView();
-    for (const player of this.state.players.values()) client.view.add(player);
   }
 }

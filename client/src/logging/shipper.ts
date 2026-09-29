@@ -1,4 +1,4 @@
-import { CLIENT_LOG_LIMITS, type ClientLogEntry } from "@labyrinth/protocol";
+import { CLIENT_LOG_LIMITS, type ClientLogEntry } from "@palikka/protocol";
 
 /** Posts a JSON body; resolves true when the server accepted it. */
 export type SendFn = (body: string, keepalive: boolean) => Promise<boolean>;

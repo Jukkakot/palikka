@@ -1,13 +1,13 @@
-import type { BotSpeed } from "@labyrinth/protocol";
-import { createBoard, type GameState, type Square } from "@labyrinth/rules";
+import type { BotSpeed } from "@palikka/protocol";
+import { checkBoard, type GameState } from "@palikka/rules";
 
 /**
  * The games that run on this device, kept in localStorage so a reload, an update or a reopened app
  * continues them: one quick game against bots and, in a slot of its own, the daily puzzle. Storage
  * blocked (private mode): the game still plays, it just cannot be continued.
  */
-const KEY = "labyrinth.localGame";
-const DAILY_KEY = "labyrinth.dailyGame";
+const KEY = "palikka.localGame";
+const DAILY_KEY = "palikka.dailyGame";
 
 /** Room ids of games on the device start with this; server ids never do. */
 export const LOCAL_ROOM_PREFIX = "local-";
@@ -30,19 +30,15 @@ const keyOf = (roomId: string) => (isDailyRoomId(roomId) ? DAILY_KEY : KEY);
 export interface SavedLocalGame {
   roomId: string;
   game: GameState;
-  /** Pawns by seat, fixed when the game starts; missing in older saves (then the seat's own). */
-  looks?: Record<number, number>;
   /** The player's seat is handed to the bot. */
   autoplay?: boolean;
-  /** Where the bot on turn moves after its shift (chosen with the shift). */
-  botTo?: Square;
   /** The next game's id once "Pelaa uudelleen" was tapped. */
   rematchRoomId?: string;
   /** A game of bots to watch: the bots' speed (every pause divided by it). */
   speed?: BotSpeed;
   /** Daily puzzle: the fewest turns possible. */
   par?: number;
-  /** Daily puzzle: the states before each shift, for undo (the last is undone first). */
+  /** Daily puzzle: the states before each placement, for undo (the last is undone first). */
   history?: { game: GameState }[];
 }
 
@@ -74,8 +70,8 @@ export function loadLocalGame(roomId: string, store = storage()): SavedLocalGame
     if (!raw) return undefined;
     const saved = JSON.parse(raw) as SavedLocalGame;
     if (saved.roomId !== roomId) return undefined;
-    // Validates the board and brings back plain tiles.
-    const revive = (game: GameState): GameState => ({ ...game, board: createBoard(game.board) });
+    // Validates the board: a broken record is dropped.
+    const revive = (game: GameState): GameState => ({ ...game, board: checkBoard(game.board) });
     return { ...saved, game: revive(saved.game), history: saved.history?.map((h) => ({ ...h, game: revive(h.game) })) };
   } catch {
     clearLocalGame(roomId, store, true);

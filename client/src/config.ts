@@ -1,4 +1,4 @@
-const DEV_SERVER_URL = "http://localhost:2567";
+const DEV_SERVER_URL = "http://localhost:2577";
 
 interface ServerUrlEnv {
   VITE_SERVER_URL?: string;

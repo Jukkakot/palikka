@@ -1,5 +1,5 @@
 import { IconDice5 } from "@tabler/icons-react";
-import { RULES_VERSION } from "@labyrinth/rules";
+import { RULES_VERSION } from "@palikka/rules";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { isLocalToken } from "../session/localGameStore.ts";
@@ -13,8 +13,6 @@ import { Button } from "../ui/Button.tsx";
 import { HowToPlay } from "../howto/HowToPlay.tsx";
 import { LanguageSwitcher } from "../ui/LanguageSwitcher.tsx";
 import { LinkButton } from "../ui/LinkButton.tsx";
-import { LookPicker } from "../ui/LookPicker.tsx";
-import { loadLook, saveLook } from "../session/look.ts";
 import { Message } from "../ui/Message.tsx";
 import { Screen } from "../ui/Screen.tsx";
 import { Switch } from "../ui/Switch.tsx";
@@ -85,8 +83,6 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
   const [howToOpen, setHowToOpen] = useState(false);
   // "Pelaan itse": on whenever the screen opens; off offers a game of bots only to watch.
   const [playMyself, setPlayMyself] = useState(true);
-  // Without a stored choice the blue circle shows: it is what the player gets in a game on the device.
-  const [look, setLook] = useState(() => loadLook() ?? 1);
   if (settingsOpen) return <SettingsScreen onClose={() => setSettingsOpen(false)} />;
   if (howToOpen) return <HowToPlay onClose={() => setHowToOpen(false)} />;
 
@@ -175,13 +171,6 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
               {t(nickname.issue === "characters" ? "start.nicknameCharacters" : "start.nicknameLength")}
             </p>
           )}
-          <LookPicker
-            value={look}
-            onPick={(picked) => {
-              saveLook(picked);
-              setLook(picked);
-            }}
-          />
           <div className={styles.actions}>
             {invite ? (
               <>

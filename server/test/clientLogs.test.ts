@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import express from "express";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
-import { CLIENT_LOG_LIMITS } from "@labyrinth/protocol";
+import { CLIENT_LOG_LIMITS } from "@palikka/protocol";
 import appConfig from "../src/app.config.js";
 import { CLIENT_LOG_RATE, mountClientLogs } from "../src/logging/clientLogs.js";
 import { configureLogger } from "../src/logging/logger.js";

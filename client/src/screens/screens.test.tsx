@@ -27,7 +27,7 @@ function sessionOf(overrides: Partial<StartScreenProps["session"]> = {}): StartS
 }
 
 // A returning player: the remembered nickname makes the join actions available.
-beforeEach(() => localStorage.setItem("labyrinth.nickname", "Maija"));
+beforeEach(() => localStorage.setItem("palikka.nickname", "Maija"));
 afterEach(() => localStorage.clear());
 
 describe("game-session › Quick play (start screen)", () => {
@@ -60,7 +60,7 @@ describe("game-session › Quick play (early wake-up)", () => {
   it("Sleeping server is woken on open: Play disabled and the screen says so", () => {
     render(<StartScreen session={sessionOf(idle)} wake={{ state: "waking", slow: false }} />);
     expect(playButton().disabled).toBe(true);
-    expect(screen.getByRole("status").textContent).toContain("Herätetään palvelinta…");
+    expect(screen.getByRole("status").textContent).toContain("Herätetään palvelinta talviunilta…");
   });
 
   it("adds that waking can take about a minute once it is slow", () => {
@@ -352,6 +352,6 @@ describe("how-to-play › Rules screen reachable before and during a game", () =
     fireEvent.click(screen.getByRole("button", { name: "Näin pelaat" }));
     expect(screen.getByRole("heading", { level: 1, name: "Näin pelaat" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Takaisin" }));
-    expect(screen.getByRole("heading", { level: 1, name: "Labyrintti" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "Palikka" })).toBeTruthy();
   });
 });

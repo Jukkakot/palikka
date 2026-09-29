@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 2px var(--space-2) 2px 2px;
+  padding: 3px var(--space-2) 3px 5px;
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   background: var(--surface);
@@ -22,30 +22,14 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The viewer's own chip carries their target, so it reads first. */
+/* The viewer's own chip reads first. */
 .mine {
   color: var(--text);
   font-weight: 600;
-  border-color: var(--target);
+  border-color: var(--text);
 }
 
-.pawn {
-  width: 24px;
-  height: 24px;
-  flex: none;
-}
 
-.target {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  margin-left: var(--space-1);
-  border-radius: 50%;
-  background: var(--target);
-  color: var(--target-contrast);
-}
 
 .srOnly {
   position: absolute;
@@ -73,12 +57,12 @@
   min-width: 2.2em;
 }
 
-/* Connection dropped: dashed chip, faded pawn and an icon; the text keeps its contrast. */
+/* Connection dropped: dashed chip, faded colour and an icon; the text keeps its contrast. */
 .offline {
   border-style: dashed;
 }
 
-.offline .pawn {
+.offline [data-seat] {
   opacity: 0.45;
 }
 

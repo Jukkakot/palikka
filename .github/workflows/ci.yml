@@ -26,7 +26,7 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Bundle size budget
-        run: npm run size -w @labyrinth/client
+        run: npm run size -w @palikka/client
 
   e2e:
     runs-on: ubuntu-latest
@@ -38,7 +38,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install Chromium for Playwright
-        run: npx -w @labyrinth/e2e playwright install --with-deps chromium
+        run: npx -w @palikka/e2e playwright install --with-deps chromium
       - name: E2E (Galaxy S24)
         run: npm run e2e
       - name: Upload report and traces
@@ -65,7 +65,7 @@ jobs:
       - name: Deploy the server when its code changed
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-          HEALTH_URL: https://labyrinth-server-3z1m.onrender.com/health
+          HEALTH_URL: ${{ vars.VITE_SERVER_URL }}/health
           SERVER_PATHS: server packages/rules packages/protocol package-lock.json render.yaml
         run: |
           # A sleeping server takes about a minute to answer.

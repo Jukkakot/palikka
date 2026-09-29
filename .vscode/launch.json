@@ -7,7 +7,7 @@
       "request": "launch",
       "cwd": "${workspaceFolder}/server",
       "program": "${workspaceFolder}/server/src/index.ts",
-      // tsx runs TypeScript directly; the "source" condition resolves @labyrinth/rules
+      // tsx runs TypeScript directly; the "source" condition resolves @palikka/rules
       // to its .ts files, so breakpoints in packages/rules work too.
       "runtimeArgs": ["--import", "tsx", "--conditions=source"],
       "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
@@ -17,7 +17,7 @@
       "name": "Client",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:5173",
+      "url": "http://localhost:5183",
       "webRoot": "${workspaceFolder}/client",
       "preLaunchTask": "client: dev"
     }

@@ -4,17 +4,17 @@
 
 - Requires Node 22 (`.nvmrc`) and npm 11. `npm install` at the repo root installs all workspaces.
 - `npm run dev` starts both:
-  - server on http://localhost:2567 (`/health`, `/monitor`, `/playground`)
-  - client on http://localhost:5173 (also on the LAN for phones: see the Vite output)
-- In development the client is served at `/`; production uses `/labyrinth/`.
+  - server on http://localhost:2577 (`/health`, `/monitor`, `/playground`)
+  - client on http://localhost:5183 (also on the LAN for phones: see the Vite output)
+- In development the client is served at `/`; production uses `/palikka/`.
 - Two browser tabs are two players (session per tab).
 - Quick games against bots (and `?dev=1vN`) run in the browser without the server; online play,
   watching (`?dev=0vN`) and the waiting room need it.
 - PWA: the service worker is off in `npm run dev`. To try install and offline start:
-  `VITE_SERVER_URL=http://localhost:2567 npm run build -w @labyrinth/client && npm run preview -w
-  @labyrinth/client` (port 4173; without the URL a production build shows the crash screen), then
+  `VITE_SERVER_URL=http://localhost:2577 npm run build -w @palikka/client && npm run preview -w
+  @palikka/client` (port 4173; without the URL a production build shows the crash screen), then
   DevTools → Application. Icons: edit `client/public/favicon.svg`, run
-  `npm run icons -w @labyrinth/client`, commit the PNGs.
+  `npm run icons -w @palikka/client`, commit the PNGs.
 - Logs: the terminal shows pretty lines; `logs/dev.log` has the same entries as JSON (server and
   client). Add `?debug=1` to the client URL to also get its debug entries. Clear the file only
   while the server is stopped (it keeps the file open).
@@ -23,14 +23,14 @@
 
 Dev servers are kept running between sessions. Before a UI check or E2E run:
 
-- Check what listens (PowerShell): `Get-NetTCPConnection -LocalPort 2567,5173 -State Listen`,
+- Check what listens (PowerShell): `Get-NetTCPConnection -LocalPort 2577,5183 -State Listen`,
   then the owning process's command line. This checkout's `npm run dev` (`tsx watch` + Vite)
   reloads by itself, so a running one is current.
 - Nothing listens: start it detached through cmd, so it outlives the session (a bare
   `Start-Process npm` dies at once; a background task leaves orphans when stopped):
-  `Start-Process -WindowStyle Hidden cmd.exe -ArgumentList '/c','npm run dev > "%TEMP%\labyrinth-dev.log" 2>&1' -WorkingDirectory <repo root>`.
-- Only one side up (e.g. VS Code's Vite on 5173): start only the other,
-  `npm run dev -w @labyrinth/server` (log `%TEMP%\labyrinth-server.log`).
+  `Start-Process -WindowStyle Hidden cmd.exe -ArgumentList '/c','npm run dev > "%TEMP%\palikka-dev.log" 2>&1' -WorkingDirectory <repo root>`.
+- Only one side up (e.g. VS Code's Vite on 5183): start only the other,
+  `npm run dev -w @palikka/server` (log `%TEMP%\palikka-server.log`).
 - Anything else on those ports (an old build, another checkout): stop it by process id.
 
 ## Checks — Implemented
@@ -38,7 +38,7 @@ Dev servers are kept running between sessions. Before a UI check or E2E run:
 Run before every commit (CI runs the same):
 
 ```
-npm run lint && npm run typecheck && npm test && npm run build && npm run size -w @labyrinth/client
+npm run lint && npm run typecheck && npm test && npm run build && npm run size -w @palikka/client
 npm run e2e   # smoke test, when UI or connection code changed
 ```
 
@@ -51,7 +51,7 @@ npm run e2e   # smoke test, when UI or connection code changed
 
 | Level | Tools | Status |
 |---|---|---|
-| Rules | Vitest; fast-check properties over random boards (`boardArb` in `board.test.ts`); test names follow spec scenarios (`board › Rotation › Rotating a corner`); the bot simulation plays 5 games per player count, 20 with `BOT_SIM=full npm test -w @labyrinth/rules` (run it when a bot strategy changes); the bot tournament (sampling vs look-ahead vs greedy, win rates, ms/turn) runs with `BOT_TOURNAMENT=300 npx vitest run botTournament --silent=false` in `packages/rules` (about 30 min; fewer games for a quick look) | Implemented |
+| Rules | Vitest; fast-check properties over random boards (`boardArb` in `board.test.ts`); test names follow spec scenarios (`board › Rotation › Rotating a corner`); the bot simulation plays 5 games per player count, 20 with `BOT_SIM=full npm test -w @palikka/rules` (run it when a bot strategy changes); the bot tournament (sampling vs look-ahead vs greedy, win rates, ms/turn) runs with `BOT_TOURNAMENT=300 npx vitest run botTournament --silent=false` in `packages/rules` (about 30 min; fewer games for a quick look) | Implemented |
 | Server | Vitest + @colyseus/testing (real rooms, SDK clients in-process); `captureLogs()` asserts log lines; `test/support/game.ts`: `waitingRoom(n)`, `startedGame(n, { startSeat })` (nicknamed players, host starts, start seat forced via the `chooseStartSeat` hook), `arrange(room, seat, { pawn, found, target })` sets up a position in the room's game engine and the synced state | Implemented |
 | Client | Vitest; jsdom + Testing Library for components (`// @vitest-environment jsdom`) | Implemented |
 | E2E | Playwright, Galaxy S24 profile — **one smoke test** for now (two browser contexts: nickname + Play, the waiting room, the host starts, both see the whole board, fits 360×780) | Implemented |
@@ -60,7 +60,7 @@ npm run e2e   # smoke test, when UI or connection code changed
 
 - `npm run e2e` starts the dev server and client (or reuses running ones) and runs
   `e2e/tests/smoke.spec.ts` on the Galaxy S24 profile.
-- It reuses **whatever** listens on 2567/5173, e.g. a VS Code debug server started from an older
+- It reuses **whatever** listens on 2577/5183, e.g. a VS Code debug server started from an older
   build. When that is not the current code, stop it first, or run the server with `PORT=2600` and
   the client with `VITE_SERVER_URL=http://localhost:2600 npx vite --port 5180` and point
   Playwright's `baseURL` there.
@@ -69,7 +69,7 @@ npm run e2e   # smoke test, when UI or connection code changed
   uploads them as the `playwright-report` artifact. Check `logs/dev.log` for the `client.error`
   line — that is how the empty-state bug was found.
 - Scope: smoke only. Feature behaviour belongs in unit and room tests.
-- **Production smoke:** `npm run e2e:prod -w @labyrinth/e2e` runs `e2e/tests/prod.spec.ts` against
+- **Production smoke:** `npm run e2e:prod -w @palikka/e2e` runs `e2e/tests/prod.spec.ts` against
   the live site (`PROD_URL`, default the Pages address) with `playwright.prod.config.ts`; CI runs
   it after every deploy (see operations → Release flow).
 
@@ -77,7 +77,7 @@ npm run e2e   # smoke test, when UI or connection code changed
 
 - **VS Code**: Run and Debug → "Server" (tsx with the `source` condition, so breakpoints in
   `packages/rules` work), "Client" (Chrome + Vite), or "Full stack".
-- **Dev shortcut:** `http://localhost:5173/?dev=1v3` (1v1–1v3) starts a quick game against bots,
+- **Dev shortcut:** `http://localhost:5183/?dev=1v3` (1v1–1v3) starts a quick game against bots,
   `?dev=0v3` (0v2–0v4) a game of bots to watch, as soon as the server is awake; development builds
   only.
 - **Lint hook** (for Claude): `.claude/hooks/lint-edited.mjs` runs oxlint on every `.ts`/`.tsx`

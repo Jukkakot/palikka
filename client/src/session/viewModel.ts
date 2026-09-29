@@ -1,23 +1,10 @@
-import {
-  createBoard,
-  isInsertionId,
-  reachableSquares,
-  START_CORNERS,
-  targetTileId,
-  TILE_SET,
-  TREASURES,
-  type Board,
-  type InsertionId,
-  type Rotation,
-  type Square,
-  type TreasureId,
-} from "@labyrinth/rules";
+import { CELL_COUNT, cellsOf, type Board } from "@palikka/rules";
 import { isDailyRoomId } from "./localGameStore.ts";
 
 /** The synced state as the client receives it (Colyseus schema instances satisfy this shape). */
 export interface SyncedState {
-  squares?: Iterable<{ id: number; rotation: number }>;
-  spare?: { id: number; rotation: number };
+  /** Owner seat of every cell (0 = empty), row-major. */
+  cells?: Iterable<number>;
   players?: {
     forEach(cb: (player: SyncedPlayer, sessionId: string) => void): void;
   };
@@ -25,8 +12,9 @@ export interface SyncedState {
   phase?: string;
   /** Seat of the host; 0 until someone has joined. */
   hostSeat?: number;
-  lastInsertion?: string;
   winnerSeat?: number;
+  /** Turns started so far. */
+  turn?: number;
   /** Server epoch ms when the current turn's time runs out; 0 = no clock. */
   turnDeadline?: number;
   turnExpired?: boolean;
@@ -36,39 +24,29 @@ export interface SyncedState {
   botSpeed?: number;
   /** Id of the rematch game; "" until someone asked for one. */
   rematchRoomId?: string;
-  /** Turns started so far; only games on the device report it. */
-  turn?: number;
+  /** Daily puzzle: the cells to claim. */
+  targets?: Iterable<number>;
   /** Daily puzzle: the fewest turns possible. */
   par?: number;
-  /** Daily puzzle: there is a shift to take back. */
+  /** Daily puzzle: there is a placement to take back. */
   undoable?: boolean;
 }
 
 export interface SyncedPlayer {
   seat: number;
-  /** The pawn 1–4; 0 or missing = the seat's own. */
-  look?: number;
   connected: boolean;
   /** True for a computer-controlled seat. */
   bot?: boolean;
   /** True while the bot plays this person's seat. */
   autoplay?: boolean;
   name?: string;
-  row?: number;
-  col?: number;
-  cards?: number;
-  found?: Iterable<string>;
-  /** Present for the viewer's own player, and for every player when spectating; "" = heading home. */
-  target?: string;
+  /** Turns played. */
+  placed?: number;
 }
 
-/** The viewer's current target: a treasure, or their start corner once every card is found. */
-export type Target = TreasureId | "home";
-
 export interface SeatView {
+  /** 1–4; also the seat's colour. */
   seat: number;
-  /** The player's pawn 1–4 (colour + shape); missing = the seat's own. */
-  look?: number;
   sessionId: string;
   /** The player's nickname. */
   name: string;
@@ -79,18 +57,11 @@ export interface SeatView {
   isBot: boolean;
   /** A person's seat the bot plays for now (handed over, or the connection dropped). */
   autoplay?: boolean;
-  /** The square the pawn stands on. */
-  square: Square;
-  /** Size of the seat's treasure stack. */
-  cards: number;
-  /** Treasures found so far, in order. */
-  found: TreasureId[];
-  /** The seat's current target: the viewer's own, or every seat's for a spectator; else undefined. */
-  target?: Target;
+  /** Turns played. */
+  placed: number;
+  /** Cells the seat owns: its score. */
+  score: number;
 }
-
-/** The step of the current turn: first a shift, then a move. */
-export type TurnStep = "shift" | "move";
 
 /** Where the game is: the waiting room before the start, the game itself, or finished. */
 export type GamePhase = "waiting" | "playing" | "finished";
@@ -124,20 +95,6 @@ export interface GameView {
   canAutoplay: boolean;
   /** The current turn is an auto-played person's. */
   turnAutoplay: boolean;
-  step: TurnStep;
-  /** On the viewer's own move step: every square their pawn can reach, its own square first. */
-  reachable?: Square[];
-  /** The previous shift, whose reverse is forbidden. */
-  lastInsertion?: InsertionId;
-  /** The viewer's own current target; undefined without a seat or before it has arrived. */
-  myTarget?: Target;
-  /**
-   * Id of the highlighted target tile while the game runs: the viewer's own target's tile (or start
-   * corner); for a spectator the current player's.
-   */
-  targetTileId?: number;
-  /** The highlighted target is a start corner (heading home). */
-  targetHome: boolean;
   /** Seat of the winner; 0 while the game runs. */
   winnerSeat: number;
   finished: boolean;
@@ -151,68 +108,55 @@ export interface GameView {
   canKick: boolean;
   /** A daily puzzle (solo, on the device). */
   daily: boolean;
-  /** Turns started so far (the winning turn once finished); 0 when not known. */
+  /** Turns started so far (the solving turn once finished); 0 when not known. */
   turn: number;
+  /** Daily puzzle: the cells to claim; empty elsewhere. */
+  targets: number[];
   /** Daily puzzle: the fewest turns possible; 0 elsewhere. */
   par: number;
-  /** Daily puzzle: "Peru" can take back a shift. */
+  /** Daily puzzle: "Peru" can take back a placement. */
   undoable: boolean;
 }
 
-const isTreasure = (value: unknown): value is TreasureId => (TREASURES as readonly unknown[]).includes(value);
-
-const toTile = ({ id, rotation }: { id: number; rotation: number }) => ({
-  id,
-  kind: TILE_SET[id]!.kind,
-  rotation: rotation as Rotation,
-});
-
 /**
- * Builds the immutable view of a game from synced state. Tile kinds come from
- * the static tile set; `createBoard` validates what the server sent. Returns
- * undefined until the board has arrived (right after joining, the state is
- * still empty until the first patch).
+ * Builds the immutable view of a game from synced state. Returns undefined until the board has
+ * arrived (right after joining, the state is still empty until the first patch).
  */
 export function toGameView(state: SyncedState, roomId: string, mySessionId: string): GameView | undefined {
-  const squares = state.squares ? [...state.squares] : [];
-  if (squares.length !== 49 || !state.spare) return undefined;
+  const board = state.cells ? [...state.cells] : [];
+  if (board.length !== CELL_COUNT) return undefined;
 
-  const board = createBoard({ squares: squares.map(toTile), spare: toTile(state.spare) });
   const seats: SeatView[] = [];
   state.players?.forEach((p, sessionId) => {
     if (p.seat <= 0) return;
-    const corner = START_CORNERS[p.seat - 1]!;
-    const square = { row: p.row ?? corner.row, col: p.col ?? corner.col };
-    const found = [...(p.found ?? [])].filter(isTreasure);
-    const isMe = sessionId === mySessionId;
-    // Only the viewer's own target arrives, or every one for a spectator.
-    const target = readTarget(p.target, found.length, p.cards ?? 0);
     const isBot = p.bot === true;
     const autoplay = !isBot && p.autoplay === true;
-    seats.push({ seat: p.seat, look: p.look || p.seat, sessionId, name: p.name ?? "", connected: isBot || p.connected, isMe, isBot, autoplay, square, cards: p.cards ?? 0, found, target });
+    seats.push({
+      seat: p.seat,
+      sessionId,
+      name: p.name ?? "",
+      connected: isBot || p.connected,
+      isMe: sessionId === mySessionId,
+      isBot,
+      autoplay,
+      placed: p.placed ?? 0,
+      score: cellsOf(board, p.seat),
+    });
   });
   seats.sort((a, b) => a.seat - b.seat);
-  const mySeat = seats.find((s) => s.isMe)?.seat;
-  const spectating = mySeat === undefined;
-  const myTarget = seats.find((s) => s.isMe)?.target;
+  const me = seats.find((s) => s.isMe);
+  const mySeat = me?.seat;
   const turnSeat = state.turnSeat ?? 0;
-  const winnerSeat = state.winnerSeat ?? 0;
   const finished = state.phase === "finished";
   const phase: GamePhase = finished ? "finished" : state.phase === "waiting" ? "waiting" : "playing";
-  const me = seats.find((s) => s.isMe);
   const myAutoplay = me?.autoplay ?? false;
-  const isMyTurn = !finished && mySeat !== undefined && mySeat === turnSeat && !myAutoplay;
-  const step: TurnStep = state.phase === "move" ? "move" : "shift";
   const daily = isDailyRoomId(roomId);
   const current = seats.find((s) => s.seat === turnSeat);
   const turnExpired = !finished && (state.turnExpired ?? false);
-  // Whose target the board highlights: the viewer's own, or the current player's for a spectator.
-  const focus = spectating ? current : me;
-  const focusTarget = focus?.target;
   return {
     roomId,
     phase,
-    spectating,
+    spectating: mySeat === undefined,
     spectators: state.spectators ?? 0,
     botSpeed: state.botSpeed || 1,
     botOnly: seats.length > 0 && seats.every((s) => s.isBot),
@@ -222,20 +166,11 @@ export function toGameView(state: SyncedState, roomId: string, mySessionId: stri
     seats,
     mySeat,
     turnSeat,
-    isMyTurn,
+    isMyTurn: phase === "playing" && mySeat !== undefined && mySeat === turnSeat && !myAutoplay,
     myAutoplay,
     canAutoplay: phase === "playing" && me !== undefined && !daily,
     turnAutoplay: !finished && current?.autoplay === true,
-    step,
-    reachable: isMyTurn && step === "move" && me ? reachableSquares(board, me.square) : undefined,
-    lastInsertion: isInsertionId(state.lastInsertion) ? state.lastInsertion : undefined,
-    myTarget,
-    targetTileId:
-      !finished && focus !== undefined && focusTarget !== undefined
-        ? targetTileId(focus.seat, focusTarget === "home" ? undefined : focusTarget)
-        : undefined,
-    targetHome: focusTarget === "home",
-    winnerSeat,
+    winnerSeat: state.winnerSeat ?? 0,
     finished,
     turnDeadline: finished ? 0 : (state.turnDeadline ?? 0),
     turnExpired,
@@ -243,13 +178,8 @@ export function toGameView(state: SyncedState, roomId: string, mySessionId: stri
     canKick: turnExpired && mySeat !== undefined && current !== undefined && mySeat !== turnSeat,
     daily,
     turn: state.turn ?? 0,
+    targets: state.targets ? [...state.targets] : [],
     par: state.par ?? 0,
     undoable: state.undoable ?? false,
   };
-}
-
-/** "" means heading home only once every card is found; before that it just has not arrived yet. */
-function readTarget(target: string | undefined, found: number, cards: number): Target | undefined {
-  if (isTreasure(target)) return target;
-  return target === "" && cards > 0 && found >= cards ? "home" : undefined;
 }

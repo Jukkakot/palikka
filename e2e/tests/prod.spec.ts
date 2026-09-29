@@ -16,8 +16,8 @@ test("live site: bot game on the device, then a server game with a bot, then lea
   // A quick bot game runs on the device: no waiting for the server.
   const oneBot = page.getByRole("button", { name: "Pikapeli: sinä ja 1 botti" });
   await oneBot.click();
-  await expect(board(page).locator("[data-tile-id]")).toHaveCount(49, { timeout: 10_000 });
-  await expect(page.getByText("Robo, botti", { exact: false })).toBeAttached();
+  await expect(board(page).locator("[data-cell]")).toHaveCount(400, { timeout: 10_000 });
+  await expect(page.getByText("Kettu, botti", { exact: false })).toBeAttached();
   await page.getByRole("button", { name: "Poistu pelistä" }).click();
   await page.getByRole("button", { name: "Poistu", exact: true }).click();
 
@@ -29,8 +29,8 @@ test("live site: bot game on the device, then a server game with a bot, then lea
   await page.getByRole("button", { name: /^Lisää botti paikalle/ }).first().click();
   await page.getByRole("button", { name: "Aloita peli" }).click();
 
-  await expect(board(page).locator("[data-tile-id]")).toHaveCount(49, { timeout: 30_000 });
-  await expect(page.getByText("Robo, botti", { exact: false })).toBeAttached();
+  await expect(board(page).locator("[data-cell]")).toHaveCount(400, { timeout: 30_000 });
+  await expect(page.getByText("Kettu, botti", { exact: false })).toBeAttached();
 
   await page.getByRole("button", { name: "Poistu pelistä" }).click();
   await page.getByRole("button", { name: "Poistu", exact: true }).click();

@@ -1,6 +1,6 @@
 import express, { type Application, type NextFunction, type Request, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
-import { clientLogBatchSchema } from "@labyrinth/protocol";
+import { clientLogBatchSchema } from "@palikka/protocol";
 import { log } from "./logger.js";
 
 /** Upper bound for a batch body (50 entries at maximum field sizes stay below this). */

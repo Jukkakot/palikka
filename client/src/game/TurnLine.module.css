@@ -15,11 +15,6 @@
   font-size: var(--text-l);
 }
 
-.pawn {
-  width: 32px;
-  height: 32px;
-  flex: none;
-}
 
 /* Time left, after the text; tabular digits so it does not jitter. */
 .timer {

@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
-import { greedyBotTurn, homeSquare, reverseOf, type BotStrategy } from "@labyrinth/rules";
+import { cellAt, chooseBotCell, DAILY_TARGETS, PLACEMENTS_PER_SEAT, type BotStrategy } from "@palikka/rules";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createConnector } from "./useGameSession.ts";
-import { loadLocalGame } from "./localGameStore.ts";
-import { BOT_MOVE_DELAY_MS, BOT_SHIFT_DELAY_MS, LocalRoom } from "./localRoom.ts";
+import { dailyRecordOf, loadDailyRecord, todayString } from "./dailyRecord.ts";
+import { isDailyRoomId, loadLocalGame } from "./localGameStore.ts";
+import { BOT_DELAY_MS, LocalRoom } from "./localRoom.ts";
 import { loadResume, saveResume } from "./resumeRecord.ts";
+import { createConnector } from "./useGameSession.ts";
 import { toGameView } from "./viewModel.ts";
+
+const DATE = "2026-09-27";
+const quiet = { setTimeout: () => 0, clearTimeout: () => {} };
 
 beforeEach(() => {
   localStorage.clear();
@@ -13,105 +17,198 @@ beforeEach(() => {
 });
 
 /** A new game with bot timers switched off (Maija, the host, has the first turn). */
-function quietGame(bots = 1, strategy: BotStrategy = greedyBotTurn) {
-  return LocalRoom.create("Maija", bots, { seed: () => 7, strategy, setTimeout: () => 0, clearTimeout: () => {} });
+function quietGame(bots = 1, strategy: BotStrategy = chooseBotCell) {
+  return LocalRoom.create("Maija", bots, { seed: () => 7, strategy, ...quiet });
 }
 
-/** A game with real (fake-timer) bot pauses where Maija has shifted N1 and stayed: Robo is on turn. */
-async function robosTurn() {
-  const room = LocalRoom.create("Maija", 1, { seed: () => 7, strategy: greedyBotTurn });
-  await room.request("shift", { insertion: "N1", rotation: 0 });
-  await room.request("move", room.game.seats[0]!.pawn);
-  return room;
+/** A game with real (fake-timer) bot pauses. */
+function timedGame(bots = 1) {
+  return LocalRoom.create("Maija", bots, { seed: () => 7, strategy: chooseBotCell });
 }
+
+const viewOf = (room: LocalRoom) => toGameView(room.state, room.roomId, room.sessionId)!;
+/** Maija claims the first empty cell. */
+const placeFree = (room: LocalRoom) => room.request("place", cellAt(room.game.board.indexOf(0)));
 
 describe("bots › Quick game against bots (on the device)", () => {
-  it("One against three: Maija, Robo, Pixel and Byte with 6 cards each; only her own target is visible", () => {
-    const room = LocalRoom.create("Maija", 3, { setTimeout: () => 0, clearTimeout: () => {} });
-    const view = toGameView(room.state, room.roomId, room.sessionId)!;
-    expect(view.seats.map((s) => [s.name, s.cards, s.isBot])).toEqual([
-      ["Maija", 6, false],
-      ["Robo", 6, true],
-      ["Pixel", 6, true],
-      ["Byte", 6, true],
+  it("One against three: Maija and the forest animals, Maija on turn with no clock", () => {
+    const view = viewOf(quietGame(3));
+    expect(view.seats.map((s) => [s.seat, s.name, s.isBot])).toEqual([
+      [1, "Maija", false],
+      [2, "Kettu", true],
+      [3, "Ilves", true],
+      [4, "Pöllö", true],
     ]);
-    expect(view.myTarget).toBeDefined();
-    expect(view.seats.filter((s) => s.isBot).every((s) => s.target === undefined)).toBe(true);
-  });
-
-  it("No turn clock: the view has no deadline and nothing to kick", () => {
-    const room = quietGame();
-    const view = toGameView(room.state, room.roomId, room.sessionId)!;
-    expect(view).toMatchObject({ turnDeadline: 0, turnExpired: false, canKick: false, isMyTurn: true, step: "shift" });
+    expect(view).toMatchObject({ phase: "playing", isMyTurn: true, turnSeat: 1, turnDeadline: 0, canKick: false });
   });
 
   it("commands answer like the server and every step is saved", async () => {
     const room = quietGame();
-    const changes: unknown[] = [];
-    room.onStateChange((s) => changes.push(s));
-    expect(await room.request("move", homeSquare(1))).toEqual({ ok: false, code: "WRONG_PHASE" });
-    expect(await room.request("shift", { insertion: "X9", rotation: 0 })).toEqual({ ok: false, code: "INVALID_COMMAND" });
+    expect(await room.request("place", { row: 0, col: 0 })).toEqual({ ok: true });
+    expect(await room.request("place", { row: 0, col: 1 })).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
     expect(await room.request("kick", { seat: 2 })).toEqual({ ok: false, code: "WRONG_PHASE" });
-    expect(await room.request("shift", { insertion: "N1", rotation: 0 })).toEqual({ ok: true });
-    expect(changes).toHaveLength(1);
-    expect(loadLocalGame(room.roomId)!.game.step).toBe("move");
-    expect(await room.request("move", room.game.seats[0]!.pawn)).toEqual({ ok: true });
+    expect(loadLocalGame(room.roomId)?.game.board[0]).toBe(1);
+  });
+
+  it("bots play after the server's pause, and the game plays to its end", async () => {
+    vi.useFakeTimers();
+    const room = timedGame(2);
+    await placeFree(room);
     expect(room.game.turnSeat).toBe(2);
-    expect(await room.request("shift", { insertion: reverseOf("N1"), rotation: 0 })).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
-  });
-
-  it("First player starts: Maija, the host, always has the first turn", () => {
-    for (const seed of [1, 2, 3, 4]) expect(LocalRoom.create("Maija", 3, { seed: () => seed, setTimeout: () => 0 }).game.turnSeat).toBe(1);
-  });
-
-  it("bots play with the server's pauses", async () => {
-    vi.useFakeTimers();
-    const room = await robosTurn();
-    vi.advanceTimersByTime(BOT_SHIFT_DELAY_MS - 1);
-    expect(room.game.step).toBe("shift");
+    vi.advanceTimersByTime(BOT_DELAY_MS - 1);
+    expect(room.game.turnSeat).toBe(2);
     vi.advanceTimersByTime(1);
-    expect(room.game.step).toBe("move");
-    vi.advanceTimersByTime(BOT_MOVE_DELAY_MS);
-    expect(room.game).toMatchObject({ step: "shift", turnSeat: 1 });
+    expect(room.game.turnSeat).toBe(3);
+    while (room.game.step !== "finished") {
+      if (room.game.turnSeat === 1) await placeFree(room);
+      else vi.advanceTimersByTime(BOT_DELAY_MS);
+    }
+    expect(room.game.seats.every((s) => s.placed === PLACEMENTS_PER_SEAT)).toBe(true);
+    expect(viewOf(room).winnerSeat).toBeGreaterThan(0);
   });
 
-  it("a restored game continues where it was, a bot's pending move included", async () => {
+  it("a rejected bot choice falls back to the first empty cell", async () => {
     vi.useFakeTimers();
-    const room = await robosTurn();
-    vi.advanceTimersByTime(BOT_SHIFT_DELAY_MS);
-    const before = room.game;
+    const room = LocalRoom.create("Maija", 1, { seed: () => 7, strategy: () => ({ row: 0, col: 0 }) });
+    await room.request("place", { row: 0, col: 0 });
+    vi.advanceTimersByTime(BOT_DELAY_MS);
+    expect(room.game.board[1]).toBe(2);
+  });
+
+  it("a restored game continues where it was", async () => {
+    const room = quietGame();
+    await room.request("place", { row: 3, col: 3 });
     room.removeAllListeners();
-    // The page goes away mid-turn: its timers with it.
-    vi.clearAllTimers();
-    const restored = LocalRoom.restore(room.roomId, { strategy: greedyBotTurn })!;
-    expect(restored.game).toEqual(before);
-    vi.advanceTimersByTime(BOT_MOVE_DELAY_MS);
-    expect(restored.game).toMatchObject({ turnSeat: 1, step: "shift" });
+    const restored = LocalRoom.restore(room.roomId, quiet)!;
+    expect(restored.game.turnSeat).toBe(2);
+    expect(viewOf(restored).seats[0]!.score).toBe(1);
   });
 
   it("Leaving a quick bot game: the game is gone", async () => {
     const room = quietGame();
     await room.leave();
-    expect(LocalRoom.restore(room.roomId)).toBeUndefined();
-    expect(await room.request("shift", { insertion: "N1", rotation: 0 })).toEqual({ ok: false, code: "WRONG_PHASE" });
+    expect(loadLocalGame(room.roomId)).toBeUndefined();
   });
 
   it("Quick bot game again: a finished game's rematch is a new saved game with the same bots", async () => {
-    const room = quietGame(2);
+    vi.useFakeTimers();
+    const room = timedGame(2);
     expect(await room.request("rematch", {})).toEqual({ ok: false, code: "WRONG_PHASE" });
-    // Finish it by handing Maija every card and walking home.
-    const internal = room as unknown as { saved: { game: typeof room.game } };
-    const me = room.game.seats[0]!;
-    internal.saved = { ...internal.saved, game: { ...room.game, seats: [{ ...me, found: me.stack }, ...room.game.seats.slice(1)] } };
-    await room.request("shift", { insertion: "N3", rotation: 0 });
-    await room.request("move", homeSquare(1));
-    expect(room.game.winnerSeat).toBe(1);
+    // The bot plays every seat to the end.
+    await room.request("setAutoplay", { on: true });
+    vi.advanceTimersByTime(3 * PLACEMENTS_PER_SEAT * BOT_DELAY_MS);
+    expect(room.game.step).toBe("finished");
     expect(await room.request("rematch", {})).toEqual({ ok: true });
-    const next = room.state.rematchRoomId!;
-    expect(next).not.toBe(room.roomId);
+    const next = LocalRoom.restore(room.state.rematchRoomId!, quiet)!;
+    expect(next.game.seats.map((s) => s.name)).toEqual(["Maija", "Kettu", "Ilves"]);
+    expect(next.game.step).toBe("play");
+  });
+});
+
+describe("autoplay › Autoplay in games on the device", () => {
+  it("the bot plays Maija's turns until she takes back; her own command is refused meanwhile", async () => {
+    vi.useFakeTimers();
+    const room = timedGame();
+    expect(await room.request("setAutoplay", { on: true })).toEqual({ ok: true });
+    expect(viewOf(room)).toMatchObject({ myAutoplay: true, isMyTurn: false, turnAutoplay: true });
+    expect(await placeFree(room)).toEqual({ ok: false, code: "AUTOPLAYING" });
+    vi.advanceTimersByTime(BOT_DELAY_MS);
+    expect(room.game.turnSeat).toBe(2);
+    vi.advanceTimersByTime(2 * BOT_DELAY_MS);
+    expect(room.game.turn).toBeGreaterThanOrEqual(3);
+
+    expect(await room.request("setAutoplay", { on: false })).toEqual({ ok: true });
+    while (room.game.turnSeat !== 1) vi.advanceTimersByTime(BOT_DELAY_MS);
+    const { turn } = room.game;
+    vi.advanceTimersByTime(10 * BOT_DELAY_MS);
+    expect(room.game).toMatchObject({ turn, turnSeat: 1 });
+  });
+
+  it("Daily puzzle: no autoplay", async () => {
+    const room = LocalRoom.createDaily("Maija", DATE, quiet);
+    expect(await room.request("setAutoplay", { on: true })).toEqual({ ok: false, code: "WRONG_PHASE" });
+    expect(viewOf(room).canAutoplay).toBe(false);
+  });
+});
+
+describe("spectators › Watching a game of bots (on the device)", () => {
+  it("Watch three bots: the viewer is a spectator; they play to the end by themselves", () => {
+    vi.useFakeTimers();
+    const room = LocalRoom.createWatch(3, 1, { seed: () => 7 });
+    const view = viewOf(room);
+    expect(view).toMatchObject({ spectating: true, botOnly: true });
+    expect(view.seats.map((s) => s.name)).toEqual(["Kettu", "Ilves", "Pöllö"]);
+    vi.advanceTimersByTime(3 * PLACEMENTS_PER_SEAT * BOT_DELAY_MS);
+    expect(room.game.step).toBe("finished");
+  });
+
+  it("Faster bots: 4× shrinks the pause; the spectator cannot play", async () => {
+    vi.useFakeTimers();
+    const room = LocalRoom.createWatch(2, 1, { seed: () => 7 });
+    expect(await room.request("setSpeed", { speed: 4 })).toEqual({ ok: true });
+    expect(viewOf(room).botSpeed).toBe(4);
+    // The pause already running keeps its length; the next ones are a quarter.
+    vi.advanceTimersByTime(BOT_DELAY_MS);
+    const { turn } = room.game;
+    vi.advanceTimersByTime(BOT_DELAY_MS / 4);
+    expect(room.game.turn).toBe(turn + 1);
+    expect(await placeFree(room)).toEqual({ ok: false, code: "NOT_SEATED" });
+  });
+
+  it("never saved: the quick game slot is left alone", async () => {
+    const game = quietGame();
+    LocalRoom.createWatch(2, 1, quiet);
+    expect(loadLocalGame(game.roomId)).toBeDefined();
+  });
+});
+
+describe("daily-puzzle › The puzzle on the device", () => {
+  const solve = async (room: LocalRoom, misses = 0) => {
+    const targets = room.game.targets!;
+    const miss = room.game.board.findIndex((_, i) => !targets.includes(i));
+    for (let i = 0; i < misses; i++) await room.request("place", cellAt(miss + i));
+    for (const t of targets) await room.request("place", cellAt(t));
+  };
+
+  it("a new attempt is the date's puzzle in its own slot, with its par recorded", () => {
+    const room = LocalRoom.createDaily("Maija", DATE, quiet);
+    expect(isDailyRoomId(room.roomId)).toBe(true);
+    expect(dailyRecordOf(room.roomId)).toMatchObject({ date: DATE, par: DAILY_TARGETS });
+    expect(viewOf(room)).toMatchObject({ daily: true, par: DAILY_TARGETS, targets: room.game.targets });
+    expect(todayString(new Date(2026, 8, 7))).toBe("2026-09-07");
+  });
+
+  it("Undo a move: back before the last placement; nothing left to undo at the start", async () => {
+    const room = LocalRoom.createDaily("Maija", DATE, quiet);
+    expect(await room.request("undo", {})).toEqual({ ok: false, code: "WRONG_PHASE" });
+    await room.request("place", { row: 0, col: 0 });
+    expect(viewOf(room).undoable).toBe(true);
+    expect(await room.request("undo", {})).toEqual({ ok: true });
+    expect(room.game).toMatchObject({ turn: 1 });
+    expect(room.game.board[0]).toBe(0);
+  });
+
+  it("Solved: the best of several attempts is kept", async () => {
+    const first = LocalRoom.createDaily("Maija", DATE, quiet);
+    await solve(first, 2);
+    expect(first.game.step).toBe("finished");
+    expect(loadDailyRecord(DATE)?.best?.turns).toBe(DAILY_TARGETS + 2);
+    const second = LocalRoom.createDaily("Maija", DATE, quiet);
+    await solve(second);
+    expect(loadDailyRecord(DATE)?.best?.turns).toBe(DAILY_TARGETS);
+    const third = LocalRoom.createDaily("Maija", DATE, quiet);
+    await solve(third, 1);
+    expect(loadDailyRecord(DATE)?.best?.turns).toBe(DAILY_TARGETS);
+    expect(await third.request("rematch", {})).toEqual({ ok: false, code: "WRONG_PHASE" });
+  });
+
+  it("Leaving midway: the attempt stays saved and the connector continues it", async () => {
+    const room = LocalRoom.createDaily("Maija", todayString(), quiet);
+    await room.request("place", { row: 0, col: 0 });
     await room.leave();
-    const again = LocalRoom.restore(next)!;
-    expect(again.game.seats.map((s) => s.name)).toEqual(["Maija", "Robo", "Pixel"]);
+    const again = await createConnector().playDaily({ nickname: "Maija", date: todayString() });
+    expect(again.roomId).toBe(room.roomId);
+    await again.leave();
   });
 });
 

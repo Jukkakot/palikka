@@ -2,7 +2,7 @@
  * The daily puzzle on this device: which date, the current attempt's saved game, the puzzle's par
  * and the day's best solve over all attempts. A record of an earlier date is replaced by today's.
  */
-const KEY = "labyrinth.daily";
+const KEY = "palikka.daily";
 
 export interface DailyResult {
   /** Turns taken, the solving turn included. */

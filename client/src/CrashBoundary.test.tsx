@@ -21,7 +21,7 @@ describe("observability › Crash screen", () => {
     );
     consoleError.mockRestore();
 
-    expect(screen.getByRole("heading", { name: "Jokin meni pieleen" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Jokin jäätyi" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Lataa uudelleen" })).toBeTruthy();
     expect(screen.queryByText(/render failed/)).toBeNull();
 

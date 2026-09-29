@@ -5,8 +5,11 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
-  // GitHub Pages serves the app under /labyrinth/; the deploy workflow sets VITE_BASE.
+  // GitHub Pages serves the app under /palikka/; the deploy workflow sets VITE_BASE.
   base: process.env.VITE_BASE ?? "/",
+  // Own ports, so this game's dev servers run next to other games' (Vite's default is 5173).
+  server: { port: 5183, strictPort: true },
+  preview: { port: 5184, strictPort: true },
   plugins: [
     react(),
     // Installable, offline-capable app: the service worker precaches the built shell and swaps in a
@@ -15,15 +18,15 @@ export default defineConfig(({ command }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "favicon.ico", "apple-touch-icon-180x180.png"],
       manifest: {
-        name: "Muuttuva labyrintti",
-        short_name: "Labyrintti",
-        description: "Muuttuva labyrintti -lautapeli puhelimessa",
+        name: "Palikka",
+        short_name: "Palikka",
+        description: "Palikka – kuurainen ruutupeli puhelimessa",
         lang: "fi",
-        theme_color: "#1f3a2e",
-        background_color: "#f4efe4",
+        theme_color: "#3a78c2",
+        background_color: "#f5f7f9",
         display: "standalone",
         orientation: "portrait",
-        // Relative to the manifest, so the same build works under /labyrinth/ and at the root.
+        // Relative to the manifest, so the same build works under /palikka/ and at the root.
         start_url: ".",
         scope: ".",
         icons: [

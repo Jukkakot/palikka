@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
-import { setupBoard } from "@labyrinth/rules";
+import { BOARD_CELLS_PER_SIDE } from "@palikka/protocol";
+import { BOARD_SIZE, CELL_COUNT } from "@palikka/rules";
 import appConfig from "../src/app.config.js";
 import { configureLogger } from "../src/logging/logger.js";
 import type { GameState } from "../src/rooms/schema/GameState.js";
@@ -8,14 +9,12 @@ import { captureLogs } from "./support/captureLogs.js";
 import { forceStartSeat, NAMES, startedGame, waitingRoom } from "./support/game.js";
 
 type ClientState = {
-  squares: { id: number; rotation: number }[];
-  spare: { id: number; rotation: number };
+  cells: number[];
   players: Map<string, { seat: number; connected: boolean }>;
 };
 
 describe("game-session", () => {
   let colyseus: ColyseusTestServer<typeof appConfig>;
-  let logs: ReturnType<typeof captureLogs>;
 
   beforeAll(async () => {
     colyseus = await boot(appConfig);
@@ -26,49 +25,30 @@ describe("game-session", () => {
   });
   beforeEach(async () => {
     await colyseus.cleanup();
-    logs = captureLogs();
+    captureLogs();
   });
 
-  const seedOf = (roomId: string) => logs.byEvt("game.setup").find((l) => l.room === roomId)!.seed as number;
-
-  describe("Seeded game setup", () => {
-    it("Identical board for everyone: synced squares and spare equal setupBoard(logged seed)", async () => {
-      const { room, clients } = await waitingRoom(colyseus, 2);
-      const [a, b] = clients as [(typeof clients)[number], (typeof clients)[number]];
-      const sa = a.state as unknown as ClientState;
-      const sb = b.state as unknown as ClientState;
-      await vi.waitFor(() => expect(sb.squares?.length).toBe(49));
-
-      const expected = setupBoard(seedOf(room.roomId));
-      const plain = (s: ClientState) => ({
-        squares: [...s.squares].map((t) => ({ id: t.id, rotation: t.rotation })),
-        spare: { id: s.spare.id, rotation: s.spare.rotation },
-      });
-      const want = {
-        squares: expected.squares.map((t) => ({ id: t.id, rotation: t.rotation })),
-        spare: { id: expected.spare.id, rotation: expected.spare.rotation },
-      };
-      expect(plain(sa)).toEqual(want);
-      expect(plain(sb)).toEqual(want);
+  describe("Board", () => {
+    it("protocol and rules agree on the board size", () => {
+      expect(BOARD_CELLS_PER_SIDE).toBe(BOARD_SIZE);
     });
 
-    it("New games differ: each room draws its own seed", async () => {
-      const r1 = await colyseus.createRoom<GameState>("game", { nickname: NAMES[0] });
-      const r2 = await colyseus.createRoom<GameState>("game", { nickname: NAMES[1] });
-      expect(seedOf(r1.roomId)).not.toBe(seedOf(r2.roomId));
+    it("Everyone gets the same empty 20×20 board in the waiting room", async () => {
+      const { clients } = await waitingRoom(colyseus, 2);
+      for (const client of clients) {
+        await vi.waitFor(() => expect((client.state as unknown as ClientState).cells?.length).toBe(CELL_COUNT));
+        expect([...(client.state as unknown as ClientState).cells].every((c) => c === 0)).toBe(true);
+      }
     });
 
-    it("Seed is private: no seed in the state a client receives", async () => {
-      const { room, clients } = await waitingRoom(colyseus, 1);
-      const client = clients[0]!;
-      await vi.waitFor(() => expect((client.state as unknown as ClientState).squares?.length).toBe(49));
-      const json = JSON.stringify((client.state as unknown as { toJSON(): unknown }).toJSON());
-      expect(json).not.toContain("seed");
-      expect(json).not.toContain(String(seedOf(room.roomId)));
+    it("A placement is synced to every client", async () => {
+      const { clients } = await startedGame(colyseus, 2);
+      expect(await clients[0]!.request("place", { row: 2, col: 3 })).toEqual({ ok: true });
+      await vi.waitFor(() => expect((clients[1]!.state as unknown as ClientState).cells[2 * 20 + 3]).toBe(1));
     });
   });
 
-  describe("Seats and start corners", () => {
+  describe("Seats", () => {
     const seats = (room: { state: GameState }) =>
       Object.fromEntries([...room.state.players.entries()].map(([id, p]) => [id, p.seat]));
 
@@ -96,14 +76,14 @@ describe("game-session", () => {
       expect(fifth.roomId).not.toBe(first.roomId);
     });
 
-    it("Seats kept at the start: seats 1 and 3 stand on the top-left and bottom-right corners", async () => {
+    it("Seats kept at the start: seats 1 and 3 keep their seats (and colours)", async () => {
       const { room, clients, player } = await waitingRoom(colyseus, 3);
       await clients[1]!.leave();
       await vi.waitFor(() => expect(room.state.players.size).toBe(2));
       forceStartSeat(room, 1);
       expect(await clients[0]!.request("start", {})).toEqual({ ok: true });
-      expect([player(0).seat, player(0).row, player(0).col]).toEqual([1, 0, 0]);
-      expect([player(2).seat, player(2).row, player(2).col]).toEqual([3, 6, 6]);
+      expect(player(0).seat).toBe(1);
+      expect(player(2).seat).toBe(3);
     });
 
     it("Only game is running: quick play places the player in a new game", async () => {

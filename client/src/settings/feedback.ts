@@ -1,11 +1,10 @@
 import { getSettings } from "./settings.ts";
 
-/** The generated sounds: a soft two-note chime for the turn, a brighter one for a treasure. */
-export type SoundName = "turn" | "treasure";
+/** The generated sounds: a soft two-note chime for the turn. */
+export type SoundName = "turn";
 
 const NOTES: Record<SoundName, readonly number[]> = {
   turn: [587.33, 880], // D5 → A5
-  treasure: [880, 1318.51], // A5 → E6
 };
 const NOTE_S = 0.12;
 const GAIN = 0.08;

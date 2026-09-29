@@ -1,17 +1,16 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
-import { CLOSE_CODES, type CommandResult, type ShiftPayload } from "@labyrinth/protocol";
+import { CLOSE_CODES, type CommandResult } from "@palikka/protocol";
 import appConfig from "../src/app.config.js";
 import { configureLogger } from "../src/logging/logger.js";
 import type { GameRoom } from "../src/rooms/GameRoom.js";
 import { captureLogs } from "./support/captureLogs.js";
-import { startedGame, waitingRoom, type TestClient as Client } from "./support/game.js";
+import { placeFree, startedGame, waitingRoom, type TestClient as Client } from "./support/game.js";
 
 const SHORT_MS = 150;
 const LONG_MS = 60_000;
 
 const kick = (client: Client, seat: number) => client.request("kick", { seat }) as Promise<CommandResult>;
-const shift = (client: Client, payload: ShiftPayload) => client.request("shift", payload) as Promise<CommandResult>;
 
 describe("turn rules in a room", () => {
   let colyseus: ColyseusTestServer<typeof appConfig>;
@@ -32,11 +31,9 @@ describe("turn rules in a room", () => {
   const game = (players: number, { turnMs = SHORT_MS, disconnectSeconds = 300 } = {}) =>
     startedGame(colyseus, players, { turnMs, disconnectSeconds });
 
-  /** The current player's whole turn: shift, then stay. */
-  async function turn(room: GameRoom, client: Client, insertion: ShiftPayload["insertion"] = "N1") {
-    expect(await shift(client, { insertion, rotation: 0 })).toEqual({ ok: true });
-    const me = room.state.players.get(client.sessionId)!;
-    expect(await client.request("move", { row: me.row, col: me.col })).toEqual({ ok: true });
+  /** The current player's whole turn: claim the first empty cell. */
+  async function turn(room: GameRoom, client: Client) {
+    expect(await placeFree(client, room)).toEqual({ ok: true });
   }
 
   const expired = (room: GameRoom) => vi.waitFor(() => expect(room.state.turnExpired).toBe(true));
@@ -102,7 +99,7 @@ describe("turn rules in a room", () => {
       expect(await kick(clients[1]!, 1)).toEqual({ ok: true });
       expect(room.state.players.has(clients[0]!.sessionId)).toBe(false);
       expect(room.state.turnSeat).toBe(2);
-      expect(room.state.phase).toBe("shift");
+      expect(room.state.phase).toBe("play");
       expect(room.state.turnExpired).toBe(false);
       expect(await closed).toBe(CLOSE_CODES.KICKED);
       expect(logs.byEvt("player.removed")).toEqual([expect.objectContaining({ seat: 1, reason: "kicked", by: 2 })]);
@@ -163,9 +160,9 @@ describe("turn rules in a room", () => {
       const { room, clients } = await game(2, { turnMs: LONG_MS });
       await turn(room, clients[0]!);
       room.turnLimitMs = SHORT_MS;
-      await turn(room, clients[1]!, "S3");
+      await turn(room, clients[1]!);
       // Seat 1 is on turn again; make seat 2 the slow one.
-      await turn(room, clients[0]!, "E1");
+      await turn(room, clients[0]!);
       await expired(room);
 
       expect(await kick(clients[0]!, 2)).toEqual({ ok: true });
@@ -177,10 +174,9 @@ describe("turn rules in a room", () => {
 
     it("Two of three leave", async () => {
       const { room, clients } = await game(3, { turnMs: LONG_MS });
-      await shift(clients[0]!, { insertion: "N1", rotation: 0 });
       await clients[1]!.leave();
       await vi.waitFor(() => expect(room.state.players.size).toBe(2));
-      expect(room.state.phase).toBe("move");
+      expect(room.state.phase).toBe("play");
       expect(room.state.winnerSeat).toBe(0);
 
       await clients[2]!.leave();
@@ -188,7 +184,7 @@ describe("turn rules in a room", () => {
       expect(room.state.winnerSeat).toBe(1);
     });
 
-    it("Opponent leaves before anyone shifted", async () => {
+    it("Opponent leaves before anyone played", async () => {
       const { room, clients } = await game(2, { turnMs: LONG_MS });
       await clients[1]!.leave();
       await vi.waitFor(() => expect(room.state.phase).toBe("finished"));
@@ -198,11 +194,11 @@ describe("turn rules in a room", () => {
   });
 
   describe("Only the current player acts", () => {
-    it("Before the start: a shift or move in the waiting room is WRONG_PHASE", async () => {
+    it("Before the start: a placement in the waiting room is WRONG_PHASE", async () => {
       const { room, clients } = await waitingRoom(colyseus, 2);
       const before = JSON.stringify(room.state.toJSON());
-      expect(await shift(clients[0]!, { insertion: "N1", rotation: 0 })).toEqual({ ok: false, code: "WRONG_PHASE" });
-      expect(await clients[1]!.request("move", { row: 0, col: 6 })).toEqual({ ok: false, code: "WRONG_PHASE" });
+      expect(await clients[0]!.request("place", { row: 0, col: 0 })).toEqual({ ok: false, code: "WRONG_PHASE" });
+      expect(await clients[1]!.request("place", { row: 0, col: 6 })).toEqual({ ok: false, code: "WRONG_PHASE" });
       expect(JSON.stringify(room.state.toJSON())).toBe(before);
     });
   });
@@ -231,7 +227,7 @@ describe("turn rules in a room", () => {
       clients[1]!.connection.close(1000);
       await vi.waitFor(() => expect(room.state.players.has(clients[1]!.sessionId)).toBe(false));
       expect(logs.byEvt("player.removed")).toEqual([expect.objectContaining({ seat: 2, reason: "timeout" })]);
-      expect(room.state.phase).toBe("shift");
+      expect(room.state.phase).toBe("play");
     });
   });
 });

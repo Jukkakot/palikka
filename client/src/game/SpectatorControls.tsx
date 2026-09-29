@@ -1,8 +1,8 @@
 import { IconEye } from "@tabler/icons-react";
-import { BOT_SPEEDS, type BotSpeed } from "@labyrinth/protocol";
+import { BOT_SPEEDS, type BotSpeed } from "@palikka/protocol";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button.tsx";
-import styles from "./ShiftControls.module.css";
+import styles from "./Controls.module.css";
 import spectatorStyles from "./SpectatorControls.module.css";
 
 /** Top bar, for everyone: how many spectators watch; nothing without any. */

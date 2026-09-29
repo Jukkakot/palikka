@@ -1,6 +1,6 @@
 /**
  * Catalogue of server log events. Add a name here before using it; the logger
- * only accepts these (client events come from @labyrinth/protocol).
+ * only accepts these (client events come from @palikka/protocol).
  */
 export const SERVER_LOG_EVENTS = [
   "server.started",

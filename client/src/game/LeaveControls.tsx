@@ -1,7 +1,7 @@
 import { IconDoorExit } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button.tsx";
-import styles from "./ShiftControls.module.css";
+import styles from "./Controls.module.css";
 
 /** The leave action in the game's top bar: visible but secondary, an icon with its name for assistive technology. */
 export function LeaveButton({ onClick }: { onClick(): void }) {

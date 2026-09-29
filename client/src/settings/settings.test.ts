@@ -27,13 +27,13 @@ afterEach(() => {
 describe("settings › Settings on the device", () => {
   it("defaults without stored settings", () => {
     expect(loadSettings(memoryStorage())).toEqual(DEFAULT_SETTINGS);
-    expect(DEFAULT_SETTINGS).toMatchObject({ confirmShift: true, confirmMove: false, theme: "system", sounds: true, turnTitle: true, vibration: true });
+    expect(DEFAULT_SETTINGS).toMatchObject({ theme: "system", sounds: true, turnTitle: true, vibration: true });
   });
 
   it("Broken storage: garbage, wrong types and a throwing storage fall back to the defaults", () => {
-    expect(loadSettings(memoryStorage({ "labyrinth.settings": "{not json" }))).toEqual(DEFAULT_SETTINGS);
-    expect(loadSettings(memoryStorage({ "labyrinth.settings": "[]" }))).toEqual(DEFAULT_SETTINGS);
-    const partly = loadSettings(memoryStorage({ "labyrinth.settings": JSON.stringify({ sounds: false, theme: "pink", confirmMove: "yes" }) }));
+    expect(loadSettings(memoryStorage({ "palikka.settings": "{not json" }))).toEqual(DEFAULT_SETTINGS);
+    expect(loadSettings(memoryStorage({ "palikka.settings": "[]" }))).toEqual(DEFAULT_SETTINGS);
+    const partly = loadSettings(memoryStorage({ "palikka.settings": JSON.stringify({ sounds: false, theme: "pink", vibration: "yes" }) }));
     expect(partly).toEqual({ ...DEFAULT_SETTINGS, sounds: false });
     const throwing = { getItem: () => { throw new Error("blocked"); } } as unknown as Storage;
     expect(loadSettings(throwing)).toEqual(DEFAULT_SETTINGS);

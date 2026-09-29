@@ -5,33 +5,23 @@ import "../i18n";
 import { AutoplayPanel } from "./AutoplayControls.tsx";
 import { PlayerStrip } from "./PlayerStrip.tsx";
 import { TurnLine } from "./TurnLine.tsx";
+import { seatView } from "../test/views.ts";
 
-const seatView = (seat: number, name: string, autoplay = false) => ({
-  seat,
-  sessionId: `s${seat}`,
-  name,
-  connected: true,
-  isMe: seat === 1,
-  isBot: false,
-  autoplay,
-  square: { row: 0, col: 0 },
-  cards: 6,
-  found: [],
-});
+const seat = (n: number, name: string, autoplay = false) => seatView(n, name, { autoplay });
 
 describe("autoplay › Autoplay shown to everyone", () => {
   it("Others see it: robot icon on Maija's chip and the turn line names her", () => {
-    const seats = [seatView(1, "Pekka"), seatView(2, "Maija", true)];
+    const seats = [seat(1, "Pekka"), seat(2, "Maija", true)];
     const { container } = render(<PlayerStrip view={{ seats }} />);
     expect(container.querySelector("[data-seat='2'][data-autoplay]")).not.toBeNull();
     expect(screen.getByText(/Maija.*botti pelaa hänen puolestaan/)).toBeTruthy();
-    render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false, step: "shift", turnAutoplay: true, mySeat: 1 }} />);
+    render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false, turnAutoplay: true, mySeat: 1 }} />);
     expect(screen.getByText("Botti pelaa: Maija")).toBeTruthy();
   });
 
   it("Own view: the turn line says so and the panel offers taking back", () => {
-    const seats = [seatView(1, "Maija", true), seatView(2, "Pekka")];
-    render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: false, step: "shift", turnAutoplay: true, mySeat: 1 }} />);
+    const seats = [seat(1, "Maija", true), seat(2, "Pekka")];
+    render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: false, turnAutoplay: true, mySeat: 1 }} />);
     expect(screen.getByText("Botti pelaa puolestasi")).toBeTruthy();
     const onTakeBack = vi.fn();
     render(<AutoplayPanel pending={false} onTakeBack={onTakeBack} />);

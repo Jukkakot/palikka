@@ -54,7 +54,7 @@ describe("observability › Central log store", () => {
     const raw: string[] = [];
     return { stream: { write: (chunk: string) => void raw.push(...chunk.split("\n").filter(Boolean)) }, lines: () => raw.map((l) => JSON.parse(l)) };
   };
-  const shipping = { NODE_ENV: "production", AXIOM_TOKEN: "xaat-test", AXIOM_DATASET: "labyrinth" };
+  const shipping = { NODE_ENV: "production", AXIOM_TOKEN: "xaat-test", AXIOM_DATASET: "palikka" };
 
   it("production with a token and dataset: every line, server and client, goes to stdout and Axiom, with time", () => {
     const stdout = memory();
@@ -64,7 +64,7 @@ describe("observability › Central log store", () => {
     log.info("server.started", { port: 1 });
     log.client({ level: "warn", evt: "client.warn", ts: "2026-09-27T10:00:00.000Z" }, "abc1234");
 
-    expect(axiomStream).toHaveBeenCalledExactlyOnceWith({ dataset: "labyrinth", token: "xaat-test" });
+    expect(axiomStream).toHaveBeenCalledExactlyOnceWith({ dataset: "palikka", token: "xaat-test" });
     expect(axiom.lines()).toEqual(stdout.lines());
     expect(axiom.lines().map((l) => l.evt)).toEqual(["server.started", "client.warn"]);
     expect(Date.parse(axiom.lines()[0].time)).not.toBeNaN();
@@ -75,7 +75,7 @@ describe("observability › Central log store", () => {
     expect(axiomOptionsOf({ NODE_ENV: "production", AXIOM_TOKEN: "t" })).toBeUndefined();
     expect(axiomOptionsOf({ ...shipping, NODE_ENV: "development" })).toBeUndefined();
     expect(axiomOptionsOf({ ...shipping, NODE_ENV: "test" })).toBeUndefined();
-    expect(axiomOptionsOf(shipping)).toEqual({ dataset: "labyrinth", token: "xaat-test" });
+    expect(axiomOptionsOf(shipping)).toEqual({ dataset: "palikka", token: "xaat-test" });
     expect(axiomOptionsOf({ ...shipping, AXIOM_EDGE: "eu-central-1.aws.edge.axiom.co" })).toMatchObject({ edge: "eu-central-1.aws.edge.axiom.co" });
   });
 });

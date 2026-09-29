@@ -6,7 +6,7 @@ import { FirstGameTips } from "./FirstGameTips.tsx";
 import { TipsReset } from "./TipsReset.tsx";
 import type { TipSituation } from "./tips.ts";
 
-const myShift: TipSituation = { playing: true, isMyTurn: true, step: "shift", heading: "treasure" };
+const myTurn: TipSituation = { playing: true, isMyTurn: true };
 
 beforeEach(async () => {
   localStorage.clear();
@@ -15,26 +15,23 @@ beforeEach(async () => {
 afterEach(() => localStorage.clear());
 
 describe("first-game-tips › One-time tips in the first game", () => {
-  it("First turn: target first, push after closing it, walk once the moment of push passes", () => {
-    const { rerender } = render(<FirstGameTips {...myShift} />);
-    expect(screen.getByRole("status").textContent).toContain("violetilla");
+  it("First turn: the goal first, how to place after closing it", () => {
+    render(<FirstGameTips {...myTurn} />);
+    expect(screen.getByRole("status").textContent).toContain("Eniten ruutuja");
 
     fireEvent.click(screen.getByRole("button", { name: "Sulje vinkki" }));
-    expect(screen.getByRole("status").textContent).toContain("napauta nuolta");
-
-    rerender(<FirstGameTips {...myShift} step="move" />);
-    expect(screen.getByRole("status").textContent).toContain("korostettua ruutua");
-    expect(JSON.parse(localStorage.getItem("labyrinth.tips.seen")!)).toEqual(["target", "push", "walk"]);
+    expect(screen.getByRole("status").textContent).toContain("Napauta");
+    expect(JSON.parse(localStorage.getItem("palikka.tips.seen")!)).toEqual(["goal", "place"]);
   });
 
   it("Shown only once: a new game after seeing a tip does not show it again", () => {
-    render(<FirstGameTips {...myShift} isMyTurn={false} />).unmount();
-    render(<FirstGameTips {...myShift} isMyTurn={false} />);
+    render(<FirstGameTips {...myTurn} isMyTurn={false} />).unmount();
+    render(<FirstGameTips {...myTurn} isMyTurn={false} />);
     expect(screen.getByRole("status").childElementCount).toBe(0);
   });
 
   it("Spectator: no tip", () => {
-    render(<FirstGameTips {...myShift} playing={false} />);
+    render(<FirstGameTips {...myTurn} playing={false} />);
     expect(screen.getByRole("status").childElementCount).toBe(0);
   });
 });
@@ -46,10 +43,10 @@ describe("first-game-tips › Show the tips again", () => {
   });
 
   it("Resetting the tips: the link turns into a confirmation and the tips are forgotten", () => {
-    localStorage.setItem("labyrinth.tips.seen", '["target"]');
+    localStorage.setItem("palikka.tips.seen", '["goal"]');
     render(<TipsReset />);
     fireEvent.click(screen.getByRole("button", { name: "Näytä vinkit uudelleen" }));
     expect(screen.getByRole("status").textContent).toContain("seuraavassa pelissä");
-    expect(localStorage.getItem("labyrinth.tips.seen")).toBeNull();
+    expect(localStorage.getItem("palikka.tips.seen")).toBeNull();
   });
 });

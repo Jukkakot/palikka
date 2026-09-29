@@ -1,28 +1,20 @@
-import { BOT_NAMES, BOT_SPEEDS, type BotSpeed, type CommandResult } from "@labyrinth/protocol";
+import { BOT_NAMES, BOT_SPEEDS, type BotSpeed, type CommandResult } from "@palikka/protocol";
 import {
-  allowedShifts,
-  applyMove,
-  applyShift,
-  botMoveAfterShift,
+  applyPlace,
   botRngFor,
   botViewOf,
-  chooseBotTurn,
-  isInsertionId,
+  cellAt,
+  chooseBotCell,
   MAX_SEED,
-  ROTATIONS,
-  applyPuzzleMove,
   startDailyPuzzle,
   startGame,
-  targetOf,
   type BotStrategy,
+  type GameCommandResult,
   type GameState,
   type NewSeat,
-  type Rotation,
-  type Square,
-} from "@labyrinth/rules";
+} from "@palikka/rules";
 import { log } from "../logging/logger.ts";
 import { loadDailyRecord, saveDailyRecord, saveDailyResult } from "./dailyRecord.ts";
-import { deviceLooks, loadLook } from "./look.ts";
 import {
   clearLocalGame,
   DAILY_ROOM_PREFIX,
@@ -38,9 +30,8 @@ import {
 import type { GameRoomLike } from "./useGameSession.ts";
 import type { SyncedPlayer, SyncedState } from "./viewModel.ts";
 
-/** The server's bot pauses: the shift this long after the turn starts, the move this long after the shift. */
-export const BOT_SHIFT_DELAY_MS = 1_500;
-export const BOT_MOVE_DELAY_MS = 1_000;
+/** The server's bot pause: a bot's turn this long after it starts. */
+export const BOT_DELAY_MS = 1_000;
 
 /** The player's key in the synced players (their session id). */
 const ME = "me";
@@ -62,7 +53,7 @@ const defaultDeps = (): LocalRoomDeps => ({
     const [value] = globalThis.crypto.getRandomValues(new Uint32Array(1));
     return value! % (MAX_SEED + 1);
   },
-  strategy: chooseBotTurn,
+  strategy: chooseBotCell,
 });
 
 /** The seats of a quick game: the player in seat 1, `bots` bots in the next seats. */
@@ -75,9 +66,7 @@ function newGame(nickname: string, bots: number, deps: LocalRoomDeps): SavedLoca
   const roomId = newLocalRoomId();
   // The player hosts, so they play first.
   const game = startGame(deps.seed(), quickSeats(nickname, bots), 1);
-  // The player sits in seat 1 and gets their own pawn; the bots take the others.
-  const looks = deviceLooks(game.seats.map((s) => s.seat), 1, loadLook());
-  const saved = { roomId, game, looks };
+  const saved = { roomId, game };
   saveLocalGame(saved);
   log.info("client.local.started", { room: roomId, dealSeed: game.seed, seats: game.seats.map((s) => s.seat).join(","), startSeat: game.turnSeat });
   return saved;
@@ -88,15 +77,15 @@ function newWatchGame(bots: number, speed: BotSpeed, deps: LocalRoomDeps): Saved
   const roomId = newLocalRoomId(Math.random, WATCH_ROOM_PREFIX);
   const seats = BOT_NAMES.slice(0, bots).map((name, i) => ({ seat: i + 1, name, bot: true }));
   // No host seated: the rules draw the first seat.
-  const game = startGame(deps.seed(), seats, 0);
+  const game = startGame(deps.seed(), seats);
   log.info("client.local.started", { room: roomId, dealSeed: game.seed, seats: game.seats.map((s) => s.seat).join(","), startSeat: game.turnSeat, watch: true });
   return { roomId, game, speed };
 }
 
 /**
- * A quick game against bots that runs on this device, behind the same interface as a game room on
- * the server: the session, view model and screens cannot tell the difference. Commands answer like
- * the server; bots play through the same path with the server's pauses; every step is saved.
+ * A game against bots that runs on this device, behind the same interface as a game room on the
+ * server: the session, view model and screens cannot tell the difference. Commands answer like the
+ * server; bots play through the same path with the server's pause; every step is saved.
  */
 export class LocalRoom implements GameRoomLike {
   readonly roomId: string;
@@ -136,8 +125,7 @@ export class LocalRoom implements GameRoomLike {
     const { game, par } = startDailyPuzzle(date, name);
     saveDailyRecord({ date, roomId, par, best: loadDailyRecord(date)?.best });
     log.info("client.daily.started", { room: roomId, date, dealSeed: game.seed, par });
-    const looks = deviceLooks(game.seats.map((s) => s.seat), 1, loadLook());
-    return new LocalRoom({ roomId, game, looks, par, history: [] }, { ...defaultDeps(), ...deps });
+    return new LocalRoom({ roomId, game, par, history: [] }, { ...defaultDeps(), ...deps });
   }
 
   /** The saved game `roomId`, continued where it was; undefined when it is gone. */
@@ -158,37 +146,28 @@ export class LocalRoom implements GameRoomLike {
         s.bot ? `bot:${s.seat}` : ME,
         {
           seat: s.seat,
-          look: this.saved.looks?.[s.seat] ?? s.seat,
           name: s.name,
           bot: s.bot,
           ...(!s.bot && { autoplay: this.saved.autoplay ?? false }),
           connected: true,
-          row: s.pawn.row,
-          col: s.pawn.col,
-          cards: s.stack.length,
-          found: s.found,
-          // Hidden information stays hidden: only the player's own target, or every one for the spectator.
-          ...((!s.bot || this.watching) && { target: targetOf(s) ?? "" }),
+          placed: s.placed,
         },
       ]),
     );
-    const squares = game.board.squares.map(({ id, rotation }) => ({ id, rotation }));
     return {
-      squares,
-      spare: { id: game.board.spare.id, rotation: game.board.spare.rotation },
+      cells: game.board,
       players,
       turnSeat: game.turnSeat,
       phase: game.step,
       hostSeat: 1,
-      lastInsertion: game.lastInsertion ?? "",
       winnerSeat: game.winnerSeat,
+      turn: game.turn,
       turnDeadline: 0,
       turnExpired: false,
       spectators: 0,
       botSpeed: this.saved.speed ?? 1,
       rematchRoomId: rematchRoomId ?? "",
-      turn: game.turn,
-      ...(this.daily && { par: this.saved.par ?? 0, undoable: (this.saved.history?.length ?? 0) > 0 }),
+      ...(this.daily && { targets: game.targets ?? [], par: this.saved.par ?? 0, undoable: (this.saved.history?.length ?? 0) > 0 }),
     };
   }
 
@@ -248,22 +227,15 @@ export class LocalRoom implements GameRoomLike {
     if (this.watching && actor === ME) return type === "setSpeed" ? this.setSpeed(payload) : { ok: false, code: "NOT_SEATED" };
     const seat = actor === ME || actor === BOT_FOR_ME ? 1 : Number(actor.slice("bot:".length));
     switch (type) {
-      case "shift": {
-        if (actor === ME && this.saved.autoplay) return { ok: false, code: "AUTOPLAYING" };
-        const { insertion, rotation } = (payload ?? {}) as { insertion?: unknown; rotation?: unknown };
-        if (!isInsertionId(insertion) || !ROTATIONS.includes(rotation as Rotation)) return { ok: false, code: "INVALID_COMMAND" };
-        const result = applyShift(this.game, seat, insertion, rotation as Rotation);
-        // The puzzle remembers the state before each shift, to undo it.
-        if (result.ok && this.daily) {
-          this.saved = { ...this.saved, history: [...(this.saved.history ?? []), { game: this.game }] };
-        }
-        return this.apply(result);
-      }
-      case "move": {
+      case "place": {
         if (actor === ME && this.saved.autoplay) return { ok: false, code: "AUTOPLAYING" };
         const { row, col } = (payload ?? {}) as { row?: unknown; col?: unknown };
-        if (!isIndex(row) || !isIndex(col)) return { ok: false, code: "INVALID_COMMAND" };
-        return this.apply((this.daily ? applyPuzzleMove : applyMove)(this.game, seat, { row, col }));
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return { ok: false, code: "INVALID_COMMAND" };
+        const before = this.game;
+        const result = applyPlace(before, seat, { row: row as number, col: col as number });
+        // The puzzle remembers the state before each placement, to undo it.
+        if (result.ok && this.daily) this.saved = { ...this.saved, history: [...(this.saved.history ?? []), { game: before }] };
+        return this.apply(result);
       }
       case "undo":
         return this.undo();
@@ -279,7 +251,7 @@ export class LocalRoom implements GameRoomLike {
     }
   }
 
-  private apply(result: ReturnType<typeof applyShift>): CommandResult {
+  private apply(result: GameCommandResult): CommandResult {
     if (!result.ok) return result;
     const finishing = result.state.step === "finished" && this.game.step !== "finished";
     // The result is stored before the finished state is published, so the end screen can show it.
@@ -292,14 +264,14 @@ export class LocalRoom implements GameRoomLike {
     return { ok: true };
   }
 
-  /** The bot takes over the player's seat or gives it back; it plays on from the step the turn is in. */
+  /** The bot takes over the player's seat or gives it back; on the player's turn it plays it. */
   private setAutoplay(payload: unknown): CommandResult {
     const { on } = (payload ?? {}) as { on?: unknown };
     if (typeof on !== "boolean") return { ok: false, code: "INVALID_COMMAND" };
     // The puzzle is the player's own to solve.
     if (this.daily || this.game.step === "finished") return { ok: false, code: "WRONG_PHASE" };
     if ((this.saved.autoplay ?? false) === on) return { ok: true };
-    this.update({ ...this.saved, autoplay: on, botTo: undefined });
+    this.update({ ...this.saved, autoplay: on });
     return { ok: true };
   }
 
@@ -313,7 +285,7 @@ export class LocalRoom implements GameRoomLike {
     return { ok: true };
   }
 
-  /** Daily puzzle: back to the state before the last shift (this turn's, or the previous turn's). */
+  /** Daily puzzle: back to the state before the last placement. */
   private undo(): CommandResult {
     const history = this.saved.history ?? [];
     const last = history.at(-1);
@@ -324,7 +296,7 @@ export class LocalRoom implements GameRoomLike {
 
   /** Creates the next game with the same seats and syncs its id; the session then moves there. */
   private rematch(): CommandResult {
-    // A daily puzzle has one attempt.
+    // A daily puzzle has its own "Uudelleen".
     if (this.game.step !== "finished" || this.daily) return { ok: false, code: "WRONG_PHASE" };
     if (this.saved.rematchRoomId) return { ok: true };
     const next = newGame(
@@ -351,7 +323,7 @@ export class LocalRoom implements GameRoomLike {
     for (const cb of [...this.stateListeners]) cb(state);
   }
 
-  /** A bot on turn shifts after a pause, then moves after another; nothing when it is a person's turn. */
+  /** A bot on turn plays after a pause; nothing when it is a person's turn. */
   private scheduleBot(): void {
     this.clearBotTimer();
     const { game } = this;
@@ -360,37 +332,17 @@ export class LocalRoom implements GameRoomLike {
     // The bot plays its own seats, and the player's while it is handed over.
     if (!current || !(current.bot || this.saved.autoplay)) return;
     const actor = current.bot ? `bot:${current.seat}` : BOT_FOR_ME;
-    if (game.step === "shift") {
-      this.botTimer = this.deps.setTimeout(() => this.playBotShift(current.seat, actor), this.botDelay(BOT_SHIFT_DELAY_MS));
-    } else {
-      this.botTimer = this.deps.setTimeout(() => this.playBotMove(actor, current.seat, current.pawn), this.botDelay(BOT_MOVE_DELAY_MS));
-    }
+    this.botTimer = this.deps.setTimeout(() => this.playBot(current.seat, actor), this.botDelay(BOT_DELAY_MS));
   }
 
-  /** The whole turn is chosen with the shift, as on the server; a rejected choice falls back to an allowed shift and staying. */
-  private playBotShift(seat: number, actor: string): void {
+  /** A bot's turn, as on the server; a rejected choice falls back to the first empty cell. */
+  private playBot(seat: number, actor: string): void {
     this.botTimer = undefined;
-    const turn = this.deps.strategy(botViewOf(this.game, seat), botRngFor(this.game, seat));
-    // Remember the move before the shift publishes the move step.
-    this.saved = { ...this.saved, botTo: turn.to };
-    const result = this.handle("shift", { insertion: turn.insertion, rotation: turn.rotation }, actor);
+    const cell = this.deps.strategy(botViewOf(this.game, seat), botRngFor(this.game, seat));
+    const result = this.handle("place", cell, actor);
     if (result.ok) return;
-    log.error("client.error", { kind: "bot.fallback", cmd: "shift", code: result.code });
-    this.saved = { ...this.saved, botTo: undefined };
-    const fallback = allowedShifts(this.game.lastInsertion)[0]!;
-    this.handle("shift", fallback, actor);
-  }
-
-  private playBotMove(actor: string, seat: number, stay: Square): void {
-    this.botTimer = undefined;
-    // Without a move chosen with the shift (handed over after the player's own shift), choose it now.
-    const to = this.saved.botTo ?? (actor === BOT_FOR_ME ? botMoveAfterShift(botViewOf(this.game, seat), botRngFor(this.game, seat)) : stay);
-    this.saved = { ...this.saved, botTo: undefined };
-    const result = this.handle("move", to, actor);
-    if (!result.ok) {
-      log.error("client.error", { kind: "bot.fallback", cmd: "move", code: result.code });
-      this.handle("move", stay, actor);
-    }
+    log.error("client.error", { kind: "bot.fallback", cmd: "place", code: result.code });
+    this.handle("place", cellAt(this.game.board.indexOf(0)), actor);
   }
 
   /** A bot pause at the chosen speed (1× unless a watched game was sped up). */
@@ -407,6 +359,3 @@ export class LocalRoom implements GameRoomLike {
     log.info("client.local.finished", { room: this.roomId, winner, turns: this.game.turn });
   }
 }
-
-
-const isIndex =(value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0 && (value as number) <= 6;

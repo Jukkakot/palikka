@@ -12,7 +12,7 @@ export default defineConfig({
   retries: 1,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL: process.env.PROD_URL ?? "https://jukkakot.github.io/labyrinth/",
+    baseURL: process.env.PROD_URL ?? "https://jukkakot.github.io/palikka/",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

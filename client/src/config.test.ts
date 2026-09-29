@@ -3,7 +3,7 @@ import { resolveServerUrl } from "./config.ts";
 
 describe("resolveServerUrl", () => {
   it("falls back to the local server in development", () => {
-    expect(resolveServerUrl({ PROD: false })).toBe("http://localhost:2567");
+    expect(resolveServerUrl({ PROD: false })).toBe("http://localhost:2577");
   });
 
   it("uses the configured URL without a trailing slash", () => {

@@ -1,7 +1,7 @@
 import { IconBulb } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button.tsx";
-import styles from "./ShiftControls.module.css";
+import styles from "./Controls.module.css";
 
 /** "Vihje": shows the bots' choice for the viewer's turn. Shown in both steps, disabled when it cannot be used. */
 export function HintButton({ disabled, onHint }: { disabled: boolean; onHint(): void }) {

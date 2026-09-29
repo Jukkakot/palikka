@@ -5,8 +5,8 @@ import styles from "./FirstGameTips.module.css";
 import { isRelevant, loadSeenTips, pickTip, saveSeenTips, type TipId, type TipSituation } from "./tips.ts";
 
 /**
- * The first game's one-time tips (target, push, walk, home): one small card at the top of the
- * screen, clear of the board and the step controls. A tip counts as seen once shown; it goes away
+ * The first game's one-time tips (the goal, how to place): one small card at the top of the
+ * screen, clear of the board and the controls. A tip counts as seen once shown; it goes away
  * when closed or when its moment passes, and the next relevant unseen tip follows.
  */
 export function FirstGameTips(situation: TipSituation) {

@@ -10,7 +10,7 @@
       "Bash(npm test)",
       "Bash(npm run typecheck)",
       "Bash(npm run lint)",
-      "Bash(npm run size -w @labyrinth/client)",
+      "Bash(npm run size -w @palikka/client)",
       "Bash(npx vitest run)",
       "Bash(npx tsc --noEmit)",
       "Bash(npx oxlint)"

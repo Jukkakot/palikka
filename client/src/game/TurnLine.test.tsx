@@ -11,53 +11,34 @@ import i18n from "../i18n";
 import { noticeKey } from "../session/useGameSession.ts";
 import { Notice } from "../ui/Notice.tsx";
 import { TurnLine } from "./TurnLine.tsx";
+import { seatView } from "../test/views.ts";
 
-const seatView = (seat: number, name: string) => ({
-  seat,
-  sessionId: `s${seat}`,
-  name,
-  connected: true,
-  isMe: seat === 1,
-  isBot: false,
-  square: { row: 0, col: 0 },
-  cards: 6,
-  found: [],
-});
 const seats = [seatView(1, "Maija"), seatView(2, "Pekka")];
 
 describe("board-view › Whose turn is shown", () => {
-  it("Own turn: says it is your turn and to push a tile", () => {
-    render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: true, step: "shift" }} />);
-    expect(screen.getByText("Sinun vuorosi – työnnä laatta")).toBeTruthy();
+  it("Own turn: says it is your turn and to claim a square", () => {
+    render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: true }} />);
+    expect(screen.getByText("Sinun vuorosi – valtaa ruutu")).toBeTruthy();
   });
 
-  it("Other player's turn: names Pekka with their pawn shape", () => {
-    const { container } = render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false, step: "shift" }} />);
-    expect(screen.getByText("Pekka työntää")).toBeTruthy();
+  it("Other player's turn: names Pekka with their colour", () => {
+    const { container } = render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false }} />);
+    expect(screen.getByText("Pekka miettii…")).toBeTruthy();
     expect(container.querySelector("[data-seat='2']")).not.toBeNull();
     expect(container.querySelector("[data-me]")).toBeNull();
   });
 
-  it("Own move step: says to move your pawn", () => {
-    render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: true, step: "move" }} />);
-    expect(screen.getByText("Sinun vuorosi – siirrä nappulaa")).toBeTruthy();
-  });
-
-  it("Other player's turn, moving: says Pekka is moving", () => {
-    render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false, step: "move" }} />);
-    expect(screen.getByText("Pekka siirtää")).toBeTruthy();
-  });
 
   it("shows nothing before anybody holds the turn", () => {
-    const { container } = render(<TurnLine view={{ seats, turnSeat: 0, isMyTurn: false, step: "shift" }} />);
+    const { container } = render(<TurnLine view={{ seats, turnSeat: 0, isMyTurn: false }} />);
     expect(container.textContent).toBe("");
   });
 });
 
 describe("board-view › Rejected command message", () => {
-  it("REVERSE_PUSH_FORBIDDEN is explained without technical details", () => {
-    render(<Notice message={i18n.t(noticeKey("REVERSE_PUSH_FORBIDDEN"))} />);
-    expect(screen.getByRole("status").textContent).toBe("Et voi työntää laattaa takaisin samasta kohdasta");
+  it("CELL_TAKEN is explained without technical details", () => {
+    render(<Notice message={i18n.t(noticeKey("CELL_TAKEN"))} />);
+    expect(screen.getByRole("status").textContent).toBe("Joku ehti ensin – ruutu on jo varattu");
   });
 
   it("Server says not your turn", () => {
@@ -77,7 +58,7 @@ describe("board-view › Whose turn is shown › turn clock", () => {
   afterEach(() => vi.useRealTimers());
 
   it("Countdown: shows 0:42 and keeps counting down", () => {
-    render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false, step: "shift", turnDeadline: Date.now() + 42_000 }} />);
+    render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false, turnDeadline: Date.now() + 42_000 }} />);
     expect(screen.getByRole("timer").textContent).toBe("0:42");
     act(() => vi.advanceTimersByTime(2_000));
     expect(screen.getByRole("timer").textContent).toBe("0:40");
@@ -85,22 +66,22 @@ describe("board-view › Whose turn is shown › turn clock", () => {
   });
 
   it("the last 10 seconds are emphasised", () => {
-    render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: true, step: "move", turnDeadline: Date.now() + 9_000 }} />);
+    render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: true, turnDeadline: Date.now() + 9_000 }} />);
     expect(screen.getByRole("timer").hasAttribute("data-urgent")).toBe(true);
   });
 
   it("Time up: 'Aika loppui' instead of the countdown", () => {
-    render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false, step: "shift", turnDeadline: Date.now() + 3_000, turnExpired: true }} />);
+    render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false, turnDeadline: Date.now() + 3_000, turnExpired: true }} />);
     expect(screen.getByRole("timer").textContent).toBe("Aika loppui");
   });
 
   it("no clock, no timer", () => {
-    render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: true, step: "shift", turnDeadline: 0 }} />);
+    render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: true, turnDeadline: 0 }} />);
     expect(screen.queryByRole("timer")).toBeNull();
   });
 
   it("Current player disconnected: the turn line says so", () => {
-    render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false, step: "move", turnDisconnected: true }} />);
+    render(<TurnLine view={{ seats, turnSeat: 2, isMyTurn: false, turnDisconnected: true }} />);
     expect(screen.getByText("Pekka – yhteys katkennut")).toBeTruthy();
   });
 
@@ -115,17 +96,7 @@ describe("board-view › Whose turn is shown › turn clock", () => {
 
 describe("board-view › Player progress shown › disconnected", () => {
   it("Disconnected player: dashed chip with an icon and accessible text", () => {
-    const seat = (n: number, connected: boolean) => ({
-      seat: n,
-      sessionId: `s${n}`,
-      name: n === 1 ? "Maija" : "Pekka",
-      connected,
-      isMe: n === 1,
-      isBot: false,
-      square: { row: 0, col: 0 },
-      cards: 6,
-      found: [],
-    });
+    const seat = (n: number, connected: boolean) => seatView(n, n === 1 ? "Maija" : "Pekka", { connected });
     const { container } = render(<PlayerStrip view={{ seats: [seat(1, true), seat(2, false)] }} />);
     const chip = container.querySelector("[data-seat='2']")!;
     expect(chip.hasAttribute("data-offline")).toBe(true);
@@ -145,7 +116,7 @@ describe("board-view › Player progress shown › names", () => {
       const chip = container.querySelector(`[data-seat='${i + 1}']`)!;
       expect(chip.textContent).toContain(name);
     });
-    const names = container.querySelectorAll("li > span[aria-hidden='true']:not([class*='count'])");
+    const names = container.querySelectorAll("li > span[aria-hidden='true']:not([class*='count']):not([data-seat])");
     expect(names).toHaveLength(4);
   });
 

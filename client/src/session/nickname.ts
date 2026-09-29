@@ -1,7 +1,7 @@
-import { nicknameIssue, type NicknameIssue } from "@labyrinth/protocol";
+import { nicknameIssue, type NicknameIssue } from "@palikka/protocol";
 
 /** The last nickname used in this browser; only prefills the field. */
-const KEY = "labyrinth.nickname";
+const KEY = "palikka.nickname";
 
 export function loadNickname(storage: Storage | undefined = globalThis.localStorage): string {
   try {

@@ -34,7 +34,7 @@ describe("lobby › Nickname store and rule", () => {
     expect(loadNickname()).toBe("");
     saveNickname("Maija");
     expect(loadNickname()).toBe("Maija");
-    expect(localStorage.getItem("labyrinth.nickname")).toBe("Maija");
+    expect(localStorage.getItem("palikka.nickname")).toBe("Maija");
   });
 
   it("blocked storage neither throws nor remembers", () => {
@@ -179,13 +179,13 @@ describe("lobby › Invite link", () => {
   });
 
   it("builds the invite link from this page, keeping the pool", () => {
-    const location = { origin: "https://example.org", pathname: "/labyrinth/", search: "?pool=e2e-1&game=old" };
-    expect(inviteUrl("brave-otters-sing", location)).toBe("https://example.org/labyrinth/?pool=e2e-1&game=brave-otters-sing");
-    expect(inviteUrl("brave-otters-sing", { ...location, search: "" })).toBe("https://example.org/labyrinth/?game=brave-otters-sing");
+    const location = { origin: "https://example.org", pathname: "/palikka/", search: "?pool=e2e-1&game=old" };
+    expect(inviteUrl("brave-otters-sing", location)).toBe("https://example.org/palikka/?pool=e2e-1&game=brave-otters-sing");
+    expect(inviteUrl("brave-otters-sing", { ...location, search: "" })).toBe("https://example.org/palikka/?game=brave-otters-sing");
   });
 
   it("the URL is cleaned after the invite: game goes, pool stays", () => {
-    window.history.replaceState(null, "", "/labyrinth/?pool=e2e-1&game=brave-otters-sing");
+    window.history.replaceState(null, "", "/palikka/?pool=e2e-1&game=brave-otters-sing");
     dropInviteFromUrl();
     expect(window.location.search).toBe("?pool=e2e-1");
     window.history.replaceState(null, "", "/");

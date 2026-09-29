@@ -10,21 +10,17 @@ import {
   type JoinErrorCode,
   type JoinOptions,
   type KickPayload,
-  type MovePayload,
-  type ShiftPayload,
+  type PlacePayload,
   type SpeedPayload,
   type StartPayload,
   type WatchRequest,
-  type Look,
-  type LookPayload,
-} from "@labyrinth/protocol";
+} from "@palikka/protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { serverUrl } from "../config.ts";
 import { log, setLogContext } from "../logging/logger.ts";
 import { isLocalRoomId, isLocalToken, roomIdOfToken } from "./localGameStore.ts";
 import { loadDailyRecord, todayString } from "./dailyRecord.ts";
 import { LocalRoom } from "./localRoom.ts";
-import { loadLook, saveLook } from "./look.ts";
 import { loadNickname, randomNickname, saveNickname } from "./nickname.ts";
 import { clearResume, loadResume, saveResume, type ResumeRecord } from "./resumeRecord.ts";
 import { clearToken, loadToken, saveToken } from "./sessionToken.ts";
@@ -48,7 +44,7 @@ export interface GameRoomLike {
   removeAllListeners(): void;
 }
 
-/** What the player chooses when joining; the connector adds the page's pool and the pawn. */
+/** What the player chooses when joining; the connector adds the page's pool. */
 export type JoinRequest = Pick<JoinOptions, "nickname">;
 
 export interface Connector {
@@ -96,11 +92,7 @@ async function restoreLocal(roomId: string): Promise<GameRoomLike> {
  */
 export function createConnector(): Connector {
   const pool = quickPlayPool();
-  // The player's pawn goes with every join; the server gives it when it is free.
-  const withPool = (options: JoinRequest): JoinOptions => {
-    const look = loadLook();
-    return { ...options, ...(pool && { pool }), ...(look && { look }) };
-  };
+  const withPool = (options: JoinRequest): JoinOptions => ({ ...options, ...(pool && { pool }) });
   return {
     joinOrCreate: (options) => sdkClient().joinOrCreate("game", withPool(options)) as unknown as Promise<GameRoomLike>,
     createBotGame: async ({ bots, nickname }) => LocalRoom.create(nickname, bots),
@@ -178,7 +170,7 @@ export function noticeKey(code: string): NoticeKey {
   return (GAME_ERROR_CODES as readonly string[]).includes(code) ? `errors.${code as GameErrorCode}` : "errors.generic";
 }
 
-type Command = "start" | "addBot" | "removeBot" | "setLook" | "shift" | "move" | "kick" | "setSpeed" | "rematch" | "undo" | "setAutoplay";
+type Command = "start" | "addBot" | "removeBot" | "place" | "kick" | "setSpeed" | "rematch" | "undo" | "setAutoplay";
 
 export interface GameSession {
   status: SessionStatus;
@@ -193,7 +185,7 @@ export interface GameSession {
   playBots(nickname: string, bots: number): void;
   /** Today's daily puzzle: continued where it was left, else a new attempt (also after a solve). */
   playDaily(nickname: string): void;
-  /** Daily puzzle: takes back the last shift. */
+  /** Daily puzzle: takes back the last placement. */
   undo(): Promise<CommandResult | undefined>;
   /** Joins an invited game; if it has already started, watches it instead. */
   joinInvite(roomId: string, nickname: string): void;
@@ -201,8 +193,6 @@ export interface GameSession {
   watch(roomId: string, nickname: string): void;
   /** Watches a new game of 2–4 bots on the device (leaving the current game, if any). */
   watchBots(nickname: string, bots: number, speed?: BotSpeed): void;
-  /** Waiting room: takes a free pawn, and remembers it as the player's choice. */
-  setLook(look: Look): Promise<CommandResult | undefined>;
   /** A spectator sets the bots' speed. Resolves undefined without sending while another command is pending. */
   setSpeed(speed: BotSpeed): Promise<CommandResult | undefined>;
   /** Hands the viewer's seat to the bot (`on`) or takes it back. Resolves undefined without sending while another command is pending. */
@@ -225,10 +215,8 @@ export interface GameSession {
   addBot(seat: number): Promise<CommandResult | undefined>;
   /** The host removes the bot in `seat` from the waiting room. Resolves undefined without sending while another command is pending. */
   removeBot(seat: number): Promise<CommandResult | undefined>;
-  /** Sends a shift. Resolves undefined without sending while another command is pending. */
-  shift(insertion: ShiftPayload["insertion"], rotation: ShiftPayload["rotation"]): Promise<CommandResult | undefined>;
-  /** Sends a move (the own square = stay). Resolves undefined without sending while another command is pending. */
-  move(target: MovePayload): Promise<CommandResult | undefined>;
+  /** Claims a cell (the whole turn). Resolves undefined without sending while another command is pending. */
+  place(cell: PlacePayload): Promise<CommandResult | undefined>;
   /** Kicks the current player once their time is up. Resolves undefined without sending while another command is pending. */
   kick(seat: number): Promise<CommandResult | undefined>;
   /** Leaves the game or waiting room; the start screen shows at once. */
@@ -457,7 +445,7 @@ export function useGameSession(connector?: Connector): GameSession {
   }, [notice]);
 
   /** Sends one command at a time; a rejection becomes a notice. */
-  const send = useCallback(async (cmd: Command, payload: StartPayload | BotSeatPayload | ShiftPayload | MovePayload | KickPayload | SpeedPayload | AutoplayPayload | LookPayload) => {
+  const send = useCallback(async (cmd: Command, payload: StartPayload | BotSeatPayload | PlacePayload | KickPayload | SpeedPayload | AutoplayPayload) => {
     const room = roomRef.current;
     if (!room || pendingRef.current) return undefined;
     pendingRef.current = true;
@@ -484,18 +472,7 @@ export function useGameSession(connector?: Connector): GameSession {
   const start = useCallback(() => send("start", {}), [send]);
   const addBot = useCallback((seat: number) => send("addBot", { seat }), [send]);
   const removeBot = useCallback((seat: number) => send("removeBot", { seat }), [send]);
-  const setLook = useCallback(
-    (look: Look) => {
-      saveLook(look);
-      return send("setLook", { look });
-    },
-    [send],
-  );
-  const shift = useCallback(
-    (insertion: ShiftPayload["insertion"], rotation: ShiftPayload["rotation"]) => send("shift", { insertion, rotation }),
-    [send],
-  );
-  const move = useCallback(({ row, col }: MovePayload) => send("move", { row, col }), [send]);
+  const place = useCallback(({ row, col }: PlacePayload) => send("place", { row, col }), [send]);
   const kick = useCallback((seat: number) => send("kick", { seat }), [send]);
   const setSpeed = useCallback((speed: BotSpeed) => send("setSpeed", { speed }), [send]);
   const undo = useCallback(() => send("undo", {}), [send]);
@@ -575,9 +552,7 @@ export function useGameSession(connector?: Connector): GameSession {
     start,
     addBot,
     removeBot,
-    setLook,
-    shift,
-    move,
+    place,
     kick,
     leave,
     startNotice,

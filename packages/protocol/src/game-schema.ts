@@ -1,33 +1,25 @@
 import { z } from "zod";
 import {
   type AutoplayPayload,
+  BOARD_CELLS_PER_SIDE,
   BOT_SPEEDS,
-  INSERTION_IDS,
   nicknameIssue,
-  ROTATION_VALUES,
   type BotSeatPayload,
   type JoinOptions,
   type KickPayload,
-  type MovePayload,
+  type PlacePayload,
   type RematchPayload,
-  type ShiftPayload,
   type SpeedPayload,
   type WatchRequest,
   type StartPayload,
 } from "./game-codes.js";
-import { LOOKS, type LookPayload } from "./looks.js";
 
-export const shiftPayloadSchema = z.strictObject({
-  insertion: z.enum(INSERTION_IDS),
-  rotation: z.literal(ROTATION_VALUES),
-}) satisfies z.ZodType<ShiftPayload>;
+const boardIndex = z.int().min(0).max(BOARD_CELLS_PER_SIDE - 1);
 
-const boardIndex = z.int().min(0).max(6);
-
-export const movePayloadSchema = z.strictObject({
+export const placePayloadSchema = z.strictObject({
   row: boardIndex,
   col: boardIndex,
-}) satisfies z.ZodType<MovePayload>;
+}) satisfies z.ZodType<PlacePayload>;
 
 export const kickPayloadSchema = z.strictObject({
   seat: z.int().min(1).max(4),
@@ -44,10 +36,6 @@ export const speedPayloadSchema = z.strictObject({
 export const autoplayPayloadSchema = z.strictObject({
   on: z.boolean(),
 }) satisfies z.ZodType<AutoplayPayload>;
-
-export const lookPayloadSchema = z.strictObject({
-  look: z.literal(LOOKS),
-}) satisfies z.ZodType<LookPayload>;
 
 export const rematchPayloadSchema = z.strictObject({}) satisfies z.ZodType<RematchPayload>;
 
@@ -75,7 +63,6 @@ export const joinOptionsSchema = z
     pool: z.string().max(64).optional(),
     watch: z.boolean().optional(),
     botSeats: z.array(seat).max(3).optional(),
-    look: z.literal(LOOKS).optional(),
   })
   .superRefine((o, ctx) => {
     if (o.botSeats && new Set(o.botSeats).size !== o.botSeats.length) ctx.addIssue({ code: "custom", path: ["botSeats"], message: "seats repeat" });

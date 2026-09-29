@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button.tsx";
-import styles from "./ShiftControls.module.css";
+import styles from "./Controls.module.css";
 
 export interface GameOverControlsProps {
   /** "Pelaa uudelleen"; omitted for a spectator. */

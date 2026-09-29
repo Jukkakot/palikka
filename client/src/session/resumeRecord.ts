@@ -4,7 +4,7 @@
  */
 import { isLocalToken } from "./localGameStore.ts";
 
-const KEY = "labyrinth.resume";
+const KEY = "palikka.resume";
 
 /** The server holds a dropped seat this long; an older record cannot be resumed. */
 export const RESUME_HOLD_MS = 5 * 60_000;

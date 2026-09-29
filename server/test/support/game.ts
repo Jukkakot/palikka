@@ -1,7 +1,7 @@
 import type { ColyseusTestServer } from "@colyseus/testing";
 import { expect } from "vitest";
-import type { CommandResult } from "@labyrinth/protocol";
-import { targetOf, type GameState as Game, type Square, type TreasureId } from "@labyrinth/rules";
+import type { CommandResult } from "@palikka/protocol";
+import { cellAt, type Cell, type GameState as Game } from "@palikka/rules";
 import type appConfig from "../../src/app.config.js";
 import type { GameRoom } from "../../src/rooms/GameRoom.js";
 
@@ -43,8 +43,8 @@ export async function waitingRoom(colyseus: Server, players: number, options: Ga
 }
 
 /** Seats one more player in `room` under `nickname`. */
-export async function join(colyseus: Server, room: GameRoom, nickname: string, options: { look?: number } = {}): Promise<TestClient> {
-  return (await colyseus.connectTo(room as never, { nickname, ...options })) as unknown as TestClient;
+export async function join(colyseus: Server, room: GameRoom, nickname: string): Promise<TestClient> {
+  return (await colyseus.connectTo(room as never, { nickname })) as unknown as TestClient;
 }
 
 /** The running game as the room's rules engine holds it (undefined in the waiting room). */
@@ -52,42 +52,14 @@ export function gameOf(room: GameRoom): Game {
   return (room as unknown as { game: Game }).game;
 }
 
-export interface Arrangement {
-  pawn?: Square;
-  /** Treasures that count as found (replaces the found ones). */
-  found?: readonly TreasureId[];
-  /** The current target; "" heads home. The stack is reordered so this card comes next. */
-  target?: TreasureId | "";
+/** The first empty cell of the room's board. */
+export function freeCell(room: GameRoom): Cell {
+  return cellAt(gameOf(room).board.indexOf(0));
 }
 
-/**
- * Arranges a seat of a running game for a test: changes the engine's state (the rules' truth)
- * and mirrors it into the synced state, as if play had led there.
- */
-export function arrange(room: GameRoom, seat: number, arrangement: Arrangement): void {
-  const internals = room as unknown as { game: Game };
-  const player = [...room.state.players.values()].find((p) => p.seat === seat)!;
-  internals.game = {
-    ...internals.game,
-    seats: internals.game.seats.map((s) => {
-      if (s.seat !== seat) return s;
-      const found = arrangement.found ?? s.found;
-      const unfound = s.stack.filter((t) => !found.includes(t));
-      // Without a given target the next unfound card is it, never one just marked found.
-      const target = arrangement.target ?? unfound[0] ?? "";
-      const rest = unfound.filter((t) => t !== target);
-      // Cards from another stack (the deal is random) push out the last ones: the stack keeps its size.
-      const size = Math.max(s.stack.length, found.length + (target ? 1 : 0));
-      const stack = (target ? [...found, target, ...rest] : [...found]).slice(0, size);
-      return { ...s, pawn: arrangement.pawn ?? s.pawn, found, stack };
-    }),
-  };
-  const arranged = internals.game.seats.find((s) => s.seat === seat)!;
-  player.row = arranged.pawn.row;
-  player.col = arranged.pawn.col;
-  player.found.clear();
-  player.found.push(...arranged.found);
-  player.target = targetOf(arranged) ?? "";
+/** The client claims the first empty cell (a whole turn). */
+export function placeFree(client: TestClient, room: GameRoom): Promise<CommandResult> {
+  return client.request("place", freeCell(room)) as Promise<CommandResult>;
 }
 
 /** Makes the next start give the first turn to `startSeat` instead of the host. */

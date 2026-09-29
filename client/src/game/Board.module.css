@@ -1,13 +1,51 @@
-/* Square and as large as fits: full width on a phone, capped by height on short or wide screens. */
+/* Square, as wide as the screen allows (like the controls below it). */
 .board {
-  display: block;
   width: min(100%, 60dvh, 640px);
   aspect-ratio: 1;
-  height: auto;
-  /* The last push is marked just outside the board edge, in the page gutter. */
-  overflow: visible;
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  grid-template-rows: repeat(20, 1fr);
+  gap: 2px;
+  padding: 2px;
+  background: var(--board);
+  border-radius: var(--radius-s);
+  box-sizing: border-box;
 }
 
-.pawns {
-  pointer-events: none;
+.cell {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--cell);
+}
+
+.open {
+  cursor: pointer;
+}
+
+.open:hover,
+.open:focus-visible {
+  background: var(--cell-open);
+}
+
+.open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.owned {
+  border-radius: 2px;
+}
+
+/* A puzzle target: a dot in the text colour until claimed. */
+.target {
+  background-image: radial-gradient(circle, var(--target) 0 22%, transparent 24%);
+}
+
+.hint {
+  box-shadow: inset 0 0 0 2px var(--hint);
 }

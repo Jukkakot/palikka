@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button.tsx";
-import styles from "./ShiftControls.module.css";
+import styles from "./Controls.module.css";
 
 export interface KickControlProps {
   /** Seat of the slow current player. */
@@ -30,7 +30,7 @@ export function KickControl({ seat, name, pending, onKick }: KickControlProps) {
               {t("kick.cancel")}
             </Button>
             <Button onClick={onKick} disabled={pending} aria-busy={pending || undefined}>
-              {pending ? t("shift.waiting") : t("kick.yes")}
+              {pending ? t("common.waiting") : t("kick.yes")}
             </Button>
           </>
         ) : (
