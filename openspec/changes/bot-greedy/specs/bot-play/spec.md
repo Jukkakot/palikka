@@ -65,13 +65,15 @@ blocking them counts.
 
 #### Scenario: Bigger piece preferred
 
-- **WHEN** two moves would leave the corners and space the same but one places a bigger piece
-- **THEN** the bot rates the bigger piece higher
+- **WHEN** the bot makes a colour's first move on an empty classic board, or compares a line of
+  two squares with a line of three on the same spot
+- **THEN** it opens with a five-square piece, and rates the longer line higher
 
 #### Scenario: Blocking an opponent's corner counts
 
-- **WHEN** two moves place equal pieces but one also covers an opponent's free corner square
-- **THEN** the bot rates the blocking move higher, other things equal
+- **WHEN** two moves place equal pieces and leave the mover as many free corners, but one also
+  covers an opponent's free corner square
+- **THEN** the bot rates the blocking move higher
 
 ### Requirement: Greedy bot is stronger than random play
 

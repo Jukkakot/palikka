@@ -20,3 +20,6 @@ export { checkPlacement, newPosition, type MoveRefusal, type Position } from "./
 export * from "./movegen.js";
 export * from "./play.js";
 export * from "./scoring.js";
+
+// Bitboard helpers for bot evaluations (`bot-greedy`).
+export { bitsToSquares, diagonalNeighbours, edgeNeighbours, emptyBits, rowMask } from "./bitboard.js";

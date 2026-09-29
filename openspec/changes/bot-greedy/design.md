@@ -109,4 +109,21 @@ Measured (developer desktop, 2026-09-29): see **Measurements** below.
 
 ## Measurements
 
-(filled in during implementation)
+Developer desktop, Node 22, 2026-09-29, `npm run bench -w @palikka/bots -- 50`:
+
+- **Speed:** greedy on all four colours, 50 classic games, 3631 moves: **7.9 ms per move** on
+  average, slowest 77 ms (early-game positions with the most legal moves). A phone is perhaps
+  3–5× slower, still well under a second; the time budget caps it anyway.
+- **Strength:** one greedy bot vs three random players, seat rotating: **198/200 won (99 %)**.
+  The CI test runs 12 of these games (12/12 won, about 3 s).
+
+## Decisions made during implementation
+
+- Area control is **exclusive reach**: squares the colour reaches within two king steps of its
+  free corners (through squares it may still cover) that no other colour still in reaches, minus
+  the opponents' average. Weights: score 1, corners 1, area 0.25, result ±1000.
+- `playGame(start, bots, seed, budget)` (one seeded rng per game) is exported from the adapter for
+  tests, the bench and the coming tournament driver.
+- The "bigger piece" scenario is tested as the observable opening (always a five-square piece)
+  plus a line-of-two vs line-of-three rating, since two real moves never leave corners and space
+  exactly equal.

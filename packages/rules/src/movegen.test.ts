@@ -1,7 +1,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { bitsToSquares } from "./bitboard.js";
 import { CLASSIC } from "./config.js";
-import { hasLegalMove, legalMoves } from "./movegen.js";
+import { placement, positionWith } from "./engineFixtures.js";
+import { forbiddenSquares, freeCorners, hasLegalMove, legalMoves } from "./movegen.js";
 import { decodeMove, encodeMove } from "./moves.js";
 import { MAX_ORIENTATIONS, ORIENTATIONS, PIECE_COUNT } from "./pieces.js";
 import { checkPlacement, newPosition } from "./position.js";
@@ -80,5 +82,26 @@ describe("placement › Complete list of legal moves", () => {
         },
       ),
     );
+  });
+});
+
+describe("free corners and forbidden squares (bot helpers)", () => {
+  it("Before the first piece the only free corner is the start square", () => {
+    const position = newPosition(CLASSIC, [1, 3], 1);
+    expect(bitsToSquares(freeCorners(position, 1), 20)).toEqual(["0,0"]);
+    expect(bitsToSquares(freeCorners(position, 3), 20)).toEqual(["19,19"]);
+    expect(bitsToSquares(freeCorners(position, 2), 20)).toEqual([]);
+  });
+
+  it("After a first piece the free corners are its free diagonal squares", () => {
+    // Colour 1: an I2 lying at the top-left corner; colour 2's square blocks one diagonal.
+    const position = positionWith([
+      [1, placement("I2", ["##"], 0, 0)],
+      [2, placement("I1", ["#"], 1, 2)],
+    ]);
+    expect(bitsToSquares(freeCorners(position, 1), 20)).toEqual([]);
+    const other = positionWith([[1, placement("I2", ["##"], 0, 0)]]);
+    expect(bitsToSquares(freeCorners(other, 1), 20)).toEqual(["1,2"]);
+    expect(bitsToSquares(forbiddenSquares(other, 1), 20)).toEqual(["0,0", "0,1", "0,2", "1,0", "1,1"]);
   });
 });
