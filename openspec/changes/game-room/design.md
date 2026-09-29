@@ -185,8 +185,55 @@ events. `daily-puzzle` rebuilds what it needs.
 
 ## Decisions made during implementation
 
-(filled in while implementing)
+- **The worker runs the greedy bot, not the simple one.** `bot-greedy` was merged mid-change, so
+  `client/src/bots/bot.worker.ts` calls `@palikka/bots` `chooseMove` (budget `{ timeMs: 500 }`).
+  The rules' `simpleBotMove` stays for the server's fallback (the server does not depend on the bot
+  packages) and for `LocalRoom` when the bot's answer is missing or refused.
+- **Bot interface at the worker boundary** is Palikka-specific and small: `MoveRequest { position,
+  colour, budget, seed }` → `AskBot` (async `Placement | undefined`), with `Budget` taken from
+  `game-bots`, whose `Bot`/`Budget` are the game-independent interface. The generic worker harness
+  (message ids, in-thread fallback) could move into `game-bots` later (see Coordinator to do).
+- **No worker, no stall:** where `Worker` is missing or the worker fails to load or throws, the
+  move is computed in-thread (logged as `client.error kind=bot.worker`). Tests run this path.
+- **Hint** ("Vihje") uses the greedy `chooseMove` on the UI thread with a 100 ms budget, seeded by
+  the turn (stable within a turn); only computed after a tap. Moving it to the worker is `basic-ui`
+  or `mobile-ui` work (the three-best-moves hint).
+- **Runner's view of a turn is frozen** when the turn starts (key = turn counter + seat), so later
+  state updates in the same turn (a connection, a spectator) neither restart the pause nor recompute.
+- **A runner change during a bot's turn restarts the server's timer** from zero (full pause +
+  grace for the new runner).
+- **Room tests default the runner grace to 0** (`support/game.ts`): the test clients never compute
+  bots, so the fallback plays bot turns right after the pause, like the old server bots did.
+- **Turn counter:** the room increments `turn` on every turn change; `LocalRoom` reports
+  `moveNumber + 1`. At the end the room keeps the last `turnSeat`, `LocalRoom` reports 0; the view
+  handles both (`finished` wins).
+- **Scores shown are the rules' points** (−89 at the start); a colour that cannot move gets its
+  score struck through (plus "ei enää siirtoja" for screen readers). `game.finished` logs
+  `scores` as `colour:score/squares`; `turn.changed` logs `out`.
+- **Undo** is also allowed while a bot's answer is pending (it is dropped); with autoplay on, the
+  bot replays the turn after an undo (accepted, a corner case).
+- **`RULES_VERSION` 1.0.0** (was 0.2.0): the real rules are what server and client now play.
+- The old `palikka.dailyGame` / `palikka.daily` localStorage entries are left alone (harmless;
+  `daily-puzzle` decides).
+- **Bundle:** main 171.6 kB gzip (limit 200 kB); the worker 4.4 kB gzip with its own 30 kB budget
+  (`client/package.json` size-limit, main entry excludes `bot.worker-*.js`).
+- The production smoke now also taps the start corner in the device game and waits for the bot's
+  piece in its corner, so a broken worker in production fails the smoke.
 
 ## Coordinator to do
 
-(filled in while implementing)
+- **Run the E2E smoke locally** (`npm run e2e`, dev servers on 2577/5183) before pushing: this job
+  had no dev servers; `e2e/tests/smoke.spec.ts` and `prod.spec.ts` were updated to the corner tap
+  but not run.
+- **UI check** (Playwright MCP, portrait, light and dark) of the game screen: the dots on tappable
+  corner squares (`--target` token), the struck-through score of a colour that is out, the shared
+  win line, "Peru" in device games. Nothing new covers or hides a control ("Peru" sits in the
+  existing controls row), so no placement decision is open.
+- **`openspec/context/roadmap.md`:** mark `game-room` done at archive.
+- **`packages/bots` (later, `bot-search` scope):** move the generic worker harness
+  (`client/src/bots/bot.worker.ts` message protocol with ids + `botWorkerClient.ts` in-thread
+  fallback) into `game-bots` as the "worker harness" product.md names, leaving only the Palikka
+  `answer()` in the client; then the tournament driver can reuse it.
+- **Optional:** `tools/axiom/dashboard.py` "Botin varasiirtoja" now counts server fallbacks (with
+  `reason`); consider splitting `runnerSilent` (worth a look) from `noRunner` (normal for watched
+  bot games) when the dashboard is next rebuilt.

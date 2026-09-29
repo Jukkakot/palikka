@@ -20,7 +20,7 @@ commit → push to `main` (Claude pushes before each summary) → CI (lint, type
 size, E2E smoke) → Pages deploy (client) and Render deploy hook (server, CI's `deploy-server` job after green checks) →
 **production smoke** (`prod-smoke.yml`: waits until the live server's `/health` version and the
 client's `version.json` carry this commit's code, then `npm run e2e:prod -w @palikka/e2e` starts a
-1v1 bot game on the device, then a server game (Pelaa, one bot, start) on the live site and leaves; also daily at 05:17 UTC and by hand). No staging
+1v1 bot game on the device (one corner tap, the bot answers from its worker), then a server game (Pelaa, one bot, start) on the live site and leaves; also daily at 05:17 UTC and by hand). No staging
 environment.
 
 **Service worker:** the client is a PWA. A phone with the app open or installed picks up a new
@@ -85,7 +85,7 @@ lines, never slows a game.
 ['palikka'] | where room == "brave-otters-sing" | sort by _time asc          // one game's timeline
 ['palikka'] | where level == "error" and _time > ago(1d)                      // errors today
 ['palikka'] | where evt == "cmd.rejected" | summarize count() by code, cmd     // rejections by code
-['palikka'] | where evt == "bot.fallback" | project _time, room, seat, cmd, code
+['palikka'] | where evt == "bot.fallback" | project _time, room, seat, reason, runner
 ['palikka'] | where evt == "game.finished" | summarize count() by reason, bin(_time, 1d)
 ```
 
@@ -129,15 +129,16 @@ alerts or emails: errors are found on the dashboard.
 | `room.refused` | a join or creation refused, `{ reason }`: `nickname` (invalid), `options` (another invalid or unknown join option, e.g. `bots` or `private` from an old app), `cap` (`open` games at the limit) or `notWatchable` (a spectator for a game not running) |
 | `player.joined` / `left` / `dropped` / `reconnected` | connection changes (a dropped seat is held 5 min); `joined` carries the nickname `name` |
 | `player.removed` | a player is taken out of a game, `{ seat, reason, by? }` (`left`, `kicked` by seat `by`, `timeout` after 5 min disconnected) |
-| `game.started` | the game started, `{ dealSeed, seats, startSeat }` (the seed reproduces who began and the bots' choices; never synced) |
-| `game.finished` | the game ended, `{ winner, reason }` (seat; `complete` when the rules ended it, `lastPlayer`; `noPeople` with winner 0 when only bots were left and nobody watched) |
+| `game.started` | the game started, `{ dealSeed, seats, startSeat, runner }` (the seed reproduces the server's fallback moves; never synced; `runner` = the bot runner's seat) |
+| `game.finished` | the game ended, `{ winners, reason, scores }` (winning seats; `complete` when no colour can move, `lastPlayer`; `noPeople` with no winners when only bots were left and nobody watched; `scores` = `colour:score/squares …`) |
 | `game.rematch` | a finished game created its rematch game, `{ rematchRoom }` (follow the group into that room) |
 | `spectator.joined` / `spectator.left` | a spectator came or went (left, or the 5-min drop hold ran out), `{ spectators }` = count after; their connection lines are `player.joined` with `spectator: true` etc. |
 | `bot.added` / `bot.removed` | the host seated or removed a bot in the waiting room, `{ seat, name }` |
-| `bot.fallback` | error: a bot's chosen command was rejected, `{ cmd, code }`; it played an always-allowed move instead (a bug in the bot strategy) |
+| `bot.runner` | the seat whose browser computes bot moves changed, `{ from, to }` (0 = none: the server plays them) |
+| `bot.fallback` | the server played a bot-played seat's move itself, `{ seat, reason, runner }`: info with `noRunner` (no person connected, e.g. spectators watching bots), warn with `runnerSilent` (the runner sent no accepted move within 10 s after the pause: a slow, throttled or broken host browser) |
 | `autoplay.changed` | the bot took over a person's seat or gave it back, `{ seat, on, reason }` (`player` handed over or took back, `drop` connection lost, `reconnect` came back); its commands then carry `bot: true` with the person's own `player` |
-| `turn.changed` | every turn change, `{ from, to }` seats (0 = nobody) |
-| `turn.expired` | the current turn's 60 s ran out, `{ seat }`; from now on the others may kick |
+| `turn.changed` | every turn change, `{ from, to, out }` seats (0 = nobody; `out` = colours that cannot move any more) |
+| `turn.expired` | the current turn's 120 s ran out, `{ seat }`; from now on the others may kick |
 | `phase.changed` | the phase changes, `{ from, to, turnSeat }` (`waiting` → `play` → `finished`) |
 | `cmd.accepted` / `cmd.rejected` / `cmd.failed` | every room command, exactly once, with code and state facts; a bot's commands carry `player: "bot:<seat>"` and `bot: true` |
 | `framework.log` | Colyseus's own messages |
@@ -154,9 +155,9 @@ server and client together.
 ## Investigating a reported bug
 
 Report shape: "around 14:30 in game brave-otters-sing, X happened". Games on the device show
-"Päivän pulma" / "Oma peli" in the badge. The player copies the line from Asetukset →
+"Oma peli" in the badge. The player copies the line from Asetukset →
 Vianilmoitus → "Kopioi pelin tiedot" (id, local time, version); it carries the full `local-…` id;
-they have no server room, so only client logs can have it (`client.local.*` / `client.daily.*`
+they have no server room, so only client logs can have it (`client.local.*`
 info lines ship only with `?debug=1`).
 
 1. Convert the reported local time (Europe/Helsinki) to UTC.

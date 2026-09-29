@@ -28,5 +28,5 @@
 ## 5. E2E, docs, final checks
 
 - [x] 5.1 Update `e2e/tests/smoke.spec.ts` and `e2e/tests/prod.spec.ts` to the corner tap and the new texts (not run here: no dev servers in this job)
-- [ ] 5.2 Update `docs/architecture.md` (Overview bots, Game flow, State sync, Rules package, Client) and any other wiki page the change affects, short
-- [ ] 5.3 `npm run lint`, `npm run typecheck`, touched workspaces' tests and the client build pass; decisions recorded in design.md
+- [x] 5.2 Update `docs/architecture.md` (Overview bots, Game flow, State sync, Rules package, Client) and any other wiki page the change affects, short
+- [x] 5.3 `npm run lint`, `npm run typecheck`, touched workspaces' tests and the client build pass; decisions recorded in design.md

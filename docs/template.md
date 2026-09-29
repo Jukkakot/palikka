@@ -63,7 +63,7 @@ Palikka-specific places (listed).
 | `src/session/*` (useGameSession, LocalRoom pattern, stores, serverWake, nickname, inviteLink, resume, useOpenGames, devShortcut) | adapted | the session, connector and resume logic are generic; `LocalRoom` command handling and `viewModel` are game-specific |
 | `src/settings/*`, `src/tips/*` (mechanism), `src/ui/*` | as is | `ui/tokens.css` holds the game's theme |
 | `src/screens/StartScreen.tsx`, `WaitingRoomScreen.tsx` | as is | |
-| `src/game/{AutoplayControls,GameIdBadge,GameOverControls,KickControl,LeaveControls,SpectatorControls,TurnTimer,DailyOver,HintButton,UndoButton}.tsx`, `copyLine.ts`, `turnClock.ts` | as is | |
+| `src/game/{AutoplayControls,GameIdBadge,GameOverControls,KickControl,LeaveControls,SpectatorControls,TurnTimer,HintButton,UndoButton}.tsx`, `copyLine.ts`, `turnClock.ts` | as is | |
 | `src/i18n/locales/*.json` | adapted | generic keys (start, waiting, errors, settings …) plus game texts |
 
 ## E2E (`e2e/`)
