@@ -18,4 +18,4 @@
 
 ## 4. Docs
 
-- [ ] 4.1 Update `docs/architecture.md` (workspaces table, a short Bots section: library, adapter, entry point, measured strength and speed) and `docs/template.md` (the library as a reusable building block)
+- [x] 4.1 Update `docs/architecture.md` (workspaces table, a short Bots section: library, adapter, entry point, measured strength and speed) and `docs/template.md` (the library as a reusable building block)
