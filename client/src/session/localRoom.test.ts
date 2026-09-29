@@ -9,9 +9,9 @@ import { loadResume, saveResume } from "./resumeRecord.ts";
 import { createConnector } from "./useGameSession.ts";
 import { toGameView } from "./viewModel.ts";
 
-const quiet = { setTimeout: () => 0, clearTimeout: () => {} };
 /** A quick stand-in for the bot worker: the simple bot, answered at once. */
 const simpleBot: AskBot = async ({ position, colour, seed }) => simpleBotMove(position, colour, createRng(seed));
+const quiet = { setTimeout: () => 0, clearTimeout: () => {}, askBot: simpleBot };
 
 beforeEach(() => {
   localStorage.clear();
@@ -20,7 +20,7 @@ beforeEach(() => {
 
 /** A new game with bot timers switched off (Maija in seat 1 has the first turn). */
 function quietGame(bots = 1) {
-  return LocalRoom.create("Maija", bots, { seed: () => 7, askBot: simpleBot, ...quiet });
+  return LocalRoom.create("Maija", bots, { seed: () => 7, ...quiet });
 }
 
 /** A game with real (fake-timer) bot pauses. */
@@ -82,11 +82,31 @@ describe("device-games › Game against bots on the device", () => {
   });
 
   it("the default bot answers here where no worker can run (tests, old browsers)", async () => {
-    vi.useFakeTimers();
+    // The search bot's time limit reads the real clock: only the pause is faked.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     const room = LocalRoom.create("Maija", 1, { seed: () => 7 });
     await placeFree(room);
     await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
     expect(room.game.position.placed[2]).toHaveLength(1);
+  });
+
+  it("Pause not stretched: the bot thinks during the pause, and a slow answer lands when it arrives", async () => {
+    vi.useFakeTimers();
+    const asked: { at: number; resolve(move: Placement | undefined): void; request: MoveRequest }[] = [];
+    const room = timedGame(1, (request) => new Promise((resolve) => asked.push({ at: Date.now(), resolve, request })));
+    const start = Date.now();
+    await placeFree(room);
+    // Asked at once, not after the pause.
+    expect(asked).toHaveLength(1);
+    expect(asked[0]!.at).toBe(start);
+    expect(asked[0]!.request.budget).toEqual({ timeMs: 800 });
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
+    expect(room.game.position.turn).toBe(2);
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS / 2);
+    const { position, colour, seed } = asked[0]!.request;
+    asked[0]!.resolve(simpleBotMove(position, colour, createRng(seed)));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(room.game.position.turn).toBe(1);
   });
 
   it("a refused bot move falls back to the simple bot", async () => {
@@ -171,8 +191,8 @@ describe("device-games › Undo against bots", () => {
     const asked: { request: MoveRequest; resolve(move: Placement | undefined): void }[] = [];
     const room = timedGame(1, (request) => new Promise((resolve) => asked.push({ request, resolve })));
     await placeFree(room);
-    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
     expect(asked).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
     await room.request("undo", {});
     const { position, colour, seed } = asked[0]!.request;
     asked[0]!.resolve(simpleBotMove(position, colour, createRng(seed)));

@@ -128,5 +128,5 @@ describe("bot-play › Greedy bot is stronger than random play", () => {
       if (winners(playGame(opening, bots, seed).at(-1)!).includes(seat)) wins++;
     }
     expect(wins / games).toBeGreaterThanOrEqual(0.9);
-  });
+  }, 20_000);
 });

@@ -40,7 +40,7 @@ delivered by that roadmap change.
 |---|---|---|
 | `packages/rules` | Game rules as pure functions on plain data. Randomness only from an injected seed. | Depend on React, Colyseus or any I/O. |
 | `packages/protocol` | What client and server agree on: command codes, payload and join-option schemas, close codes, log event catalogue. zod schemas sit in `*-schema.ts` modules; rules the client needs are plain functions, so the client bundle has no zod. | Contain game logic. |
-| `packages/bots` (`game-bots`) | Game-independent bot brains: a game interface, budgets, players (greedy now; search and MCTS later), and the tournament core (schedule, pairwise results, Elo, report). | Know any game; carry Palikka names. |
+| `packages/bots` (`game-bots`) | Game-independent bot brains: a game interface, budgets, players (greedy, best-reply search, MCTS), the Web Worker harness (`game-bots/worker`), and the tournament core (schedule, pairwise results, Elo, report). | Know any game; carry Palikka names. |
 | `packages/palikka-bots` (`@palikka/bots`) | Palikka's adapter to `game-bots`, its evaluation, the worker entry point `chooseMove`, the tournament bot registry and formats; Node-only tournament CLI in `cli/`. | Do I/O or hold state in `src/` (the client bundles it); Node code stays in `cli/`. |
 | `server` | Rooms, matchmaking, command validation (via rules), state sync, bot runner and fallback. Source of truth. | Trust the client; compute bots (beyond the fallback). |
 | `client` | Rendering, input, games on the device, i18n, settings. | Hold authoritative state of server games. |
@@ -153,17 +153,37 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
 ## Bots — Implemented
 
 - **`game-bots`** (`packages/bots`): a game plugs in as a `Game` (player to move, legal moves,
-  play, game over). A `Bot` answers `choose(state, budget, rng)`; `Budget` is plain JSON
-  (`timeMs` and/or `depth`); the rng is injected, so a seed fixes the choice. Players today:
-  `greedyBot(game, evaluate)` (one ply, seeded tie-breaking, stops at the time limit with the
-  best so far) and `randomBot` (baseline). Search, MCTS and the worker harness: `bot-search`.
-- **`@palikka/bots`** (`packages/palikka-bots`): `palikkaGame` over the rules engine, `evaluate`
-  (own score, free corners and exclusive reach against the opponents' average, won/lost end),
-  `greedyPlayer`, `randomPlayer`, `playGame` (whole seeded games for tests and tournaments) and the
-  worker entry point `chooseMove(position, colour, budget, seed | rng) → Placement | undefined`.
-- Strength and speed (`npm run bench -w @palikka/bots -- 50`, developer desktop, 2026-09-29):
-  greedy vs three random players wins **99 %** (198/200); **7.9 ms per move** on average, slowest
-  77 ms. A unit test keeps the ≥ 90 % bar over 12 seeded games.
+  play, game over); search needs a `MultiplayerGame` on top (players still in, a player's moves and
+  playing one out of turn, a cheap move key for ordering). A `Bot` answers
+  `choose(state, budget, rng)`. `Budget` is plain JSON (`timeMs`, `depth`, `iterations`; whichever
+  runs out first, a bot ignores limits that do not apply to it). The rng is injected, so a seed
+  fixes the choice. Players:
+  - `greedyBot` (one ply, seeded tie-breaking, best so far at the time limit), `randomBot`.
+  - `bestReplyBot` (`search/brs.ts`): Best-Reply Search. The root player's layers alternate with
+    one layer where the single most harmful reply of any opponent still in is searched; alpha-beta,
+    iterative deepening, beams (10 root moves by their one-ply value, then 6 own moves and 3
+    replies per opponent by the move key). Depth 1 is exactly the greedy pass and always finishes
+    first, then depth 3, 4, … (depth 2 measured weaker than greedy, so it runs only for a budget of
+    exactly depth 2). It is therefore never weaker than greedy under a time limit, and a cut deeper
+    iteration keeps the previous depth's answer.
+  - `mctsBot` (`search/mcts.ts`): max^n UCT with progressive widening in key order, short keyed
+    playouts rated by the evaluation (logistic against the players' mean); budget in iterations.
+  - Worker harness (`game-bots/worker`): `serveBotWorker` in the worker, `botWorkerClient` in the
+    page (ids, lazy worker, answers in the page when no worker can run, on an error reply or after
+    a crash, reported through a callback).
+- **`@palikka/bots`** (`packages/palikka-bots`): `palikkaGame` over the rules engine (off-turn
+  moves via the rules' `withTurn`, which keeps the cached bitboards), `evaluate` (own score, free
+  corners and exclusive reach against the opponents' average, won/lost end), `moveKey` (piece
+  size, opponents' free corners covered, new own corners; boards cached per position), the players
+  `greedyPlayer`, `brsPlayer`, `mctsPlayer`, `randomPlayer`, **`devicePlayer` = `brsPlayer`** (the
+  bot people play against), `playGame` and the worker entry point
+  `chooseMove(position, colour, budget, seed | rng, bot = devicePlayer) → Placement | undefined`.
+- Strength and speed (developer container, 2026-09-29, `npm run bench -w @palikka/bots -- <bot>`):
+  greedy ≈ 14 ms per move; `brs@d2` 20 ms, `brs@d3` 43 ms, `brs@d4` 148 ms; in 200 ms BRS reaches
+  depth 4 on average (up to 8 late in the game), in 800 ms depth 5. `mcts@i400` ≈ 380 ms. Depth
+  matters: `brs@d2` loses to greedy (42.5 %), `brs@d4` beats it (68 %). At 200 ms per move (about a
+  phone's work at the real 800 ms), BRS beats greedy 61 % and MCTS 66 % (bot-search design).
+  A unit test keeps greedy ≥ 90 % against three random players.
 - **Tournaments and Elo** (strength is measured, not guessed):
   - `game-bots` `tournament/`: a round robin of named bots; each pairing's games come in seed
     pairs with the seats swapped. A finished game becomes **pairwise results** (every two colours
@@ -171,8 +191,8 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
     the Elo scale (order-independent, one virtual draw per pairing, `random` or the first bot
     anchored at 1000). Each pairing's share gets a 95 % Wilson interval with the seed pairs as the
     independent unit. The game supplies only "play this scheduled game → seats and scores".
-  - `@palikka/bots`: the bot registry (`random`, `greedy`; a name may carry a budget:
-    `greedy@200ms`, `greedy@d2`), formats (4 colours: one bot on 1 and 3, the other on 2 and 4;
+  - `@palikka/bots`: the bot registry (`random`, `greedy`, `brs`, `mcts`; a name may carry a
+    budget: `greedy@200ms`, `brs@d4`, `mcts@i400`), formats (4 colours: one bot on 1 and 3, the other on 2 and 4;
     2 colours: 1 and 2), `playTournamentGame` with per-move timing; `cli/` runs games on worker
     threads (`worker-entry.mjs` registers tsx's loader in each worker), prints the Markdown report
     and writes JSON.
@@ -181,10 +201,13 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
     `tournament.yml` runs it when bot or rules code changes (operations → Bot tournaments).
   - Measured (4 cores, 2026-09-29): greedy beats random 99.7 % (4 colours); greedy vs
     `greedy@5ms` 58.9 %; about 0.65 s per 4-colour greedy game per core.
-- **In the client** (`client/src/bots/`): `bot.worker.ts` runs `chooseMove` in a module Web Worker
-  (budget 500 ms; own size-limit entry); `askBotWorker` asks it by message and answers in-thread
-  where no worker can run (tests, a failed load). `LocalRoom` gets its bots' moves there, and so
-  does the online bot runner (`session/useBotRunner.ts`), which sends them as `botPlace`.
+- **In the client** (`client/src/bots/`): `bot.worker.ts` serves `chooseMove` (the device bot) in a
+  module Web Worker through the library harness (own size-limit entry); `askBotWorker` asks it and
+  answers in the page where no worker can run. Budget 800 ms (divided by the watching speed). The
+  bot is asked as soon as its turn begins and thinks during the 1 s pause: its move lands when the
+  pause is over and the answer is there, whichever is later. That holds in `LocalRoom` and in the
+  online bot runner (`session/useBotRunner.ts`, which sends the move as `botPlace`). The hint uses
+  greedy (100 ms, UI thread).
 
 ## Client — Implemented
 
@@ -217,7 +240,7 @@ client/src/
   notices.
 - **Local play:** a game against bots is a `LocalRoom` implementing the same `GameRoomLike` as a
   Colyseus room over the rules' match layer: same synced-state shape, same `CommandResult`s, bots
-  from the worker after the server's pause (a refused or missing answer falls back to
+  from the worker, which thinks during the server's pause (a refused or missing answer falls back to
   `simpleBotMove`), no turn clock. `undo` ("Peru") restores the game before the player's last own
   move (history of games, stale bot answers dropped). Ids `local-…` / tokens `local:…` route to the
   device. Saved in localStorage (`palikka.localGame`) after every step; a save of an older format

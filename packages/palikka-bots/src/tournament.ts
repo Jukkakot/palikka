@@ -1,6 +1,6 @@
 import { applyMove, CLASSIC, createRng, newPosition, scores, type Move, type Position } from "@palikka/rules";
 import { systemClock, type Bot, type Budget, type GameResult, type MoveTiming, type ScheduledGame } from "game-bots";
-import { greedyPlayer, randomPlayer } from "./adapter.js";
+import { brsPlayer, greedyPlayer, mctsPlayer, randomPlayer } from "./adapter.js";
 
 /** A bot a tournament can use, with the budget it gets when its name carries none. */
 interface RegisteredBot {
@@ -8,13 +8,15 @@ interface RegisteredBot {
   readonly budget: Budget;
 }
 
-/** The known bots by name. `bot-search` adds its bots here. */
+/** The known bots by name. */
 export const BOTS: Readonly<Record<string, RegisteredBot>> = {
   random: { bot: randomPlayer, budget: { depth: 1 } },
   greedy: { bot: greedyPlayer, budget: { depth: 1 } },
+  brs: { bot: brsPlayer, budget: { depth: 2 } },
+  mcts: { bot: mctsPlayer, budget: { iterations: 400 } },
 };
 
-/** A bot as named in a tournament: `greedy`, `greedy@200ms` (time limit) or `greedy@d2` (depth). */
+/** A bot as named in a tournament: `greedy`, `greedy@200ms` (time limit), `brs@d2` (depth) or `mcts@i400` (iterations). */
 export interface TournamentBot {
   /** The full name as given; it identifies the bot in results and reports. */
   readonly label: string;
@@ -25,14 +27,23 @@ export interface TournamentBot {
 
 /** Parses a bot name with an optional budget; throws with the known names listed when it is not valid. */
 export function parseBot(label: string): TournamentBot {
-  const match = /^([a-z][a-z0-9-]*)(?:@(?:(\d+)ms|d(\d+)))?$/.exec(label);
+  const match = /^([a-z][a-z0-9-]*)(?:@(?:(\d+)ms|d(\d+)|i(\d+)))?$/.exec(label);
   const known = Object.keys(BOTS).join(", ");
-  if (!match) throw new RangeError(`Bot "${label}" is not valid: use a name, name@<n>ms or name@d<n>. Known bots: ${known}`);
-  const [, name, ms, depth] = match;
+  if (!match) throw new RangeError(`Bot "${label}" is not valid: use a name, name@<n>ms, name@d<n> or name@i<n>. Known bots: ${known}`);
+  const [, name, ms, depth, iterations] = match;
   const registered = BOTS[name!];
   if (!registered) throw new RangeError(`Unknown bot "${name}". Known bots: ${known}`);
-  const budget: Budget = ms !== undefined ? { timeMs: Number(ms) } : depth !== undefined ? { depth: Number(depth) } : registered.budget;
-  if ((budget.timeMs ?? 1) < 1 || (budget.depth ?? 1) < 1) throw new RangeError(`Bot "${label}" needs a budget of at least 1`);
+  const budget: Budget =
+    ms !== undefined
+      ? { timeMs: Number(ms) }
+      : depth !== undefined
+        ? { depth: Number(depth) }
+        : iterations !== undefined
+          ? { iterations: Number(iterations) }
+          : registered.budget;
+  if ((budget.timeMs ?? 1) < 1 || (budget.depth ?? 1) < 1 || (budget.iterations ?? 1) < 1) {
+    throw new RangeError(`Bot "${label}" needs a budget of at least 1`);
+  }
   return { label, name: name!, bot: registered.bot, budget };
 }
 

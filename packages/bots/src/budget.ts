@@ -7,14 +7,18 @@ function isPositive(value: number | undefined): boolean {
   return value !== undefined && Number.isFinite(value) && value > 0;
 }
 
-/** Throws a RangeError unless the budget has a positive time limit or depth (or both). */
+/** Throws a RangeError unless the budget has at least one limit and every limit is positive. */
 export function checkBudget(budget: Budget): void {
-  const { timeMs, depth } = budget;
+  const { timeMs, depth, iterations } = budget;
   if (timeMs !== undefined && !isPositive(timeMs)) throw new RangeError(`Budget timeMs must be positive, got ${timeMs}`);
-  if (depth !== undefined && !(Number.isInteger(depth) && depth > 0)) {
-    throw new RangeError(`Budget depth must be a positive integer, got ${depth}`);
+  for (const [name, value] of [["depth", depth], ["iterations", iterations]] as const) {
+    if (value !== undefined && !(Number.isInteger(value) && value > 0)) {
+      throw new RangeError(`Budget ${name} must be a positive integer, got ${value}`);
+    }
   }
-  if (timeMs === undefined && depth === undefined) throw new RangeError("Budget needs timeMs or depth");
+  if (timeMs === undefined && depth === undefined && iterations === undefined) {
+    throw new RangeError("Budget needs timeMs, depth or iterations");
+  }
 }
 
 /** A deadline check for a time budget; never expires without one. */

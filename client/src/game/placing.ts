@@ -1,4 +1,4 @@
-import { chooseMove } from "@palikka/bots";
+import { chooseMove, greedyPlayer } from "@palikka/bots";
 import { checkPlacement, decodeMove, legalMoves, ORIENTATIONS, type MoveRefusal, type Placement, type Position } from "@palikka/rules";
 
 /**
@@ -125,5 +125,5 @@ const HINT_BUDGET = { timeMs: 100 };
 
 /** "Vihje": the bot's move for `colour` now; seeded by the turn, so it stays the same within a turn. */
 export function hintMove(position: Position, colour: number, turn: number): Placement | undefined {
-  return chooseMove(position, colour, HINT_BUDGET, turn);
+  return chooseMove(position, colour, HINT_BUDGET, turn, greedyPlayer);
 }

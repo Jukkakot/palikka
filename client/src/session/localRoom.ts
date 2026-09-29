@@ -1,6 +1,6 @@
 import { BOT_NAMES, BOT_SPEEDS, type BotSpeed, type CommandResult } from "@palikka/protocol";
-import { botRng, botSeed, MAX_SEED, playMove, simpleBotMove, startGame, type Game, type GameResult, type GameSeat, type Placement } from "@palikka/rules";
-import { BOT_BUDGET, BOT_DELAY_MS, type AskBot } from "../bots/botMoves.ts";
+import { botRng, botSeed, MAX_SEED, playMove, simpleBotMove, startGame, type Game, type GameResult, type GameSeat, type Placement, type Position } from "@palikka/rules";
+import { BOT_DELAY_MS, botBudget, type AskBot } from "../bots/botMoves.ts";
 import { askBotWorker } from "../bots/botWorkerClient.ts";
 import { log } from "../logging/logger.ts";
 import {
@@ -307,7 +307,11 @@ export class LocalRoom implements GameRoomLike {
     for (const cb of [...this.stateListeners]) cb(state);
   }
 
-  /** A bot on turn plays after a pause; nothing when it is a person's turn. */
+  /**
+   * A bot on turn plays after a pause; nothing when it is a person's turn. The bot is asked at once
+   * and thinks during the pause: its move lands when the pause is over and the answer is there,
+   * whichever comes later.
+   */
   private scheduleBot(): void {
     this.clearBotTimer();
     const { game } = this;
@@ -317,25 +321,37 @@ export class LocalRoom implements GameRoomLike {
     if (!current || !(current.bot || this.saved.autoplay)) return;
     const actor = current.bot ? `bot:${current.seat}` : BOT_FOR_ME;
     const generation = this.generation;
-    this.botTimer = this.deps.setTimeout(() => this.playBot(current.seat, actor, generation), BOT_DELAY_MS / (this.saved.speed ?? 1));
-  }
-
-  /** A bot's turn: its move from the bot, then the same path as the player's; a stale answer is dropped. */
-  private playBot(seat: number, actor: string, generation: number): void {
-    this.botTimer = undefined;
-    const { position, seed } = this.game;
+    const { seat } = current;
+    const { position, seed } = game;
+    const speed = this.saved.speed ?? 1;
+    let answer: { move: Placement | undefined } | undefined;
+    let paused = false;
+    const play = () => {
+      if (!answer || !paused || generation !== this.generation || this.gone) return;
+      this.playBot(position, seed, seat, actor, answer.move);
+    };
+    this.botTimer = this.deps.setTimeout(() => {
+      this.botTimer = undefined;
+      paused = true;
+      play();
+    }, BOT_DELAY_MS / speed);
     void this.deps
-      .askBot({ position, colour: seat, budget: BOT_BUDGET, seed: botSeed(seed, position.moveNumber, seat) })
+      .askBot({ position, colour: seat, budget: botBudget(speed), seed: botSeed(seed, position.moveNumber, seat) })
       .catch(() => undefined)
       .then((move) => {
-        if (generation !== this.generation || this.gone) return;
-        const result = move ? this.handle("place", move, actor) : undefined;
-        if (result?.ok) return;
-        // The bot found nothing or a refused move (it should not): the simple bot moves instead.
-        log.error("client.error", { kind: "bot.fallback", cmd: "place", code: result?.code ?? "NO_MOVE" });
-        const fallback = simpleBotMove(position, seat, botRng(seed, position, seat));
-        if (fallback) this.handle("place", fallback, actor);
+        answer = { move };
+        play();
       });
+  }
+
+  /** A bot's move, the same path as the player's; the simple bot moves when it has none or a refused one. */
+  private playBot(position: Position, seed: number, seat: number, actor: string, move: Placement | undefined): void {
+    const result = move ? this.handle("place", move, actor) : undefined;
+    if (result?.ok) return;
+    // The bot found nothing or a refused move (it should not): the simple bot moves instead.
+    log.error("client.error", { kind: "bot.fallback", cmd: "place", code: result?.code ?? "NO_MOVE" });
+    const fallback = simpleBotMove(position, seat, botRng(seed, position, seat));
+    if (fallback) this.handle("place", fallback, actor);
   }
 
   private clearBotTimer(): void {

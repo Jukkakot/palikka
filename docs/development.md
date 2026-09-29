@@ -62,14 +62,15 @@ npm run e2e   # smoke test, when UI or connection code changed
 ### Bot tournaments and strength
 
 ```
-npm run tournament -w @palikka/bots -- random greedy greedy@5ms --games 100 [--colours 4|2] [--seed 1] [--jobs 4]
+npm run tournament -w @palikka/bots -- greedy brs@d4 mcts@i400 --games 100 [--colours 4|2] [--seed 1] [--jobs 4]
 npm run strength -w @palikka/bots          # the requirements in packages/palikka-bots/strength.json
-npm run bench -w @palikka/bots -- 20       # greedy time per move only
+npm run bench -w @palikka/bots -- brs@800ms 4   # time per move (and depth/iterations reached) of one bot
 ```
 
-- Bots: a registry name (`random`, `greedy`) with an optional budget, `@<n>ms` or `@d<n>`. Depth
-  budgets give identical results on any machine and job count; time limits do not (the report
-  says so).
+- Bots: a registry name (`random`, `greedy`, `brs`, `mcts`) with an optional budget, `@<n>ms`,
+  `@d<n>` (search depth) or `@i<n>` (MCTS iterations). Depth and iteration budgets give identical
+  results on any machine and job count; time limits do not (the report says so). A 4-colour game
+  of `brs@d4` against greedy takes about 7 s per core, so 200 games take about 10 minutes on 4.
 - The report (Markdown) goes to stdout; the JSON with every game to
   `packages/palikka-bots/tournament-results/` (git-ignored) or `--out`.
 - A new bot: add it to `BOTS` in `packages/palikka-bots/src/tournament.ts`, then add a

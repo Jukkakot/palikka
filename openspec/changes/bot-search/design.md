@@ -168,10 +168,61 @@ top 3 (`mobile-ui`), server-side bots.
   A stale answer (undo, new game, generation changed) is dropped as today.
 - The hint stays greedy at 100 ms, which is fast enough for the UI thread fallback.
 
-### Measured (to be filled during apply)
+### Decided during apply
 
-- Bench per move for `brs`/`mcts` at depth/iterations and at 200/800 ms, the depth BRS reaches, the
-  head-to-head ratings, the chosen device bot, the strength run's share and CI duration.
+- **MCTS rewards:** every player's reward uses the same logistic of its evaluation minus the mean,
+  ended games included. `evaluate` already adds ±1000 for a won or lost end, which saturates the
+  curve to 1 or 0, and it handles out colours itself, so the separate cases above were not needed.
+- **Budget defaults:** a bot whose budget has no limit that applies to it (BRS with only
+  iterations, MCTS with only a depth) uses its own default: depth 2 or 400 iterations.
+- **Stopping early:** iterative deepening stops as soon as a depth finishes without reaching its
+  depth limit anywhere (the whole tree fits). Depth is capped at 64.
+- **Benchmarks:** both search bots take an optional `report` callback (depth finished or
+  iterations run per answer). `scripts/bench.ts` takes a bot name with budget and plays it on
+  colours 1 and 3 against greedy.
+- **Watching speed:** the bot budget is divided by the watching speed (`botBudget(speed)`), just
+  like the pause, so fast bot-only games stay fast.
+- **Tests with fake timers** that use the real search bot fake only `setTimeout`/`clearTimeout`/
+  `Date`. A faked `performance.now` never lets a time limit run out.
+- **Hint:** `hintMove` passes `greedyPlayer` explicitly. `chooseMove`'s default is now the device
+  bot.
+- **Depth 2 is skipped under a time limit** (measured below).
+- **`moveKey` corners** use the colour's forbidden squares (cached), not only the occupied ones. It
+  costs nothing extra and is closer to the truth.
+
+### Measured (developer container, 4 cores, 2026-09-29)
+
+- Bench (2 games, bot on colours 1 and 3 against greedy): greedy 14 ms per move; `brs@d2` 20 ms,
+  `brs@d3` 43 ms, `brs@d4` 148 ms (slowest 666 ms); `brs@200ms` reaches depth 4.1 on average
+  (3–8); `brs@800ms` depth 5.3 (2–10), slowest 812 ms. `mcts@i400` 378 ms per move (slowest
+  996 ms); `mcts@200ms` runs 39–74 569 iterations (many late in the game, where playouts are short).
+- Fixed-work tournaments (20 games per pairing, 4 colours):
+  - `greedy brs@d2 mcts@i100`: greedy 57.5 % against `brs@d2`. So depth 2 is *weaker* than
+    greedy: one pessimistic reply layer judged by the one-ply evaluation is not enough.
+    `mcts@i100` ≈ greedy (52.5 %).
+  - `greedy brs@d3 brs@d4 mcts@i400`: `brs@d4` beats greedy **68.1 %** (52.8–80.3 %) and `mcts@i400`
+    72.5 %. `brs@d3` ≈ greedy (52.5 %). `mcts@i400` ≈ greedy (46.9 % for greedy), and loses to
+    both BRS depths.
+- Head-to-head at the phone-like time budget, `greedy brs@200ms mcts@200ms`, 100 games per
+  pairing (731 s): brs 1109, mcts 1027, greedy 1000. `brs@200ms` beats greedy **61.3 %**
+  (54.1–67.9 %) and MCTS 65.6 %. `mcts@200ms` beats greedy 57.9 %. At that point the time-limited
+  BRS still searched depth 2 before 3. See the next point.
+- **Depth 2 skipped under a time limit** (`firstDeepDepth = 3`): since depth 2 is weaker than
+  greedy, a time-limited search goes from the one-ply pass straight to depth 3, and depth 2 is
+  searched only when a budget's depth is exactly 2. A slow device that cannot finish depth 3 then
+  plays greedy's move, not a worse depth-2 one.
+- **Device bot: `brs`** (`devicePlayer = brsPlayer`). The strength requirement uses `brs@d4`, the
+  fixed-work budget closest to 200 ms on the container (148 ms per move, depth 4.1 reached at
+  200 ms).
+- `npm run strength` (4 jobs, about 10 minutes): greedy beats random 99.7 %; **search beats greedy
+  61.0 %** (56.3–65.5 %, 200 games, `brs@d4`, game wins 67.5 %). The margin over the 60 % bar is
+  thin. The result is reproducible (depth budget), so CI gives the same pass, but a future change
+  to the evaluation or the move key must re-run it. If it drops below 60 %, the fix is to tune the
+  evaluation, not to lower the bar.
+- MCTS stays in the registry for comparison. Tuning it (wider playouts, better rewards) is left to a
+  later change, together with evaluation tuning. Phones at 800 ms get about the container's
+  200 ms of work, so they reach depth 3–4. That is roughly the depth where BRS starts to beat
+  greedy, so a faster evaluation would pay off directly.
 
 ## How the NFRs are met
 
@@ -194,9 +245,8 @@ top 3 (`mobile-ui`), server-side bots.
   only if the search code needs it, and to the measured size + 5 kB.
 - **Limits:** the depth is capped by the budget (registry defaults); the widths bound the tree.
   MCTS memory is bounded by iterations × one node (≈ tens of kB for 400).
-- **CI time:** estimate for 200 games at the device bot's machine-independent budget: ≈ 3–6 s per
-  game on one core, so ≈ 3–5 min on 4 cores. This is within the job's 60 min timeout. The measured
-  value goes above.
+- **CI time:** 200 games of `brs@d4` took about 10 minutes on the 4-core container (measured
+  above). That is within the job's 60 min timeout.
 
 ## Risks / Trade-offs
 

@@ -1,7 +1,7 @@
 import type { BotPlacePayload, CommandResult } from "@palikka/protocol";
 import { MAX_SEED, type Position } from "@palikka/rules";
 import { useEffect, useState } from "react";
-import { BOT_BUDGET, BOT_DELAY_MS, type AskBot } from "../bots/botMoves.ts";
+import { BOT_DELAY_MS, botBudget, type AskBot } from "../bots/botMoves.ts";
 import { askBotWorker } from "../bots/botWorkerClient.ts";
 import { log } from "../logging/logger.ts";
 import type { GameRoomLike } from "./useGameSession.ts";
@@ -46,7 +46,7 @@ export function useBotRunner(room: GameRoomLike | undefined, view: GameView | un
       }
     };
 
-    askBot({ position, colour: seat, budget: BOT_BUDGET, seed: randomSeed() }).then(
+    askBot({ position, colour: seat, budget: botBudget(speed), seed: randomSeed() }).then(
       (move) => {
         if (cancelled) return;
         if (!move) {

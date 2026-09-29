@@ -2,7 +2,7 @@
   "name": "game-bots",
   "version": "0.1.0",
   "private": true,
-  "description": "Game-independent bot brains: a game interface, budgets, greedy and random players, tournaments and Elo",
+  "description": "Game-independent bot brains: a game interface, budgets, greedy, best-reply search and MCTS players, a Web Worker harness, tournaments and Elo",
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -10,6 +10,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./worker": {
+      "source": "./src/worker/index.ts",
+      "types": "./dist/worker/index.d.ts",
+      "default": "./dist/worker/index.js"
     }
   },
   "files": [

@@ -34,11 +34,12 @@ stale client when checking a deploy, compare the footer's "Client …" build tim
 - **strength** job: on pushes to `main` and pull requests that touch `packages/bots`,
   `packages/palikka-bots`, `packages/rules`, the lock file or the workflow. Runs
   `npm run strength`; red when a requirement is missed. Report on the run's summary page, JSON as
-  the `strength-results` artifact (30 days).
+  the `strength-results` artifact (30 days). "search beats greedy" (200 games of `brs@d4`) makes it
+  take about 10 minutes.
 - **tournament** job: Actions → Bot tournament → Run workflow, with bots (space-separated),
   games per pairing, colours and first seed. Report on the summary page, JSON as the
   `tournament-results` artifact. 4 vCPUs; about 0.65 s per greedy game per core, so 1 000 games
-  take about 3 minutes (timeout 5 h).
+  take about 3 minutes; search bots are 10–30× slower per game (timeout 5 h).
 
 ### After a deploy (manual checks)
 

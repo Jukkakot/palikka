@@ -73,7 +73,8 @@ describe("bot-seats › Bot moves are validated (client side)", () => {
   });
 
   it("the real bot answers here where no worker runs", async () => {
-    vi.useFakeTimers();
+    // The search bot's time limit reads the real clock: only the pause is faked.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     const { room, request } = fakeRoom();
     renderHook(() => useBotRunner(room, botTurn()));
     await act(async () => {

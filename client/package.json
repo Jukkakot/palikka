@@ -17,6 +17,7 @@
     "@palikka/bots": "*",
     "@palikka/protocol": "*",
     "@palikka/rules": "*",
+    "game-bots": "*",
     "@tabler/icons-react": "^3.48.0",
     "i18next": "^26.4.2",
     "i18next-browser-languagedetector": "^8.2.0",

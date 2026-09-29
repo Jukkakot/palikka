@@ -118,6 +118,18 @@ export function rememberView(position: Position, view: BitView): void {
   views.set(position, view);
 }
 
+/**
+ * The same position with `colour` on turn (bots ask for and try out moves of a colour that is not
+ * on turn). Carries the cached bitboards over, so they are not rebuilt.
+ */
+export function withTurn(position: Position, colour: number): Position {
+  if (position.turn === colour) return position;
+  const next: Position = { ...position, turn: colour };
+  const view = views.get(position);
+  if (view) views.set(next, view);
+  return next;
+}
+
 function isIndex(value: unknown, below: number): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 && value < below;
 }

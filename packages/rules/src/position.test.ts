@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { CLASSIC } from "./config.js";
 import { placement, positionWith } from "./engineFixtures.js";
-import { checkPlacement, newPosition } from "./position.js";
+import { legalMoves } from "./movegen.js";
+import { applyMove } from "./play.js";
+import { bitView, checkPlacement, newPosition, withTurn } from "./position.js";
 
 const I1 = (row: number, col: number) => placement("I1", ["#"], row, col);
 const I2h = (row: number, col: number) => placement("I2", ["##"], row, col);
@@ -86,5 +88,25 @@ describe("placement › Refusal reasons", () => {
 
   it("piece used wins over outside", () => {
     expect(checkPlacement(positionWith([[1, I1(0, 0)]]), 1, I1(-5, 0))).toBe("PIECE_USED");
+  });
+});
+
+describe("withTurn", () => {
+  it("gives a colour off turn the moves and results it would have on turn, keeping the bitboards", () => {
+    const start = newPosition(CLASSIC, [1, 2, 3, 4], 1);
+    const after = applyMove(start, 1, legalMoves(start, 1)[0]!);
+    if (!after.ok) throw new Error(after.code);
+    const position = after.position;
+    expect(position.turn).toBe(2);
+    const view = bitView(position);
+    const asThree = withTurn(position, 3);
+    expect(asThree.turn).toBe(3);
+    expect(bitView(asThree)).toBe(view);
+    expect(withTurn(position, 2)).toBe(position);
+    const moves = legalMoves(asThree, 3);
+    expect(moves).toEqual(legalMoves({ ...position, turn: 3 }, 3));
+    const played = applyMove(asThree, 3, moves[0]!);
+    expect(played.ok).toBe(true);
+    expect(applyMove(position, 3, moves[0]!)).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
   });
 });

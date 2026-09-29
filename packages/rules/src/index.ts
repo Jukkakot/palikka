@@ -10,7 +10,7 @@ export * from "./pieces.js";
 export * from "./config.js";
 export * from "./moves.js";
 export type { Bits } from "./bitboard.js";
-export { checkPlacement, newPosition, type MoveRefusal, type Position } from "./position.js";
+export { checkPlacement, newPosition, withTurn, type MoveRefusal, type Position } from "./position.js";
 export * from "./movegen.js";
 export * from "./play.js";
 export * from "./scoring.js";

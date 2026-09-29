@@ -7,5 +7,14 @@
     "games": 40,
     "seed": 1,
     "minShare": 0.9
+  },
+  {
+    "name": "search beats greedy",
+    "candidate": "brs@d4",
+    "baseline": "greedy",
+    "colours": 4,
+    "games": 200,
+    "seed": 1,
+    "minShare": 0.6
   }
 ]

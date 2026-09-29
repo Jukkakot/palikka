@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { greedyBot, randomBot } from "./players.js";
-import type { Budget, Game, Rng } from "./types.js";
+import { testRng } from "./search/testing/grab.js";
+import type { Budget, Game } from "./types.js";
 
 /** Toy game: two players take turns adding 1–3 to a running total; the game ends at 10. */
 interface Race {
@@ -14,19 +15,6 @@ const race: Game<Race, number, 0 | 1> = {
   moves: (s) => (s.total >= 10 ? [] : [1, 2, 3].filter((m) => s.total + m <= 10)),
   play: (s, m) => ({ total: s.total + m, turn: s.turn === 0 ? 1 : 0 }),
 };
-
-/** A small seeded generator for the tests (the library has no randomness of its own). */
-function testRng(seed: number): Rng {
-  let a = seed >>> 0;
-  const next = () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 2 ** 32;
-  };
-  return { int: (min, max) => min + Math.floor(next() * (max - min + 1)) };
-}
 
 const depth1: Budget = { depth: 1 };
 const start: Race = { total: 0, turn: 0 };
@@ -92,12 +80,19 @@ describe("greedy bot", () => {
     expect(greedyBot(stuck, () => 0).choose(start, depth1, testRng(1))).toBeUndefined();
   });
 
-  it("refuses a budget with neither a positive time nor a positive depth", () => {
+  it("refuses a budget without a limit or with a limit that is not positive", () => {
     const bot = greedyBot(race, (s) => s.total);
-    for (const budget of [{}, { timeMs: 0 }, { depth: 0 }, { depth: 1.5 }, { timeMs: Number.NaN }]) {
+    for (const budget of [{}, { timeMs: 0 }, { depth: 0 }, { depth: 1.5 }, { timeMs: Number.NaN }, { iterations: 0 }, { iterations: 2.5 }]) {
       expect(() => bot.choose(start, budget, testRng(1))).toThrow(RangeError);
     }
     expect(bot.choose(start, { timeMs: 50, depth: 3 }, testRng(1))).toBe(3);
+  });
+
+  it("Limit that does not apply: iterations alone play the one-ply move", () => {
+    const bot = greedyBot(race, (s) => s.total);
+    for (let seed = 1; seed <= 5; seed++) {
+      expect(bot.choose(start, { iterations: 300 }, testRng(seed))).toBe(bot.choose(start, depth1, testRng(seed)));
+    }
   });
 });
 

@@ -18,8 +18,13 @@ export type AskBot = (request: MoveRequest) => Promise<Placement | undefined>;
 /** The pause before a bot's move, so people can follow it (the server uses the same). */
 export const BOT_DELAY_MS = 1_000;
 
-/** The budget of one bot move: well inside the pause people see before a bot moves. */
-export const BOT_BUDGET: Budget = { timeMs: 500 };
+/** The budget of one bot move: it thinks during the pause people see before it moves, with a margin. */
+export const BOT_BUDGET = { timeMs: 800 } as const satisfies Budget;
+
+/** The budget at a watching speed: the pause shrinks with the speed, and so does the thinking. */
+export function botBudget(speed = 1): Budget {
+  return { timeMs: BOT_BUDGET.timeMs / speed };
+}
 
 /** The bot's answer, computed right here (the worker runs this; so do tests and old browsers). */
 export function answer({ position, colour, budget, seed }: MoveRequest): Placement | undefined {

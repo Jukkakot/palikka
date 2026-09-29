@@ -18,19 +18,38 @@ export interface Game<S, M, P> {
 export type Evaluate<S, P> = (state: S, player: P) => number;
 
 /**
- * How much work a bot may do: a time limit, a search depth, or both (whichever runs out first).
- * Plain data, so it crosses a Web Worker boundary as is.
+ * How much work a bot may do: a time limit, a search depth, a number of iterations, or a mix
+ * (whichever runs out first). A bot ignores a limit that does not apply to it. Plain data, so it
+ * crosses a Web Worker boundary as is.
  */
 export interface Budget {
   /** Wall-clock milliseconds for this move. */
   readonly timeMs?: number;
   /** Plies to look ahead; a one-ply bot treats any depth ≥ 1 as its whole search. */
   readonly depth?: number;
+  /** Iterations of a sampling search (MCTS playouts); ignored by bots that do not sample. */
+  readonly iterations?: number;
 }
 
 /** A deterministic random source: uniform integer in [min, max], both included. */
 export interface Rng {
   int(min: number, max: number): number;
+}
+
+/**
+ * A game with more than two players as search sees it: any player still in may be asked for its
+ * moves or play one, even when not on turn (best-reply search lets the most dangerous opponent
+ * answer), and moves have a cheap ordering key.
+ */
+export interface MultiplayerGame<S, M, P> extends Game<S, M, P> {
+  /** The players still able to move, in turn order starting after the player to move. */
+  players(state: S): readonly P[];
+  /** `player`'s legal moves, on turn or not; empty when it is out or the game is over. */
+  movesOf(state: S, player: P): readonly M[];
+  /** The state after `player` plays `move` (a legal move of that player), on turn or not. */
+  playAs(state: S, player: P, move: M): S;
+  /** How promising `move` looks for `player`, higher first. Must be cheap (no full evaluation). */
+  moveKey(state: S, player: P, move: M): number;
 }
 
 /** A computer player. Returns undefined when the game is over or the player to move has no move. */
