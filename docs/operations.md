@@ -20,7 +20,7 @@ commit → push to `main` (Claude pushes before each summary) → CI (lint, type
 size, E2E smoke) → Pages deploy (client) and Render deploy hook (server, CI's `deploy-server` job after green checks) →
 **production smoke** (`prod-smoke.yml`: waits until the live server's `/health` version and the
 client's `version.json` carry this commit's code, then `npm run e2e:prod -w @palikka/e2e` starts a
-1v1 bot game on the device (one corner tap, the bot answers from its worker), then a server game (Pelaa, one bot, start) on the live site and leaves; also daily at 05:17 UTC and by hand). No staging
+1v1 bot game on the device (I5 from the tray onto the start corner with two taps, the bot answers from its worker), then a server game ("Luo peli", one bot, start) on the live site and leaves; also daily at 05:17 UTC and by hand). No staging
 environment.
 
 **Service worker:** the client is a PWA. A phone with the app open or installed picks up a new
@@ -29,13 +29,15 @@ stale client when checking a deploy, compare the footer's "Client …" build tim
 
 ### After a deploy (manual checks)
 
-1. Open https://jukkakot.github.io/palikka/ on the phone. If the server was asleep, Pelaa is
+1. Open https://jukkakot.github.io/palikka/ on the phone. If the server was asleep, "Luo peli" is
    greyed out with "Herätetään palvelinta talviunilta…" (up to about a minute). The footer's
    "Client …" and "Server …" build times must be newer than the push. Enter a nickname and tap
-   Pelaa → the waiting room, you are the host.
-2. Open the same page in a second tab or device: the game shows in "Avoimet pelit". Tap it → both
-   tabs list two players; the host taps "Aloita peli" → both see the board, same game id.
-3. The player on turn taps a square → it turns their colour in both tabs.
+   "Luo peli" → the waiting room, you are the host.
+2. Open the same page in a second tab or device: the game shows under "Liity peliin" (or open the
+   invite link). Tap it → both tabs list two players; the host taps "Aloita peli" → both see the
+   board, same game id.
+3. The player on turn taps a piece in the tray, taps the start corner and taps the preview again →
+   the piece shows in their colour in both tabs.
 4. In Axiom (or Render logs) find the game id: `game.started`, `cmd.accepted place` lines.
 
 ## One-time setup

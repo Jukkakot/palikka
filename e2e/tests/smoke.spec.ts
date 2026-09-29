@@ -1,17 +1,18 @@
 import { expect, test } from "@playwright/test";
-import { board, gameId, quickPlay, uniquePool } from "./helpers.ts";
+import { board, createGame, gameId, joinByInvite, placeOnCorner, uniquePool } from "./helpers.ts";
 
 /**
- * Smoke: against a real server, two players meet in a waiting room through quick play, the host
- * starts, both see the whole board on a Galaxy S24, and the host's first piece reaches the guest.
+ * Smoke: against a real server, the host creates a game and the guest joins by its invite link, the
+ * host starts, both see the whole board on a Galaxy S24, and the host's first piece, placed through
+ * the piece tray, reaches the guest.
  */
 test("two players meet in the waiting room, the host starts, and a placed piece syncs", async ({ browser }) => {
   const pool = uniquePool("smoke");
   const host = await (await browser.newContext({ ...test.info().project.use })).newPage();
   const guest = await (await browser.newContext({ ...test.info().project.use })).newPage();
 
-  await quickPlay(host, pool, "Maija");
-  await quickPlay(guest, pool, "Pekka");
+  await createGame(host, pool, "Maija");
+  await joinByInvite(guest, pool, await gameId(host), "Pekka");
   expect(await gameId(guest)).toBe(await gameId(host));
   expect(await gameId(host)).toMatch(/^[a-z]+(-[a-z]+)+$/);
 
@@ -34,7 +35,8 @@ test("two players meet in the waiting room, the host starts, and a placed piece 
     expect(boardBox.y + boardBox.height).toBeLessThanOrEqual(780);
   }
 
-  await host.getByRole("button", { name: "Kulmaruutu: rivi 1, sarake 1", exact: true }).click();
+  await placeOnCorner(host, "I5", 0);
   await expect(board(guest).locator("[data-cell='0']")).toHaveAttribute("data-owner", "1");
-  await expect(guest.getByText("Sinun vuorosi – napauta kulmaruutua")).toBeVisible();
+  await expect(board(host).locator("[data-cell='0']")).toHaveAttribute("data-owner", "1");
+  await expect(guest.getByText("Sinun vuorosi", { exact: true })).toBeVisible();
 });

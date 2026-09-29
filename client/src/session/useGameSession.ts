@@ -48,8 +48,8 @@ export interface GameRoomLike {
 export type JoinRequest = Pick<JoinOptions, "nickname">;
 
 export interface Connector {
-  /** Quick play: a public waiting room with a free seat, or a new public game. */
-  joinOrCreate(options: JoinRequest): Promise<GameRoomLike>;
+  /** "Luo peli kavereille": always a new public game, with the caller as its host. */
+  create(options: JoinRequest): Promise<GameRoomLike>;
   /** A quick game against `bots` bots: never listed, started as soon as the caller is seated. */
   createBotGame(options: JoinRequest & { bots: number }): Promise<GameRoomLike>;
   /** One particular game, from the list or an invite link. */
@@ -61,7 +61,7 @@ export interface Connector {
   reconnect(token: string): Promise<GameRoomLike>;
 }
 
-/** Optional quick-play pool from `?pool=…`: players only meet others in the same pool. */
+/** Optional pool from `?pool=…`: players only meet others in the same pool. */
 export function quickPlayPool(search = globalThis.location?.search ?? ""): string | undefined {
   const pool = new URLSearchParams(search).get("pool")?.trim();
   return pool ? pool.slice(0, 64) : undefined;
@@ -92,7 +92,7 @@ export function createConnector(): Connector {
   const pool = quickPlayPool();
   const withPool = (options: JoinRequest): JoinOptions => ({ ...options, ...(pool && { pool }) });
   return {
-    joinOrCreate: (options) => sdkClient().joinOrCreate("game", withPool(options)) as unknown as Promise<GameRoomLike>,
+    create: (options) => sdkClient().create("game", withPool(options)) as unknown as Promise<GameRoomLike>,
     createBotGame: async ({ bots, nickname }) => LocalRoom.create(nickname, bots),
     joinById: (roomId, options) =>
       isLocalRoomId(roomId) ? restoreLocal(roomId) : (sdkClient().joinById(roomId, withPool(options)) as unknown as Promise<GameRoomLike>),
@@ -170,8 +170,8 @@ export interface GameSession {
   view?: GameView;
   /** True when connecting has taken longer than SLOW_CONNECT_MS. */
   slow: boolean;
-  /** Quick play under `nickname` (valid and trimmed). */
-  play(nickname: string): void;
+  /** A new online game for friends under `nickname` (valid and trimmed), straight into its waiting room. */
+  createGame(nickname: string): void;
   /** Joins one particular game (from the list or an invite link). */
   joinById(roomId: string, nickname: string): void;
   /** A quick game against 1–3 bots, straight into the game. */
@@ -222,7 +222,7 @@ export interface GameSession {
 
 /**
  * Joining games and per-tab rejoin. A tab with a stored reconnection token rejoins its game on
- * load; otherwise it waits for play(), joinById() or another way in.
+ * load; otherwise it waits for createGame(), joinById() or another way in.
  */
 export function useGameSession(connector?: Connector): GameSession {
   const connectorRef = useRef<Connector | undefined>(connector);
@@ -378,7 +378,7 @@ export function useGameSession(connector?: Connector): GameSession {
     [attach, detach],
   );
 
-  const play = useCallback((nickname: string) => connect(() => getConnector().joinOrCreate({ nickname }), nickname), [connect]);
+  const createGame = useCallback((nickname: string) => connect(() => getConnector().create({ nickname }), nickname), [connect]);
   const playBots = useCallback(
     (nickname: string, bots: number) => connect(() => getConnector().createBotGame({ nickname, bots }), nickname),
     [connect],
@@ -527,7 +527,7 @@ export function useGameSession(connector?: Connector): GameSession {
     status,
     view,
     slow: status === "connecting" && slow,
-    play,
+    createGame,
     joinById,
     playBots,
     undo,

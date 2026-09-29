@@ -1,0 +1,54 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-s);
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-1);
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+
+.table thead th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.table .player {
+  text-align: left;
+}
+
+.rank {
+  width: 2.5em;
+}
+
+.who {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  font-weight: 600;
+}
+
+.name {
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.winner {
+  background: var(--surface-2);
+}
+
+.trophy {
+  color: var(--seat-2);
+}
+
+.departed {
+  color: var(--muted);
+  font-weight: 400;
+}

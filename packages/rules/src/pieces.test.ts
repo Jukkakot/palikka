@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   distinctOrientations,
+  mirrorOrientation,
   mirrorShape,
   ORIENTATIONS,
   PIECE_IDS,
@@ -9,6 +10,7 @@ import {
   rotateShape,
   SET_SQUARES,
   shapeKey,
+  turnOrientation,
 } from "./pieces.js";
 
 const orientationKeys = (piece: number) => ORIENTATIONS[piece]!.map((o) => shapeKey(o.cells));
@@ -78,5 +80,36 @@ describe("pieces › Orientations", () => {
   it("golden orientations (indexes are stable)", () => {
     const text = ORIENTATIONS.map((list, piece) => `${PIECE_IDS[piece]}: ${list.map((o) => shapeKey(o.cells)).join(" | ")}`);
     expect(text.join("\n")).toMatchSnapshot();
+  });
+});
+
+describe("pieces › Turning and mirroring an orientation", () => {
+  const each = (check: (piece: number, index: number) => void) =>
+    ORIENTATIONS.forEach((list, piece) => list.forEach((o) => check(piece, o.index)));
+
+  it("the turned and mirrored index is the transformed shape", () => {
+    each((piece, index) => {
+      const cells = ORIENTATIONS[piece]![index]!.cells;
+      expect(shapeKey(ORIENTATIONS[piece]![turnOrientation(piece, index)]!.cells)).toBe(shapeKey(rotateShape(cells)));
+      expect(shapeKey(ORIENTATIONS[piece]![mirrorOrientation(piece, index)]!.cells)).toBe(shapeKey(mirrorShape(cells)));
+    });
+  });
+
+  it("Four quarter turns: back to the start", () => {
+    each((piece, index) => {
+      let o = index;
+      for (let i = 0; i < 4; i++) o = turnOrientation(piece, o);
+      expect(o).toBe(index);
+    });
+  });
+
+  it("Mirror twice: back to the start", () => {
+    each((piece, index) => expect(mirrorOrientation(piece, mirrorOrientation(piece, index))).toBe(index));
+  });
+
+  it("Symmetric piece: X5 stays in its only orientation", () => {
+    const x = pieceNumber("X5");
+    expect(turnOrientation(x, 0)).toBe(0);
+    expect(mirrorOrientation(x, 0)).toBe(0);
   });
 });

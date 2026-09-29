@@ -20,7 +20,7 @@ describe("first-game-tips › One-time tips in the first game", () => {
     expect(screen.getByRole("status").textContent).toContain("Aseta palikoita laudalle");
 
     fireEvent.click(screen.getByRole("button", { name: "Sulje vinkki" }));
-    expect(screen.getByRole("status").textContent).toContain("Napauta");
+    expect(screen.getByRole("status").textContent).toContain("Valitse palikka");
     expect(JSON.parse(localStorage.getItem("palikka.tips.seen")!)).toEqual(["goal", "place"]);
   });
 

@@ -56,7 +56,7 @@ npm run e2e   # smoke test, when UI or connection code changed
 | Rules | Vitest; fast-check property tests for invariants; test names follow spec scenarios (`game › Placing › …`). **Planned (`tournament-elo`):** a bot tournament driver with Elo, heavy runs in GitHub Actions | Implemented |
 | Server | Vitest + @colyseus/testing (real rooms, SDK clients in-process); `captureLogs()` asserts log lines; `test/support/game.ts`: `waitingRoom(n)`, `startedGame(n, { startSeat })` (nicknamed players, host starts, start seat forced via the `chooseStartSeat` hook), `placeFree(client, room)` plays a turn | Implemented |
 | Client | Vitest; jsdom + Testing Library for components (`// @vitest-environment jsdom`) | Implemented |
-| E2E | Playwright, Galaxy S24 profile — **one smoke test** for now (two browser contexts: nickname + Play, the waiting room, the host starts, both see the whole board, fits 360×780, the host's square reaches the guest) | Implemented |
+| E2E | Playwright, Galaxy S24 profile — **one smoke test** for now (two browser contexts: the host creates a game ("Luo peli"), the guest joins by the invite link, the host starts, both see the whole board, fits 360×780, the host's piece placed from the tray with taps reaches the guest) | Implemented |
 
 ### E2E smoke
 
@@ -66,7 +66,11 @@ npm run e2e   # smoke test, when UI or connection code changed
   build. When that is not the current code, stop it first, or run the server with `PORT=2600` and
   the client with `VITE_SERVER_URL=http://localhost:2600 npx vite --port 5180` and point
   Playwright's `baseURL` there.
-- Each test plays in its own quick-play pool (`?pool=…`), so runs never share games.
+- Each test plays in its own pool (`?pool=…`), so runs never share games.
+- Place pieces with `placeOnCorner` (`helpers.ts`): it taps like a phone. A Playwright `click` is a
+  mouse: the hover already previews, so the first click places.
+- In a cloud container without Playwright's own browser build, point `launchOptions.executablePath`
+  at the preinstalled Chromium in a local, uncommitted config.
 - On failure: screenshot and trace in `e2e/test-results/` (`npx playwright show-trace …`); CI
   uploads them as the `playwright-report` artifact. Check `logs/dev.log` for the `client.error`
   line.

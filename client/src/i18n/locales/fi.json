@@ -29,11 +29,9 @@
     "waiting": "Odotetaan palvelinta…"
   },
   "board": {
-    "label": "Pelilauta",
-    "cell": "Kulmaruutu: rivi {{row}}, sarake {{col}}"
+    "label": "Pelilauta"
   },
   "start": {
-    "play": "Pelaa",
     "connecting": "Yhdistetään palvelimeen…",
     "slow": "Palvelin saattaa olla heräämässä talviunilta. Tämä voi kestää hetken.",
     "errorTitle": "Peliin ei päästy",
@@ -47,8 +45,6 @@
     "nicknameLength": "Nimimerkissä pitää olla 2–16 merkkiä",
     "nicknameCharacters": "Nimimerkissä on merkkejä, joita ei voi käyttää",
     "openGames": "Avoimet pelit",
-    "noGames": "Ei avoimia pelejä juuri nyt",
-    "listUnavailable": "Pelilistaa ei saatu juuri nyt – Pelaa toimii silti.",
     "gameEntryLabel": "Liity peliin: {{host}}, {{count}}/4 pelaajaa",
     "hostLeft": "Pelin luoja poistui, joten peli suljettiin",
     "notOpen": "Peli ei ole enää avoinna",
@@ -61,7 +57,6 @@
     "invited": "Sinut on kutsuttu peliin",
     "joinInvite": "Liity peliin",
     "otherGames": "Muut pelit",
-    "botGames": "Pikapeli metsän eläimiä vastaan",
     "playMyself": "Pelaan itse",
     "botGameLabel_one": "Pikapeli: sinä ja {{count}} botti",
     "botGameLabel_other": "Pikapeli: sinä ja {{count}} bottia",
@@ -71,7 +66,13 @@
     "runningCount": "{{count}} pelaajaa",
     "watchBotsLabel": "Katso {{count}} botin peliä",
     "watchBotCount_one": "{{count}} botti",
-    "watchBotCount_other": "{{count}} bottia"
+    "watchBotCount_other": "{{count}} bottia",
+    "botsTitle": "Pelaa botteja vastaan",
+    "botsBody": "Metsän eläimet pelaavat heti, myös ilman verkkoa.",
+    "friendsTitle": "Luo peli kavereille",
+    "friendsBody": "Saat kutsulinkin kavereille. Tyhjät paikat voi täyttää boteilla.",
+    "create": "Luo peli",
+    "joinTitle": "Liity peliin"
   },
   "game": {
     "copyLine": "Peli {{id}} · {{date}} {{time}} · v {{ver}}",
@@ -84,7 +85,7 @@
     "copyLineNoGame": "{{date}} {{time}} · v {{ver}}"
   },
   "turn": {
-    "mine": "Sinun vuorosi – napauta kulmaruutua",
+    "mine": "Sinun vuorosi",
     "other": "{{name}} miettii…",
     "timeUp": "Aika loppui",
     "disconnected": "{{name}} – yhteys katkennut",
@@ -93,8 +94,22 @@
     "autoplay": "Botti pelaa: {{name}}"
   },
   "place": {
-    "hint": "Napauta merkittyä ruutua: sinne asettuu suurin mahtuva palikka",
-    "wait": "Odota vuoroasi"
+    "wait": "Odota vuoroasi",
+    "choose": "Valitse palikka alta",
+    "aim": "Napauta laudalta kohtaa – palikka hakeutuu lähimpään sopivaan paikkaan",
+    "ready": "Napauta palikkaa uudelleen tai paina Aseta",
+    "turn": "Käännä",
+    "turnTitle": "Käännä myötäpäivään (R)",
+    "mirror": "Peilaa",
+    "mirrorTitle": "Peilaa (F)",
+    "place": "Aseta",
+    "announceOk": "Rivi {{row}}, sarake {{col}}: sopii",
+    "announceBad": "Rivi {{row}}, sarake {{col}}: {{reason}}"
+  },
+  "tray": {
+    "label": "Palikkasi",
+    "piece_one": "Palikka {{id}}, {{count}} ruutu",
+    "piece_other": "Palikka {{id}}, {{count}} ruutua"
   },
   "errors": {
     "NOT_SEATED": "Et ole mukana tässä pelissä",
@@ -118,11 +133,12 @@
     "NOT_ON_START": "Ensimmäisen palikan pitää peittää oma aloituskulmasi",
     "NO_CORNER_CONTACT": "Palikan pitää koskettaa omaa palikkaa kulmasta",
     "NOT_BOT_RUNNER": "Bottien siirrot laskee nyt toinen pelaaja",
-    "NOT_BOT_SEAT": "Tällä paikalla ei pelaa botti"
+    "NOT_BOT_SEAT": "Tällä paikalla ei pelaa botti",
+    "INVALID_MOVE": "Palikkaa ei voi asettaa siihen"
   },
   "hint": {
     "button": "Vihje",
-    "title": "Näytä, mihin botti asettaisi palikan"
+    "title": "Botin siirto valmiiksi asetettavaksi"
   },
   "progress": {
     "label": "Pelaajat ja pisteet",
@@ -143,7 +159,15 @@
     "rematch": "Pelaa uudelleen",
     "home": "Alkuun",
     "shared": "Tasapeli: {{names}} jakavat voiton",
-    "sharedMine": "Jaettu voitto! {{names}} jakavat talven."
+    "sharedMine": "Jaettu voitto! {{names}} jakavat talven.",
+    "label": "Tulokset",
+    "rank": "Sija",
+    "player": "Pelaaja",
+    "score": "Pisteet",
+    "squares": "Ruudut",
+    "piecesLeft": "Palikoita jäljellä",
+    "winner": "Voittaja",
+    "departed": "Lähti metsään"
   },
   "kick": {
     "timeUp": "{{name}} – aika loppui",
@@ -189,7 +213,7 @@
   },
   "tips": {
     "goal": "Aseta palikoita laudalle. Jokainen ruutu, joka jää laudan ulkopuolelle, vie pisteen.",
-    "place": "Napauta merkittyä kulmaruutua – sinne asettuu suurin palikka, joka mahtuu.",
+    "place": "Valitse palikka alta ja napauta laudalta kohtaa. Kun palikka näkyy värillisenä, napauta sitä uudelleen – se asettuu. Käännä ja Peilaa muuttavat asentoa.",
     "close": "Sulje vinkki",
     "reset": "Näytä vinkit uudelleen",
     "resetDone": "Vinkit näytetään seuraavassa pelissä."
@@ -230,11 +254,24 @@
     "title": "Näin pelaat",
     "goal": {
       "title": "Tavoite",
-      "body": "Jokaisella värillä on 21 palikkaa. Aseta niistä mahdollisimman monta laudalle: jokainen laudan ulkopuolelle jäänyt ruutu on miinuspiste, ja kaikki palikat laudalle saanut saa 15 pistettä (ja 5 lisää, jos viimeinen oli yksittäinen ruutu). Eniten pisteitä saanut voittaa."
+      "body": "Jokaisella värillä on 21 palikkaa. Aseta niistä mahdollisimman monta laudalle. Eniten pisteitä saanut voittaa – talvi on hänen."
     },
     "turn": {
       "title": "Vuoro",
-      "body": "Ensimmäinen palikka peittää oman aloituskulmasi. Sen jälkeen jokaisen palikan pitää koskettaa omaa väriäsi kulmasta, mutta ei koskaan sivusta. Muita värejä saa koskettaa vapaasti. Jos siirtoja ei enää ole, vuorosi ohitetaan. Toistaiseksi palikka asetetaan napauttamalla merkittyä kulmaruutua; Vihje näyttää, mihin botti asettaisi palikan."
+      "body": "Vuorollasi asetat yhden palikan laudalle. Jos yksikään palikkasi ei enää mahdu, vuorosi ohitetaan loppupelin ajan. Peli päättyy, kun kukaan ei voi enää asettaa palikkaa."
+    },
+    "place": {
+      "title": "Palikan asettaminen",
+      "body": "Ensimmäinen palikka peittää oman aloituskulmasi. Sen jälkeen jokaisen palikan pitää koskettaa omaa väriäsi kulmasta, mutta ei koskaan sivusta. Muita värejä saa koskettaa vapaasti. Valitse palikka alta, käännä tai peilaa sitä ja napauta laudalta kohtaa; napauta palikkaa uudelleen asettaaksesi sen. Vihje näyttää botin siirron valmiina."
+    },
+    "score": {
+      "title": "Pisteet",
+      "body": "Jokainen laudan ulkopuolelle jäänyt ruutu on miinuspiste. Kaikki palikat laudalle saanut saa 15 pistettä, ja 5 lisää, jos viimeinen palikka oli yksittäinen ruutu."
+    },
+    "pictures": {
+      "start": "Ensimmäinen palikka aloituskulmaan",
+      "corner": "Kulmakosketus omaan väriin: sallittu",
+      "edge": "Sivukosketus omaan väriin: ei sallittu"
     }
   },
   "undo": {

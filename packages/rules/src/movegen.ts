@@ -98,6 +98,15 @@ export function legalMoves(position: Position, colour: number): Move[] {
   return moves;
 }
 
+/** The pieces of `colour` with at least one legal move. */
+export function fittingPieces(position: Position, colour: number): Set<number> {
+  const pieces = new Set<number>();
+  forEachFit(position, colour, (code) => {
+    pieces.add(Math.floor(code / (MAX_ORIENTATIONS * position.config.size * position.config.size)));
+  });
+  return pieces;
+}
+
 /** Whether `colour` has any legal move; stops at the first one. */
 export function hasLegalMove(position: Position, colour: number): boolean {
   let found = false;

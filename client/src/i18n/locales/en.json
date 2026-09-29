@@ -29,11 +29,9 @@
     "waiting": "Waiting for the server…"
   },
   "board": {
-    "label": "Game board",
-    "cell": "Corner square: row {{row}}, column {{col}}"
+    "label": "Game board"
   },
   "start": {
-    "play": "Play",
     "connecting": "Connecting to the server…",
     "slow": "The server may be waking from hibernation. This can take a moment.",
     "errorTitle": "Could not join",
@@ -47,8 +45,6 @@
     "nicknameLength": "A nickname needs 2–16 characters",
     "nicknameCharacters": "The nickname has characters that cannot be used",
     "openGames": "Open games",
-    "noGames": "No open games right now",
-    "listUnavailable": "The game list is unavailable right now – Play still works.",
     "gameEntryLabel": "Join game: {{host}}, {{count}}/4 players",
     "hostLeft": "The game's creator left, so the game was closed",
     "notOpen": "The game is no longer open",
@@ -61,7 +57,6 @@
     "invited": "You have been invited to a game",
     "joinInvite": "Join game",
     "otherGames": "Other games",
-    "botGames": "Quick game against the forest animals",
     "playMyself": "I play myself",
     "botGameLabel_one": "Quick game: you and {{count}} bot",
     "botGameLabel_other": "Quick game: you and {{count}} bots",
@@ -71,7 +66,13 @@
     "runningCount": "{{count}} players",
     "watchBotsLabel": "Watch a game of {{count}} bots",
     "watchBotCount_one": "{{count}} bot",
-    "watchBotCount_other": "{{count}} bots"
+    "watchBotCount_other": "{{count}} bots",
+    "botsTitle": "Play against bots",
+    "botsBody": "The forest animals play at once, offline too.",
+    "friendsTitle": "Create a game for friends",
+    "friendsBody": "You get an invite link for your friends. Empty seats can be filled with bots.",
+    "create": "Create game",
+    "joinTitle": "Join a game"
   },
   "game": {
     "copyLine": "Game {{id}} · {{date}} {{time}} · v {{ver}}",
@@ -84,7 +85,7 @@
     "copyLineNoGame": "{{date}} {{time}} · v {{ver}}"
   },
   "turn": {
-    "mine": "Your turn – tap a corner square",
+    "mine": "Your turn",
     "other": "{{name}} is thinking…",
     "timeUp": "Time is up",
     "disconnected": "{{name}} – connection lost",
@@ -93,8 +94,22 @@
     "autoplay": "The bot plays: {{name}}"
   },
   "place": {
-    "hint": "Tap a marked square: the largest piece that fits goes there",
-    "wait": "Wait for your turn"
+    "wait": "Wait for your turn",
+    "choose": "Choose a piece below",
+    "aim": "Tap a spot on the board – the piece snaps to the nearest place it fits",
+    "ready": "Tap the piece again or press Place",
+    "turn": "Turn",
+    "turnTitle": "Turn clockwise (R)",
+    "mirror": "Mirror",
+    "mirrorTitle": "Mirror (F)",
+    "place": "Place",
+    "announceOk": "Row {{row}}, column {{col}}: fits",
+    "announceBad": "Row {{row}}, column {{col}}: {{reason}}"
+  },
+  "tray": {
+    "label": "Your pieces",
+    "piece_one": "Piece {{id}}, {{count}} square",
+    "piece_other": "Piece {{id}}, {{count}} squares"
   },
   "errors": {
     "NOT_SEATED": "You are not in this game",
@@ -118,11 +133,12 @@
     "NOT_ON_START": "Your first piece must cover your starting corner",
     "NO_CORNER_CONTACT": "The piece must touch one of your own pieces at a corner",
     "NOT_BOT_RUNNER": "Another player is computing the bots’ moves now",
-    "NOT_BOT_SEAT": "No bot plays in that seat"
+    "NOT_BOT_SEAT": "No bot plays in that seat",
+    "INVALID_MOVE": "The piece cannot go there"
   },
   "hint": {
     "button": "Hint",
-    "title": "Show where the bot would place a piece"
+    "title": "Put the bot's move ready to place"
   },
   "progress": {
     "label": "Players and scores",
@@ -143,7 +159,15 @@
     "rematch": "Play again",
     "home": "Home",
     "shared": "A draw: {{names}} share the win",
-    "sharedMine": "A shared win! {{names}} share the winter."
+    "sharedMine": "A shared win! {{names}} share the winter.",
+    "label": "Results",
+    "rank": "Rank",
+    "player": "Player",
+    "score": "Points",
+    "squares": "Squares",
+    "piecesLeft": "Pieces left",
+    "winner": "Winner",
+    "departed": "Wandered off"
   },
   "kick": {
     "timeUp": "{{name}} – time is up",
@@ -189,7 +213,7 @@
   },
   "tips": {
     "goal": "Place pieces on the board. Every square left off the board costs a point.",
-    "place": "Tap a marked corner square – the largest piece that fits goes there.",
+    "place": "Choose a piece below and tap a spot on the board. When the piece shows in colour, tap it again to place it. Turn and Mirror change its position.",
     "close": "Close tip",
     "reset": "Show tips again",
     "resetDone": "Tips will show in the next game."
@@ -230,11 +254,24 @@
     "title": "How to play",
     "goal": {
       "title": "Goal",
-      "body": "Every colour has 21 pieces. Get as many of them onto the board as you can: every square left off the board is a minus point, and placing all your pieces earns 15 points (and 5 more if the last one was the single square). The most points wins."
+      "body": "Every colour has 21 pieces. Place as many of them on the board as you can. The highest score wins – and has the winter."
     },
     "turn": {
       "title": "A turn",
-      "body": "Your first piece covers your own starting corner. After that every piece must touch your colour at a corner, but never along a side. Other colours may be touched freely. With no moves left, your turns are skipped. For now a piece is placed by tapping a marked corner square; Hint shows where the bot would place a piece."
+      "body": "On your turn you place one piece on the board. When none of your pieces fits any more, your turns are skipped for the rest of the game. The game ends when nobody can place a piece."
+    },
+    "place": {
+      "title": "Placing a piece",
+      "body": "Your first piece covers your own starting corner. After that every piece must touch your colour at a corner, but never along a side. Other colours may be touched freely. Choose a piece below, turn or mirror it and tap a spot on the board; tap the piece again to place it. Hint puts the bot's move ready."
+    },
+    "score": {
+      "title": "Scoring",
+      "body": "Every square left off the board costs a point. Placing all your pieces earns 15 points, and 5 more when the last piece was the single square."
+    },
+    "pictures": {
+      "start": "The first piece on the starting corner",
+      "corner": "Corner contact with your colour: allowed",
+      "edge": "Side contact with your colour: not allowed"
     }
   },
   "undo": {

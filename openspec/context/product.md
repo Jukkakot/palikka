@@ -41,8 +41,9 @@ corner-touching game. Never use the original's trademarked name, logos or look (
 ## Start screen and lobby
 
 - Balanced: two equally visible ways in, "Pelaa botteja vastaan" and "Luo peli kavereille". The
-  lobby must stay simple and get people playing quickly; the open-games list is secondary and may
-  be cut if it does not earn its place (to decide in `basic-ui`).
+  lobby must stay simple and get people playing quickly. `basic-ui` kept the open and running games
+  as a secondary "Liity peliin" section, shown only when there is something in it; quick play (join
+  any open game) went away.
 - Nickname prefilled with a random themed name; the daily puzzle has its own entry.
 
 ## Bots

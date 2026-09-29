@@ -5,9 +5,8 @@ component behaviour) live in the code and in [`openspec/specs/`](../openspec/spe
 only points to them. Status markers: **Implemented** = on `main`; **Planned (`change`)** = agreed,
 delivered by that roadmap change.
 
-> Server and device games run the **real rules** (`packages/rules`). The move control is still an
-> interim one (tap a free corner square: the largest piece that fits goes there) until `basic-ui`
-> brings the piece tray; the daily puzzle is out until `daily-puzzle`.
+> Server and device games run the **real rules** (`packages/rules`) with the piece tray and the
+> placement preview (`basic-ui`); the daily puzzle is out until `daily-puzzle`.
 
 ## Overview — Implemented
 
@@ -127,17 +126,18 @@ delivered by that roadmap change.
   `pieces` in order, `out`, `left`), `phase`, `turnSeat`, `turn` (turns started), `hostSeat`,
   `winners`, `turnDeadline`, `turnExpired`, `botRunnerSeat`, `spectators`, `botSpeed`,
   `rematchRoomId`. No hidden information: everything a player may know is public.
-- The client rebuilds the engine's `Position` from it (`GameView.position`), so hints, the interim
-  control and the bot runner use the same rules as the server.
-- UI-only state (the hint) never crosses the network.
+- The client rebuilds the engine's `Position` from it (`GameView.position`), so the placement
+  preview, the hint and the bot runner use the same rules as the server.
+- UI-only state (the chosen piece, its orientation, the preview, the hint) never crosses the
+  network.
 
 ## Rules package — Implemented
 
 `packages/rules/src/`: `pieces` (the 21 pieces `I1 … Z5`, 91 orientations generated at load, stable
-indexes pinned by a golden snapshot), `config` (`BoardConfig`, `CLASSIC` 20×20), `bitboard` (one
+indexes pinned by a golden snapshot; `turnOrientation` / `mirrorOrientation` tables), `config` (`BoardConfig`, `CLASSIC` 20×20), `bitboard` (one
 32-bit word per row), `position` (`Position` as plain JSON, a cached bitboard view per position
 object, `checkPlacement` with one refusal code), `moves` (`Placement` ↔ integer `Move` code),
-`movegen` (corner-based `legalMoves`, `hasLegalMove`, `freeCorners`, `forbiddenSquares`), `play`
+`movegen` (corner-based `legalMoves`, `hasLegalMove`, `fittingPieces`, `freeCorners`, `forbiddenSquares`), `play`
 (`applyMove`, `pass`, `resign`, `abort`; automatic passing), `scoring` (`scores`, `winners`),
 `game` (the match layer: seats, leaving, winners among those who stayed; the room's and
 `LocalRoom`'s one engine), `bot` (`simpleBotMove`: largest piece first, seeded; the server's
@@ -179,8 +179,8 @@ client/src/
                 (state → GameView), LocalRoom (games on the device), useBotRunner, stores,
                 serverWake, nickname
   bots/         the bot worker and its client
-  game/         board, interim move control, turn line, player strip, controls
-                (place/undo/kick/leave/autoplay/spectate)
+  game/         board, piece tray, placement model (placing, usePlacement), turn line, player
+                strip, result table, controls (place/undo/kick/leave/autoplay/spectate)
   tips/         first-game tips (pure pick + localStorage) and the start screen's reset link
   settings/     device settings store, settings screen, theme, generated sounds, turn alert
   howto/        the rules screen ("Näin pelaat")
@@ -205,9 +205,23 @@ client/src/
   move (history of games, stale bot answers dropped). Ids `local-…` / tokens `local:…` route to the
   device. Saved in localStorage (`palikka.localGame`) after every step; a save of an older format
   is dropped. Watched bot games (`local-watch-…`) are never saved.
-- **Interim move control (until `basic-ui`):** on the viewer's turn the free corner squares where a
-  piece fits are buttons; a tap sends the largest piece covering that square
-  (`game/interimMoves.ts`). "Vihje" rings the squares of the bot's move.
+- **Piece controls:** the viewer's 21 pieces sit in the tray (`PieceTray`; placed = empty slot,
+  pieces that fit nowhere dimmed, from the rules' `fittingPieces`). `usePlacement` holds the choice
+  (piece, orientation, aimed square) for the current turn; `turnOrientation` / `mirrorOrientation`
+  step the orientation ("Käännä", "Peilaa", R, F). `placing.ts` turns an aim into a preview: a
+  pointer snaps to the legal spot of that orientation covering the square whose reference square
+  (the cell nearest the piece's centre) is nearest; with none, or from the keyboard, the piece sits
+  exactly there and `checkPlacement` gives the reason. One click rule for every pointer: a click
+  inside a legal preview places it, any other click moves the preview (a mouse previews on hover,
+  so one click places; touch needs two taps). "Aseta" and Enter place too. "Vihje" puts the greedy
+  bot's move (100 ms, seeded by the turn) into the preview.
+- **Layout:** phone portrait stacks turn line, players, board, control bar and tray; from 900 px
+  landscape the board sits left and the rest in a column beside it (`GameScreen.module.css`).
+- **Result:** a finished game shows `ResultTable` from `GameView.results` (every colour ranked by
+  score with shared ranks, squares, pieces left, winners, colours that left).
+- **Start screen:** two equal ways in: "Pelaa botteja vastaan" (1–3 bots or 2–4 to watch, on the
+  device) and "Luo peli kavereille" (`create`: always a new online game, waits for the wake-up);
+  the open and running games of the pool show under "Liity peliin" only when there are any.
 - **Daily puzzle:** removed with the placeholder game. **Planned (`daily-puzzle`):** the real
   puzzle (fill a shape with pieces).
 - **PWA:** `vite-plugin-pwa` (auto-update service worker, off in `vite dev`); icons generated from

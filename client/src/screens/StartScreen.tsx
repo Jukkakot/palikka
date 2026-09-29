@@ -22,7 +22,7 @@ import styles from "./StartScreen.module.css";
 export interface StartScreenProps {
   session: Pick<
     GameSession,
-    "status" | "slow" | "play" | "joinById" | "playBots" | "joinInvite" | "watch" | "watchBots" | "retry" | "startNotice" | "resumable" | "resume"
+    "status" | "slow" | "createGame" | "joinById" | "playBots" | "joinInvite" | "watch" | "watchBots" | "retry" | "startNotice" | "resumable" | "resume"
   >;
   /** The early server wake-up: the join actions stay disabled until it is over. */
   wake: ServerWake;
@@ -62,18 +62,18 @@ function minutesSeconds(total: number): string {
 }
 
 /**
- * Before a game: the nickname field and the ways in (quick play, a quick game with bots to play or
- * to watch, the open games list, the running games to watch, or the invite in
- * invite mode), then the connecting and join-error states.
+ * Before a game: the nickname field and two equal ways in, "Pelaa botteja vastaan" (a game against
+ * 1–3 bots, or 2–4 bots to watch, on the device at once) and "Luo peli kavereille" (a new online game,
+ * waiting for the server to wake), then the open and running games when there are any; in invite
+ * mode the invite instead. Then the connecting and join-error states.
  */
 export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInviteDone }: StartScreenProps) {
   const { t, i18n } = useTranslation();
-  const { status, slow, play, joinById, playBots, joinInvite, watch, watchBots, retry, startNotice, resumable, resume } = session;
+  const { status, slow, createGame, joinById, playBots, joinInvite, watch, watchBots, retry, startNotice, resumable, resume } = session;
   // A new player gets a random name, so they can start at once; it is remembered only once used.
   const [input, setInput] = useState(() => loadNickname() || randomNickname(i18n.language));
   const [touched, setTouched] = useState(false);
   const nickname = checkNickname(input);
-  // Today's puzzle attempt, read when the screen opens (after a game it opens anew).
   const waited = useSecondsWaited(wake.state === "waking" && status !== "connecting" && status !== "error");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [howToOpen, setHowToOpen] = useState(false);
@@ -131,7 +131,7 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
             e.preventDefault();
             if (disabled) return;
             if (invite) acceptInvite();
-            else play(name);
+            else createGame(name);
           }}
         >
           <div className={styles.field}>
@@ -167,125 +167,147 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
               {t(nickname.issue === "characters" ? "start.nicknameCharacters" : "start.nicknameLength")}
             </p>
           )}
-          <div className={styles.actions}>
-            {invite ? (
-              <>
-                <Button type="submit" disabled={disabled}>
-                  {t("start.joinInvite")}
-                </Button>
-                <Button variant="secondary" onClick={onInviteDone}>
-                  {t("start.otherGames")}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button type="submit" variant={offerResume ? "secondary" : undefined} disabled={disabled}>
-                  {t("start.play")}
-                </Button>
-                <div className={styles.bots} role="group" aria-labelledby="bot-games">
-                  <p id="bot-games" className={styles.botsTitle}>
-                    {t("start.botGames")}
-                  </p>
-                  <label className={styles.playMyself}>
-                    {t("start.playMyself")}
-                    <Switch checked={playMyself} onChange={(e) => setPlayMyself(e.target.checked)} />
-                  </label>
-                  {playMyself
-                    ? BOT_COUNTS.map((bots) => (
-                        <Button
-                          key={bots}
-                          variant="secondary"
-                          disabled={!nickname.ok}
-                          onClick={() => playBots(name, bots)}
-                          aria-label={t("start.botGameLabel", { count: bots })}
-                        >
-                          1v{bots}
-                        </Button>
-                      ))
-                    : WATCH_COUNTS.map((bots) => (
-                        <Button
-                          key={bots}
-                          variant="secondary"
-                          disabled={!nickname.ok}
-                          onClick={() => watchBots(name, bots)}
-                          aria-label={t("start.watchBotsLabel", { count: bots })}
-                        >
-                          {t("start.watchBotCount", { count: bots })}
-                        </Button>
-                      ))}
-                </div>
-              </>
-            )}
-          </div>
+          {invite && (
+            <div className={styles.actions}>
+              <Button type="submit" disabled={disabled}>
+                {t("start.joinInvite")}
+              </Button>
+              <Button variant="secondary" onClick={onInviteDone}>
+                {t("start.otherGames")}
+              </Button>
+            </div>
+          )}
         </form>
 
-        {/* Always mounted so screen readers announce the change. */}
-        <div role="status" className={styles.wake}>
-          {startNotice && <p className={styles.ended}>{t(`start.${startNotice}`)}</p>}
-          {waking && (
-            <p className={styles.waking}>
-              <span className={styles.spinner} aria-hidden="true" />
-              {t("start.waking")}
-              <span className={styles.waited} aria-hidden="true">
-                {t("start.wakingFor", { time: minutesSeconds(waited) })}
-              </span>
-            </p>
-          )}
-          {waking && wake.slow && <p>{t("start.wakingSlow")}</p>}
-          {wake.state === "failed" && <p>{t("start.wakeFailed")}</p>}
-        </div>
-
-        {!invite && (
-          <section className={styles.games} aria-labelledby="open-games">
-            <h2 id="open-games" className={styles.gamesTitle}>
-              {t("start.openGames")}
-            </h2>
-            {openGames.games.length > 0 ? (
-              <ul className={styles.list}>
-                {openGames.games.map((g) => (
-                  <li key={g.roomId}>
-                    <button
-                      type="button"
-                      className={styles.game}
-                      disabled={disabled}
-                      onClick={() => joinById(g.roomId, name)}
-                      aria-label={t("start.gameEntryLabel", { host: g.host, count: g.seated })}
-                      data-room={g.roomId}
-                    >
-                      <span className={styles.gameHost}>{g.host}</span>
-                      <span className={styles.gameCount}>· {g.seated}/4</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className={styles.empty}>{openGames.status === "failed" ? t("start.listUnavailable") : t("start.noGames")}</p>
+        {invite ? (
+          <div role="status" className={styles.wake}>
+            {startNotice && <p className={styles.ended}>{t(`start.${startNotice}`)}</p>}
+            {waking && (
+              <p className={styles.waking}>
+                <span className={styles.spinner} aria-hidden="true" />
+                {t("start.waking")}
+                <span className={styles.waited} aria-hidden="true">
+                  {t("start.wakingFor", { time: minutesSeconds(waited) })}
+                </span>
+              </p>
             )}
-          </section>
+            {waking && wake.slow && <p>{t("start.wakingSlow")}</p>}
+            {wake.state === "failed" && <p>{t("start.wakeFailed")}</p>}
+          </div>
+        ) : (
+          <div className={styles.ways}>
+            <section className={styles.way} aria-labelledby="bots-title">
+              <h2 id="bots-title" className={styles.wayTitle}>
+                {t("start.botsTitle")}
+              </h2>
+              <p className={styles.wayBody}>{t("start.botsBody")}</p>
+              <label className={styles.playMyself}>
+                {t("start.playMyself")}
+                <Switch checked={playMyself} onChange={(e) => setPlayMyself(e.target.checked)} />
+              </label>
+              <div className={styles.counts}>
+                {playMyself
+                  ? BOT_COUNTS.map((bots) => (
+                      <Button
+                        key={bots}
+                        variant={offerResume ? "secondary" : undefined}
+                        disabled={!nickname.ok}
+                        onClick={() => playBots(name, bots)}
+                        aria-label={t("start.botGameLabel", { count: bots })}
+                      >
+                        1v{bots}
+                      </Button>
+                    ))
+                  : WATCH_COUNTS.map((bots) => (
+                      <Button
+                        key={bots}
+                        variant="secondary"
+                        disabled={!nickname.ok}
+                        onClick={() => watchBots(name, bots)}
+                        aria-label={t("start.watchBotsLabel", { count: bots })}
+                      >
+                        {t("start.watchBotCount", { count: bots })}
+                      </Button>
+                    ))}
+              </div>
+            </section>
+
+            <section className={styles.way} aria-labelledby="friends-title">
+              <h2 id="friends-title" className={styles.wayTitle}>
+                {t("start.friendsTitle")}
+              </h2>
+              <p className={styles.wayBody}>{t("start.friendsBody")}</p>
+              <Button variant={offerResume ? "secondary" : undefined} disabled={disabled} onClick={() => createGame(name)}>
+                {t("start.create")}
+              </Button>
+              {/* Always mounted so screen readers announce the change. */}
+            <div role="status" className={styles.wake}>
+              {startNotice && <p className={styles.ended}>{t(`start.${startNotice}`)}</p>}
+              {waking && (
+                <p className={styles.waking}>
+                  <span className={styles.spinner} aria-hidden="true" />
+                  {t("start.waking")}
+                  <span className={styles.waited} aria-hidden="true">
+                    {t("start.wakingFor", { time: minutesSeconds(waited) })}
+                  </span>
+                </p>
+              )}
+              {waking && wake.slow && <p>{t("start.wakingSlow")}</p>}
+              {wake.state === "failed" && <p>{t("start.wakeFailed")}</p>}
+            </div>
+            </section>
+          </div>
         )}
 
-        {!invite && openGames.running.length > 0 && (
-          <section className={styles.games} aria-labelledby="running-games">
-            <h2 id="running-games" className={styles.gamesTitle}>
-              {t("start.runningGames")}
+        {!invite && (openGames.games.length > 0 || openGames.running.length > 0) && (
+          <section className={styles.games} aria-labelledby="join-games">
+            <h2 id="join-games" className={styles.gamesTitle}>
+              {t("start.joinTitle")}
             </h2>
-            <ul className={styles.list}>
-              {openGames.running.map((g) => (
-                <li key={g.roomId}>
-                  <button
-                    type="button"
-                    className={styles.game}
-                    disabled={disabled}
-                    onClick={() => watch(g.roomId, name)}
-                    aria-label={t("start.runningEntryLabel", { host: g.host, count: g.seated })}
-                    data-room={g.roomId}
-                  >
-                    <span className={styles.gameHost}>{g.host}</span>
-                    <span className={styles.gameCount}>· {t("start.runningCount", { count: g.seated })}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {openGames.games.length > 0 && (
+              <>
+                <h3 className={styles.listTitle}>{t("start.openGames")}</h3>
+                <ul className={styles.list}>
+                  {openGames.games.map((g) => (
+                    <li key={g.roomId}>
+                      <button
+                        type="button"
+                        className={styles.game}
+                        disabled={disabled}
+                        onClick={() => joinById(g.roomId, name)}
+                        aria-label={t("start.gameEntryLabel", { host: g.host, count: g.seated })}
+                        data-room={g.roomId}
+                      >
+                        <span className={styles.gameHost}>{g.host}</span>
+                        <span className={styles.gameCount}>· {g.seated}/4</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {openGames.running.length > 0 && (
+              <>
+                <h3 className={styles.listTitle}>{t("start.runningGames")}</h3>
+                <ul className={styles.list}>
+                  {openGames.running.map((g) => (
+                    <li key={g.roomId}>
+                      <button
+                        type="button"
+                        className={styles.game}
+                        disabled={disabled}
+                        onClick={() => watch(g.roomId, name)}
+                        aria-label={t("start.runningEntryLabel", { host: g.host, count: g.seated })}
+                        data-room={g.roomId}
+                      >
+                        <span className={styles.gameHost}>{g.host}</span>
+                        <span className={styles.gameCount}>· {t("start.runningCount", { count: g.seated })}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </section>
         )}
       </>

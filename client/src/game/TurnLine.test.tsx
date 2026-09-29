@@ -16,9 +16,9 @@ import { seatView } from "../test/views.ts";
 const seats = [seatView(1, "Maija"), seatView(2, "Pekka")];
 
 describe("board-view › Whose turn is shown", () => {
-  it("Own turn: says it is your turn and to claim a square", () => {
+  it("Own turn: says it is your turn", () => {
     render(<TurnLine view={{ seats, turnSeat: 1, isMyTurn: true }} />);
-    expect(screen.getByText("Sinun vuorosi – napauta kulmaruutua")).toBeTruthy();
+    expect(screen.getByText("Sinun vuorosi")).toBeTruthy();
   });
 
   it("Other player's turn: names Pekka with their colour", () => {

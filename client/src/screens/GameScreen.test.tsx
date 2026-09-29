@@ -26,15 +26,38 @@ function setup(view: Partial<GameView> = {}, overrides: Partial<GameSession> = {
   return { ...session, ...utils, rerender };
 }
 
-const cornerButton = (row: number, col: number) => screen.getByRole("button", { name: `Kulmaruutu: rivi ${row + 1}, sarake ${col + 1}` });
 const board = () => document.querySelector("[data-board]")!;
+const cell = (index: number) => board().querySelector(`[data-cell='${index}']`)!;
+const piece = (id: string) => screen.getByRole("button", { name: new RegExp(`^Palikka ${id},`) }) as HTMLButtonElement;
+const tray = () => screen.getByRole("list", { name: "Palikkasi" });
 
-describe("game-room › Interim move control", () => {
-  it("First move: only the start corner can be tapped, and a tap sends a five-square piece covering it", async () => {
+describe("piece-controls › Piece tray and placing", () => {
+  it("Start of the game: 21 pieces, X5 dimmed on the first turn, the corner marked", () => {
+    setup();
+    expect(tray().querySelectorAll("li")).toHaveLength(21);
+    expect(piece("X5").disabled).toBe(true);
+    expect(piece("I5").disabled).toBe(false);
+    expect(cell(0).className).toMatch(/corner/);
+  });
+
+  it("Placed piece: its slot is empty, the other pieces stay", () => {
+    const position = positionWith([[1, placement("I1", ["#"], 0, 0)]], [1, 2]);
+    setup({ position, board: position.cells });
+    expect(tray().querySelector("[data-piece='I1']")!.hasAttribute("data-placed")).toBe(true);
+    expect(tray().querySelectorAll("li")).toHaveLength(21);
+    expect(cell(0).getAttribute("data-owner")).toBe("1");
+  });
+
+  it("Two taps on a phone: choose, tap, tap again sends the preview's move", async () => {
     const { place } = setup();
-    expect(board().querySelectorAll("button")).toHaveLength(1);
+    fireEvent.click(piece("I5"));
+    expect(piece("I5").getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(cell(0));
+    expect(cell(0).getAttribute("data-preview")).toBe("ok");
+    expect(screen.getByText("Napauta palikkaa uudelleen tai paina Aseta")).toBeTruthy();
+    expect(place).not.toHaveBeenCalled();
     await act(async () => {
-      fireEvent.click(cornerButton(0, 0));
+      fireEvent.click(cell(0));
     });
     expect(place).toHaveBeenCalledTimes(1);
     const move = vi.mocked(place).mock.calls[0]![0];
@@ -42,23 +65,47 @@ describe("game-room › Interim move control", () => {
     expect(checkPlacement(gameView().position!, 1, move)).toBeUndefined();
   });
 
-  it("Other squares: after a piece only its free corners are buttons, and placed squares show their colour", () => {
-    const position = positionWith([[1, placement("I1", ["#"], 0, 0)]], [1, 2]);
-    setup({ position, board: position.cells });
-    expect([...board().querySelectorAll("button")].map((b) => b.getAttribute("data-cell"))).toEqual(["21"]);
-    expect(board().querySelector("[data-cell='0']")!.getAttribute("data-owner")).toBe("1");
+  it("Aseta sends the legal preview; disabled without one", async () => {
+    const { place } = setup();
+    const aseta = () => screen.getByRole("button", { name: "Aseta" }) as HTMLButtonElement;
+    expect(aseta().disabled).toBe(true);
+    fireEvent.click(piece("I5"));
+    fireEvent.click(cell(1));
+    expect(aseta().disabled).toBe(false);
+    await act(async () => {
+      fireEvent.click(aseta());
+    });
+    expect(place).toHaveBeenCalledTimes(1);
   });
 
-  it("Other player's turn: no buttons, the turn line names Pekka, Vihje disabled", () => {
+  it("Illegal: the reason shows and a tap inside sends nothing", () => {
+    const { place } = setup();
+    fireEvent.click(piece("I5"));
+    fireEvent.click(cell(210));
+    expect(cell(210).getAttribute("data-preview")).toBe("bad");
+    expect(screen.getByText("Ensimmäisen palikan pitää peittää oma aloituskulmasi")).toBeTruthy();
+    fireEvent.click(cell(210));
+    expect(place).not.toHaveBeenCalled();
+  });
+
+  it("Keyboard: R turns the chosen piece", () => {
+    setup();
+    fireEvent.click(piece("L4"));
+    const before = piece("L4").innerHTML;
+    fireEvent.keyDown(window, { key: "r" });
+    expect(piece("L4").innerHTML).not.toBe(before);
+  });
+
+  it("Other player's turn: tray and Vihje disabled, the turn line names Pekka", () => {
     setup({ turnSeat: 2, isMyTurn: false });
-    expect(board().querySelectorAll("button")).toHaveLength(0);
+    expect(piece("I5").disabled).toBe(true);
     expect(screen.getByText("Pekka miettii…")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Vihje" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("pending: the squares wait, and a rejection message is shown in words", () => {
+  it("pending: the controls wait, and a rejection message is shown in words", () => {
     setup({}, { pending: true, notice: "errors.OVERLAP" });
-    expect((cornerButton(0, 0) as HTMLButtonElement).disabled).toBe(true);
+    expect(piece("I5").disabled).toBe(true);
     expect(screen.getByText("Joku ehti ensin – ruutu on jo varattu")).toBeTruthy();
   });
 
@@ -71,14 +118,13 @@ describe("game-room › Interim move control", () => {
   });
 });
 
-describe("game-room › Hint", () => {
-  it("Vihje rings the squares of the bot's move and sends nothing", () => {
+describe("piece-controls › Hint as a preview", () => {
+  it("Vihje puts the bot's move in a legal preview and sends nothing", () => {
     const { place } = setup();
-    expect(board().querySelector("[class*='hint']")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Vihje" }));
-    expect(board().querySelectorAll("[class*='hint']").length).toBeGreaterThan(0);
-    expect(board().querySelector("[data-cell='0'][class*='hint']")).toBeTruthy();
+    expect(cell(0).getAttribute("data-preview")).toBe("ok");
     expect(place).not.toHaveBeenCalled();
+    expect((screen.getByRole("button", { name: "Aseta" }) as HTMLButtonElement).disabled).toBe(false);
   });
 });
 
@@ -100,9 +146,24 @@ describe("board-view › Game result shown", () => {
   it("Viewer wins: the win line, no squares to tap, Pelaa uudelleen and Alkuun", () => {
     setup({ phase: "finished", finished: true, isMyTurn: false, winners: [1] });
     expect(screen.getByText("Voitit! Talvi on sinun.")).toBeTruthy();
-    expect(board().querySelectorAll("button")).toHaveLength(0);
+    expect(screen.queryByRole("list", { name: "Palikkasi" })).toBeNull();
     expect(screen.getByRole("button", { name: "Pelaa uudelleen" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Alkuun" })).toBeTruthy();
+  });
+
+  it("result-screen › Result table: ranked rows under the winner line, no tray", () => {
+    const results = [
+      { seat: 2, name: "Pekka", isMe: false, isBot: false, score: -3, squares: 86, piecesLeft: 1, left: false, winner: true, rank: 1 },
+      { seat: 1, name: "Maija", isMe: true, isBot: false, score: -10, squares: 79, piecesLeft: 3, left: false, winner: false, rank: 2 },
+    ];
+    setup({ phase: "finished", finished: true, isMyTurn: false, winners: [2], results });
+    const table = screen.getByRole("table", { name: "Tulokset" });
+    const rows = table.querySelectorAll("tbody tr");
+    expect([...rows].map((r) => r.getAttribute("data-seat"))).toEqual(["2", "1"]);
+    expect(rows[0]!.textContent).toContain("Pekka");
+    expect(rows[0]!.textContent).toContain("-3");
+    expect(rows[0]!.querySelector("[aria-label='Voittaja']")).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Palikkasi" })).toBeNull();
   });
 
   it("Someone else wins: named with their colour, and Alkuun leaves", () => {
@@ -219,7 +280,7 @@ describe("spectators › game screen", () => {
   it("No controls: Katsot peliä instead of the squares and Vihje", () => {
     render(<GameScreen view={watched()} session={sessionOf()} />);
     expect(screen.getByText("Katsot peliä")).toBeTruthy();
-    expect(board().querySelectorAll("button")).toHaveLength(0);
+    expect(screen.queryByRole("list", { name: "Palikkasi" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Vihje" })).toBeNull();
     expect(screen.queryByRole("group", { name: "Bottien nopeus" })).toBeNull();
   });

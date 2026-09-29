@@ -1,4 +1,4 @@
-import { CLASSIC, PIECE_SIZES, scoreOf, type Position } from "@palikka/rules";
+import { CLASSIC, PIECE_COUNT, PIECE_SIZES, scoreOf, type Position } from "@palikka/rules";
 
 /** One colour of the started game as synced: its placed pieces and whether it is out or left. */
 export interface SyncedColour {
@@ -70,8 +70,27 @@ export interface SeatView {
   score: number;
   /** Squares the colour has on the board. */
   squares: number;
+  /** Pieces not yet placed. */
+  piecesLeft: number;
   /** The colour cannot move any more. */
   out: boolean;
+}
+
+/** One colour's line in the result of a finished game. */
+export interface ResultRow {
+  seat: number;
+  /** The player's nickname; empty for a colour whose player left (the name left with them). */
+  name: string;
+  isMe: boolean;
+  isBot: boolean;
+  score: number;
+  squares: number;
+  piecesLeft: number;
+  /** The player left the game before the end. */
+  left: boolean;
+  winner: boolean;
+  /** 1 for the best score; equal scores share a rank and the next rank skips (1, 1, 3). */
+  rank: number;
 }
 
 /** Where the game is: the waiting room before the start, the game itself, or finished. */
@@ -130,6 +149,8 @@ export interface GameView {
   canUndo: boolean;
   /** There is a move to take back. */
   undoable: boolean;
+  /** Once finished: every colour of the game, best score first. Empty before the end. */
+  results: ResultRow[];
 }
 
 /** The engine's position from the synced state; undefined before the game has started. */
@@ -183,7 +204,8 @@ export function toGameView(state: SyncedState, roomId: string, mySessionId: stri
       isBot,
       autoplay,
       score: position ? scoreOf(pieces) : 0,
-      squares: pieces.reduce((sum, piece) => sum + PIECE_SIZES[piece]!, 0),
+      squares: squaresOf(pieces),
+      piecesLeft: PIECE_COUNT - pieces.length,
       out: position?.out.includes(p.seat) ?? false,
     });
   });
@@ -224,5 +246,30 @@ export function toGameView(state: SyncedState, roomId: string, mySessionId: stri
     turnBotPlayed: phase === "playing" && current !== undefined && (current.isBot || current.autoplay === true),
     canUndo: (state.undo ?? false) && me !== undefined,
     undoable: (state.undoable ?? false) && phase === "playing",
+    results: finished && position ? resultRows(position, state, seats, winners) : [],
   };
+}
+
+const squaresOf = (pieces: readonly number[]) => pieces.reduce((sum, piece) => sum + PIECE_SIZES[piece]!, 0);
+
+/** The result table: every colour of the game ranked by score, with who won and who left. */
+export function resultRows(position: Position, state: SyncedState, seats: readonly SeatView[], winners: readonly number[]): ResultRow[] {
+  const left = new Set([...(state.colours ?? [])].filter((c) => c.left).map((c) => c.colour));
+  const rows = position.colours.map((colour): Omit<ResultRow, "rank"> => {
+    const pieces = position.placed[colour] ?? [];
+    const seat = seats.find((s) => s.seat === colour);
+    return {
+      seat: colour,
+      name: seat?.name ?? "",
+      isMe: seat?.isMe ?? false,
+      isBot: seat?.isBot ?? false,
+      score: scoreOf(pieces),
+      squares: squaresOf(pieces),
+      piecesLeft: PIECE_COUNT - pieces.length,
+      left: left.has(colour) || seat === undefined,
+      winner: winners.includes(colour),
+    };
+  });
+  rows.sort((a, b) => b.score - a.score || a.seat - b.seat);
+  return rows.map((row) => ({ ...row, rank: 1 + rows.filter((other) => other.score > row.score).length }));
 }

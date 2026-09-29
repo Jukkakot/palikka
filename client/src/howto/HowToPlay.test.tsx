@@ -13,9 +13,17 @@ describe("how-to-play › What the rules screen explains", () => {
     await i18n.changeLanguage("fi");
     render(<HowToPlay onClose={vi.fn()} />);
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings).toEqual(["Tavoite", "Vuoro"]);
-    const turn = screen.getByRole("region", { name: "Vuoro" }).textContent!;
-    expect(turn).toMatch(/kulmasta, mutta ei koskaan sivusta/);
+    expect(headings).toEqual(["Tavoite", "Vuoro", "Palikan asettaminen", "Pisteet"]);
+    const place = screen.getByRole("region", { name: "Palikan asettaminen" }).textContent!;
+    expect(place).toMatch(/kulmasta, mutta ei koskaan sivusta/);
+  });
+
+  it("Pictures: the start corner, corner contact and edge contact with their captions", () => {
+    render(<HowToPlay onClose={vi.fn()} />);
+    expect(screen.getByText("Ensimmäinen palikka aloituskulmaan")).toBeTruthy();
+    expect(screen.getByText("Kulmakosketus omaan väriin: sallittu")).toBeTruthy();
+    expect(screen.getByText("Sivukosketus omaan väriin: ei sallittu")).toBeTruthy();
+    expect(document.querySelectorAll("figure[data-picture]")).toHaveLength(3);
   });
 
   it("English: title and sections follow the language at once", async () => {

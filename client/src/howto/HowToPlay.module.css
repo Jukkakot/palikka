@@ -31,3 +31,10 @@
   display: flex;
   color: var(--accent);
 }
+
+/* The rule pictures: three in a row, wrapping on a narrow phone. */
+.pictures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: var(--space-3);
+}

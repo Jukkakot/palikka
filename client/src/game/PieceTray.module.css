@@ -1,0 +1,48 @@
+/* Seven slots a row (about 50 px each on a phone), as wide as its place. */
+.tray {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+}
+
+.slot {
+  min-width: 0;
+  aspect-ratio: 1;
+  min-height: var(--tap-min);
+}
+
+.piece {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.piece:disabled {
+  cursor: default;
+}
+
+.piece:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.chosen {
+  border-color: var(--text);
+  background: var(--surface);
+}
+
+/* Fits nowhere now. */
+.dim {
+  opacity: 0.3;
+}

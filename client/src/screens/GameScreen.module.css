@@ -1,0 +1,51 @@
+/*
+ * Phone (portrait): turn line and players, the board, the controls, the tray, stacked and as wide
+ * as the board. Wide screens: the board on the left as tall as the window allows, everything else in
+ * a column beside it.
+ */
+.layout {
+  width: min(100%, 60dvh, 640px);
+  display: grid;
+  grid-template-areas:
+    "head"
+    "board"
+    "side";
+  gap: var(--space-3);
+  justify-items: center;
+}
+
+.head {
+  grid-area: head;
+  width: 100%;
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+}
+
+.board {
+  grid-area: board;
+  width: 100%;
+}
+
+.side {
+  grid-area: side;
+  width: 100%;
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .layout {
+    width: 100%;
+    max-width: 1200px;
+    grid-template-columns: min(calc(100dvh - 96px), 720px) minmax(320px, 420px);
+    grid-template-areas:
+      "board head"
+      "board side";
+    grid-template-rows: auto 1fr;
+    justify-content: center;
+    align-items: start;
+    column-gap: var(--space-6);
+  }
+}

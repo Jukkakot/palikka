@@ -13,7 +13,7 @@ function sessionOf(overrides: Partial<StartScreenProps["session"]> = {}): StartS
   return {
     status: "idle",
     slow: false,
-    play: vi.fn(),
+    createGame: vi.fn(),
     joinById: vi.fn(),
     playBots: vi.fn(),
     joinInvite: vi.fn(),
@@ -29,16 +29,19 @@ function sessionOf(overrides: Partial<StartScreenProps["session"]> = {}): StartS
 beforeEach(() => localStorage.setItem("palikka.nickname", "Maija"));
 afterEach(() => localStorage.clear());
 
-describe("game-session › Quick play (start screen)", () => {
+describe("game-session › Quick createGame (start screen)", () => {
   it("offers a single Play action", () => {
-    const play = vi.fn();
-    render(<StartScreen session={sessionOf({ status: "idle", slow: false, play })} wake={ready} />);
-    fireEvent.click(screen.getByRole("button", { name: "Pelaa" }));
-    expect(play).toHaveBeenCalledExactlyOnceWith("Maija");
+    const createGame = vi.fn();
+    render(<StartScreen session={sessionOf({ status: "idle", slow: false, createGame })} wake={ready} />);
+    fireEvent.click(screen.getByRole("button", { name: "Luo peli" }));
+    expect(createGame).toHaveBeenCalledExactlyOnceWith("Maija");
+    expect(screen.getByRole("heading", { name: "Pelaa botteja vastaan" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Luo peli kavereille" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Pelaa" })).toBeNull();
   });
 
   it("Slow server: connecting state with the waking-up hint", () => {
-    render(<StartScreen session={sessionOf({ status: "connecting", slow: true, play: vi.fn() })} wake={ready} />);
+    render(<StartScreen session={sessionOf({ status: "connecting", slow: true, createGame: vi.fn() })} wake={ready} />);
     expect(screen.getByRole("status").textContent).toContain("Yhdistetään palvelimeen");
     expect(screen.getByText(/saattaa olla heräämässä/)).toBeTruthy();
   });
@@ -52,9 +55,9 @@ describe("game-session › Quick play (start screen)", () => {
   });
 });
 
-describe("game-session › Quick play (early wake-up)", () => {
-  const idle = { status: "idle" as const, slow: false, play: vi.fn() };
-  const playButton = () => screen.getByRole("button", { name: "Pelaa" }) as HTMLButtonElement;
+describe("game-session › Quick createGame (early wake-up)", () => {
+  const idle = { status: "idle" as const, slow: false, createGame: vi.fn() };
+  const playButton = () => screen.getByRole("button", { name: "Luo peli" }) as HTMLButtonElement;
 
   it("Sleeping server is woken on open: Play disabled and the screen says so", () => {
     render(<StartScreen session={sessionOf(idle)} wake={{ state: "waking", slow: false }} />);
@@ -68,20 +71,20 @@ describe("game-session › Quick play (early wake-up)", () => {
   });
 
   it("Server wakes up: the message goes away and Play can be tapped", () => {
-    const play = vi.fn();
-    const { rerender } = render(<StartScreen session={sessionOf({ ...idle, play })} wake={{ state: "waking", slow: true }} />);
-    rerender(<StartScreen session={sessionOf({ ...idle, play })} wake={ready} />);
+    const createGame = vi.fn();
+    const { rerender } = render(<StartScreen session={sessionOf({ ...idle, createGame })} wake={{ state: "waking", slow: true }} />);
+    rerender(<StartScreen session={sessionOf({ ...idle, createGame })} wake={ready} />);
     expect(screen.getByRole("status").textContent).toBe("");
     fireEvent.click(playButton());
-    expect(play).toHaveBeenCalledTimes(1);
+    expect(createGame).toHaveBeenCalledTimes(1);
   });
 
   it("Server does not answer: Play enabled with a calm note", () => {
-    const play = vi.fn();
-    render(<StartScreen session={sessionOf({ ...idle, play })} wake={{ state: "failed", slow: true }} />);
+    const createGame = vi.fn();
+    render(<StartScreen session={sessionOf({ ...idle, createGame })} wake={{ state: "failed", slow: true }} />);
     expect(screen.getByRole("status").textContent).toBe("Palvelin ei vastannut vielä – voit silti yrittää.");
     fireEvent.click(playButton());
-    expect(play).toHaveBeenCalledTimes(1);
+    expect(createGame).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -125,7 +128,7 @@ describe("observability › Build times on the start screen", () => {
   });
 
   it("the start screen footer shows both lines", () => {
-    render(<StartScreen session={sessionOf({ status: "idle", slow: false, play: vi.fn() })} wake={ready} />);
+    render(<StartScreen session={sessionOf({ status: "idle", slow: false, createGame: vi.fn() })} wake={ready} />);
     expect(screen.getByText("Client dev")).toBeTruthy();
     expect(screen.getByText("Server dev")).toBeTruthy();
   });
@@ -133,15 +136,15 @@ describe("observability › Build times on the start screen", () => {
 
 describe("game-session › Kicked player informed", () => {
   it("Kicked: the start screen explains why, and Play is available", () => {
-    const play = vi.fn();
-    render(<StartScreen session={sessionOf({ status: "idle", slow: false, play, startNotice: "kicked" })} wake={ready} />);
+    const createGame = vi.fn();
+    render(<StartScreen session={sessionOf({ status: "idle", slow: false, createGame, startNotice: "kicked" })} wake={ready} />);
     expect(screen.getByRole("status").textContent).toContain("Sinut poistettiin pelistä, koska vuorosi aika loppui.");
-    fireEvent.click(screen.getByRole("button", { name: "Pelaa" }));
-    expect(play).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Luo peli" }));
+    expect(createGame).toHaveBeenCalledTimes(1);
   });
 
   it("no message without a reason", () => {
-    render(<StartScreen session={sessionOf({ status: "idle", slow: false, play: vi.fn() })} wake={ready} />);
+    render(<StartScreen session={sessionOf({ status: "idle", slow: false, createGame: vi.fn() })} wake={ready} />);
     expect(screen.queryByText(/Sinut poistettiin/)).toBeNull();
   });
 });
@@ -157,35 +160,35 @@ describe("lobby › Nickname", () => {
 
   it("Valid nickname: trimmed, and the actions become available", () => {
     localStorage.clear();
-    const play = vi.fn();
-    render(<StartScreen session={sessionOf({ play })} wake={ready} />);
+    const createGame = vi.fn();
+    render(<StartScreen session={sessionOf({ createGame })} wake={ready} />);
     fireEvent.change(field(), { target: { value: "" } });
-    expect(button("Pelaa").disabled).toBe(true);
+    expect(button("Luo peli").disabled).toBe(true);
     fireEvent.change(field(), { target: { value: "  Pekka  " } });
-    expect(button("Pelaa").disabled).toBe(false);
-    fireEvent.click(button("Pelaa"));
-    expect(play).toHaveBeenCalledExactlyOnceWith("Pekka");
+    expect(button("Luo peli").disabled).toBe(false);
+    fireEvent.click(button("Luo peli"));
+    expect(createGame).toHaveBeenCalledExactlyOnceWith("Pekka");
   });
 
   it("Random name for a new player: a valid name is ready and Play works at once; the dice draws another", () => {
     localStorage.clear();
-    const play = vi.fn();
-    render(<StartScreen session={sessionOf({ play })} wake={ready} />);
+    const createGame = vi.fn();
+    render(<StartScreen session={sessionOf({ createGame })} wake={ready} />);
     const first = field().value;
     expect(first).toMatch(/^\S+ \S+$/);
-    expect(button("Pelaa").disabled).toBe(false);
+    expect(button("Luo peli").disabled).toBe(false);
     const random = vi.spyOn(Math, "random").mockReturnValue(first.startsWith("Rohkea") ? 0.5 : 0);
     fireEvent.click(button("Arvo uusi nimi"));
     random.mockRestore();
     expect(field().value).not.toBe(first);
-    fireEvent.click(button("Pelaa"));
-    expect(play).toHaveBeenCalledExactlyOnceWith(field().value);
+    fireEvent.click(button("Luo peli"));
+    expect(createGame).toHaveBeenCalledExactlyOnceWith(field().value);
   });
 
   it("Too short: every join and create action is disabled and a hint says 2–16 characters", () => {
     render(<StartScreen session={sessionOf()} wake={ready} openGames={{ status: "ready", games: [{ roomId: "a-b-c", host: "Liisa", seated: 1 }], running: [] }} />);
     fireEvent.change(field(), { target: { value: "M" } });
-    expect(button("Pelaa").disabled).toBe(true);
+    expect(button("Luo peli").disabled).toBe(true);
     expect(button("Liity peliin: Liisa, 1/4 pelaajaa").disabled).toBe(true);
     expect(screen.getByText("Nimimerkissä pitää olla 2–16 merkkiä")).toBeTruthy();
     expect(field().getAttribute("aria-invalid")).toBe("true");
@@ -206,7 +209,7 @@ describe("lobby › Nickname", () => {
     render(<StartScreen session={sessionOf({ resumable })} wake={{ state: "waking", slow: false }} />);
     for (const n of [1, 2, 3]) expect(screen.getByRole("button", { name: new RegExp(`sinä ja ${n} bott`) }).hasAttribute("disabled")).toBe(false);
     expect(screen.getByRole("button", { name: "Jatka peliä" }).hasAttribute("disabled")).toBe(false);
-    expect(screen.getByRole("button", { name: "Pelaa" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Luo peli" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("control characters get their own hint", () => {
@@ -219,7 +222,7 @@ describe("lobby › Nickname", () => {
 describe("lobby › Open games list and private game", () => {
   const games = { status: "ready" as const, games: [{ roomId: "brave-otters-sing", host: "Liisa", seated: 2 }], running: [] };
 
-  it("Join from the list: an entry shows the host and seats, and tapping it joins that game", () => {
+  it("start-screen › A waiting game: listed under Liity peliin; an entry shows the host and seats, and tapping it joins that game", () => {
     const joinById = vi.fn();
     render(<StartScreen session={sessionOf({ joinById })} wake={ready} openGames={games} />);
     const entry = screen.getByRole("button", { name: "Liity peliin: Liisa, 2/4 pelaajaa" });
@@ -228,15 +231,15 @@ describe("lobby › Open games list and private game", () => {
     expect(joinById).toHaveBeenCalledExactlyOnceWith("brave-otters-sing", "Maija");
   });
 
-  it("no open games: says so briefly", () => {
+  it("start-screen › Nothing to show: no games section when both lists are empty", () => {
     render(<StartScreen session={sessionOf()} wake={ready} openGames={{ status: "ready", games: [], running: [] }} />);
-    expect(screen.getByText("Ei avoimia pelejä juuri nyt")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Liity peliin" })).toBeNull();
   });
 
-  it("the list could not be loaded: a quiet note, Play still works", () => {
+  it("the list could not be loaded: no games section, Luo peli still works", () => {
     render(<StartScreen session={sessionOf()} wake={ready} openGames={{ status: "failed", games: [], running: [] }} />);
-    expect(screen.getByText(/Pelilistaa ei saatu/)).toBeTruthy();
-    expect((screen.getByRole("button", { name: "Pelaa" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByRole("heading", { name: "Liity peliin" })).toBeNull();
+    expect((screen.getByRole("button", { name: "Luo peli" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("Create a private game: there is no such action any more", () => {
@@ -289,7 +292,7 @@ describe("lobby › Invite mode", () => {
     const onInviteDone = vi.fn();
     render(<StartScreen session={sessionOf({ joinInvite })} wake={ready} invite="calm-foxes-jump" onInviteDone={onInviteDone} />);
     expect(screen.getByText("Sinut on kutsuttu peliin")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Pelaa" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Luo peli" })).toBeNull();
     expect(screen.queryByText("Avoimet pelit")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Liity peliin" }));
     expect(joinInvite).toHaveBeenCalledExactlyOnceWith("calm-foxes-jump", "Maija");
@@ -330,7 +333,7 @@ describe("game-session › Resume after closing the app (start screen)", () => {
     expect(button().disabled).toBe(true);
     rerender(<StartScreen session={sessionOf({ resumable, resume })} wake={ready} />);
     expect(button().className).toMatch(/primary/);
-    expect(screen.getByRole("button", { name: "Pelaa" }).className).toMatch(/secondary/);
+    expect(screen.getByRole("button", { name: "Luo peli" }).className).toMatch(/secondary/);
     fireEvent.click(button());
     expect(resume).toHaveBeenCalledTimes(1);
   });
@@ -345,7 +348,7 @@ describe("game-session › Resume after closing the app (start screen)", () => {
   });
 });
 
-describe("how-to-play › Rules screen reachable before and during a game", () => {
+describe("how-to-createGame › Rules screen reachable before and during a game", () => {
   it("From the start screen: Näin pelaat opens the rules, Takaisin returns", () => {
     render(<StartScreen session={sessionOf()} wake={ready} />);
     fireEvent.click(screen.getByRole("button", { name: "Näin pelaat" }));

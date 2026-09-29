@@ -130,38 +130,17 @@
   margin-top: var(--space-2);
 }
 
-/* Quick games against bots: a caption and three equal buttons in one row. */
-.bots {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.bots > button {
-  padding: 0;
-}
-
-.botsTitle {
-  grid-column: 1 / -1;
-  margin: 0;
-  text-align: center;
-  color: var(--muted);
-  font-size: var(--text-s);
-}
-
 /* "Pelaan itse": the whole row is the tap target. */
 .playMyself {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: var(--space-3);
   min-height: var(--tap-min);
   cursor: pointer;
 }
 
-/* The open games: one tappable row per game. */
+/* Open and running games (secondary): one tappable row per game. */
 .games {
   width: min(100%, 22rem);
   display: grid;
@@ -217,8 +196,55 @@
   font-variant-numeric: tabular-nums;
 }
 
-.empty {
+
+
+/* The two ways in: stacked on a phone, side by side on wider screens. */
+.ways {
+  width: min(100%, 44rem);
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .ways {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.way {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  text-align: left;
+}
+
+.wayTitle {
+  margin: 0;
+  font-size: var(--text-l);
+}
+
+.wayBody {
   margin: 0;
   color: var(--muted);
 }
 
+/* The bot counts: three equal buttons in one row. */
+.counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.counts > button {
+  padding: 0;
+}
+
+.listTitle {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-s);
+  color: var(--muted);
+}

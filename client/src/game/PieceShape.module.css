@@ -1,0 +1,9 @@
+.shape {
+  display: inline-grid;
+  gap: 1px;
+}
+
+.square {
+  display: block;
+  border-radius: 1px;
+}

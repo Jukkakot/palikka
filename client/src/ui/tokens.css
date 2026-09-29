@@ -21,11 +21,10 @@
   /* Board: a frosty ground with a slightly lighter cell per square */
   --board: #e2e8ef;
   --cell: #f8fafc;
-  /* A cell the viewer can claim now (hover and focus) */
-  --cell-open: #dbe6f3;
-  /* Tappable squares' dots and the hint's squares */
+  /* Free corner dots; the placement preview's outlines (legal, not legal) */
   --target: #1c2430;
-  --hint: #f0a53a;
+  --preview-ok-outline: #1c2430;
+  --preview-bad: #b42336;
 
   /* Seats: Järvi, Lakka, Puolukka, Kuusi */
   --seat-1: #3a78c2;
@@ -72,9 +71,9 @@
 
     --board: #0c1016;
     --cell: #1a2029;
-    --cell-open: #253245;
     --target: #e6ebf2;
-    --hint: #ffbe5c;
+    --preview-ok-outline: #e6ebf2;
+    --preview-bad: #ff7a85;
 
     --seat-1: #5d9cf0;
     --seat-2: #ffbe5c;
@@ -96,9 +95,9 @@
 
   --board: #0c1016;
   --cell: #1a2029;
-  --cell-open: #253245;
   --target: #e6ebf2;
-  --hint: #ffbe5c;
+  --preview-ok-outline: #e6ebf2;
+  --preview-bad: #ff7a85;
 
   --seat-1: #5d9cf0;
   --seat-2: #ffbe5c;

@@ -57,7 +57,7 @@ function fakeRoom(overrides: Partial<GameRoomLike> = {}): GameRoomLike {
 
 function connectorWith(overrides: Partial<Connector>): Connector {
   return {
-    joinOrCreate: vi.fn(),
+    create: vi.fn(),
     createBotGame: vi.fn(),
     joinById: vi.fn(),
     watch: vi.fn(),
@@ -75,9 +75,9 @@ function leavableRoom() {
 }
 
 async function playingWith(room: GameRoomLike) {
-  const connector = connectorWith({ joinOrCreate: vi.fn(async () => room) });
+  const connector = connectorWith({ create: vi.fn(async () => room) });
   const hook = renderHook(() => useGameSession(connector));
-  act(() => hook.result.current.play("Maija"));
+  act(() => hook.result.current.createGame("Maija"));
   await waitFor(() => expect(hook.result.current.status).toBe("playing"));
   return hook;
 }
@@ -140,11 +140,11 @@ describe("game-session › view model", () => {
 
 describe("game-session › One player per browser tab", () => {
   it("stores the reconnection token on join", async () => {
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => fakeRoom()), reconnect: vi.fn() });
+    const connector = connectorWith({ create: vi.fn(async () => fakeRoom()), reconnect: vi.fn() });
     const { result } = renderHook(() => useGameSession(connector));
     expect(result.current.status).toBe("idle");
 
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.status).toBe("playing"));
     expect(loadToken()).toBe("brave-otters-sing:token");
     expect(result.current.view?.roomId).toBe("brave-otters-sing");
@@ -152,17 +152,17 @@ describe("game-session › One player per browser tab", () => {
 
   it("Reload keeps the seat: a stored token rejoins without Play", async () => {
     saveToken("old-token");
-    const connector = connectorWith({ joinOrCreate: vi.fn(), reconnect: vi.fn(async () => fakeRoom()) });
+    const connector = connectorWith({ create: vi.fn(), reconnect: vi.fn(async () => fakeRoom()) });
     const { result } = renderHook(() => useGameSession(connector));
     expect(result.current.status).toBe("connecting");
     await waitFor(() => expect(result.current.status).toBe("playing"));
     expect(connector.reconnect).toHaveBeenCalledWith("old-token");
-    expect(connector.joinOrCreate).not.toHaveBeenCalled();
+    expect(connector.create).not.toHaveBeenCalled();
   });
 
   it("a failed rejoin clears the token and shows the start screen", async () => {
     saveToken("stale");
-    const connector = connectorWith({ joinOrCreate: vi.fn(), reconnect: vi.fn(async () => Promise.reject(new Error("gone"))) });
+    const connector = connectorWith({ create: vi.fn(), reconnect: vi.fn(async () => Promise.reject(new Error("gone"))) });
     const { result } = renderHook(() => useGameSession(connector));
     await waitFor(() => expect(result.current.status).toBe("idle"));
     expect(loadToken()).toBeUndefined();
@@ -171,18 +171,18 @@ describe("game-session › One player per browser tab", () => {
 
 describe("game-session › Quick play", () => {
   it("Join fails: error state", async () => {
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => Promise.reject(new Error("offline"))), reconnect: vi.fn() });
+    const connector = connectorWith({ create: vi.fn(async () => Promise.reject(new Error("offline"))), reconnect: vi.fn() });
     const { result } = renderHook(() => useGameSession(connector));
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.status).toBe("error"));
   });
 
   it("Slow server: flags a slow connection after 5 s", async () => {
     vi.useFakeTimers();
     try {
-      const connector = connectorWith({ joinOrCreate: vi.fn(() => new Promise<GameRoomLike>(() => {})), reconnect: vi.fn() });
+      const connector = connectorWith({ create: vi.fn(() => new Promise<GameRoomLike>(() => {})), reconnect: vi.fn() });
       const { result } = renderHook(() => useGameSession(connector));
-      act(() => result.current.play("Maija"));
+      act(() => result.current.createGame("Maija"));
       expect(result.current.slow).toBe(false);
       act(() => vi.advanceTimersByTime(5_000));
       expect(result.current.status).toBe("connecting");
@@ -204,9 +204,9 @@ describe("game-session › quick-play pool", () => {
 
 describe("game-session › place command", () => {
   async function playing(room: GameRoomLike) {
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => room), reconnect: vi.fn() });
+    const connector = connectorWith({ create: vi.fn(async () => room), reconnect: vi.fn() });
     const hook = renderHook(() => useGameSession(connector));
-    act(() => hook.result.current.play("Maija"));
+    act(() => hook.result.current.createGame("Maija"));
     await waitFor(() => expect(hook.result.current.status).toBe("playing"));
     return hook;
   }
@@ -329,12 +329,13 @@ describe("game-session › leave", () => {
 });
 
 describe("lobby › joining", () => {
-  it("quick play sends the nickname and remembers it after a successful join", async () => {
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => fakeRoom()) });
+  it("start-screen › Friends: createGame creates a new game (never joins one), sends the nickname and remembers it", async () => {
+    // The connector has no join-or-create any more: the only server way in without an id is create.
+    const connector = connectorWith({ create: vi.fn(async () => fakeRoom()) });
     const { result } = renderHook(() => useGameSession(connector));
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.status).toBe("playing"));
-    expect(connector.joinOrCreate).toHaveBeenCalledWith({ nickname: "Maija" });
+    expect(connector.create).toHaveBeenCalledWith({ nickname: "Maija" });
     expect(loadNickname()).toBe("Maija");
   });
 
@@ -356,9 +357,9 @@ describe("lobby › joining", () => {
   });
 
   it("Server full: the server-full notice, not the error state", async () => {
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => Promise.reject(matchMakeError("SERVER_FULL", 526))) });
+    const connector = connectorWith({ create: vi.fn(async () => Promise.reject(matchMakeError("SERVER_FULL", 526))) });
     const { result } = renderHook(() => useGameSession(connector));
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.startNotice).toBe("serverFull"));
     expect(result.current.status).toBe("idle");
   });
@@ -452,9 +453,9 @@ describe("game-session › turn rules in the view model", () => {
 describe("game-session › kick", () => {
   it("sends the seat; a rejection gives its notice", async () => {
     const room = fakeRoom({ request: vi.fn(async () => ({ ok: false, code: "TURN_NOT_EXPIRED" })) });
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => room), reconnect: vi.fn() });
+    const connector = connectorWith({ create: vi.fn(async () => room), reconnect: vi.fn() });
     const { result } = renderHook(() => useGameSession(connector));
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.status).toBe("playing"));
 
     await act(async () => {
@@ -467,23 +468,23 @@ describe("game-session › kick", () => {
   it("Kicked: close code 4100 returns to the start screen with the reason, cleared by Play", async () => {
     let onLeave: (code: number) => void = () => {};
     const room = fakeRoom({ onLeave: vi.fn((cb: (code: number) => void) => (onLeave = cb)) });
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => room), reconnect: vi.fn() });
+    const connector = connectorWith({ create: vi.fn(async () => room), reconnect: vi.fn() });
     const { result } = renderHook(() => useGameSession(connector));
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.status).toBe("playing"));
 
     act(() => onLeave(4100));
     expect(result.current).toMatchObject({ status: "idle", startNotice: "kicked" });
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     expect(result.current.startNotice).toBeUndefined();
   });
 
   it("an ordinary leave has no end reason", async () => {
     let onLeave: (code: number) => void = () => {};
     const room = fakeRoom({ onLeave: vi.fn((cb: (code: number) => void) => (onLeave = cb)) });
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => room), reconnect: vi.fn() });
+    const connector = connectorWith({ create: vi.fn(async () => room), reconnect: vi.fn() });
     const { result } = renderHook(() => useGameSession(connector));
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.status).toBe("playing"));
     act(() => onLeave(4000));
     expect(result.current.startNotice).toBeUndefined();
@@ -537,9 +538,9 @@ describe("spectators › session", () => {
   it("watchBots starts a watched bot game with count and speed, leaving the current game first", async () => {
     const first = fakeRoom();
     const createBotWatch = vi.fn(async () => fakeRoom({ roomId: "second" }));
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => first), createBotWatch });
+    const connector = connectorWith({ create: vi.fn(async () => first), createBotWatch });
     const { result } = renderHook(() => useGameSession(connector));
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.status).toBe("playing"));
     act(() => result.current.watchBots("Maija", 3, 2));
     await waitFor(() => expect(result.current.view?.roomId).toBe("second"));
@@ -598,9 +599,9 @@ describe("game-session › Rematch", () => {
   it("First player asks for a rematch: sends it, then joins the new game under the same name", async () => {
     const { room, push } = finishedRoom();
     const next = fakeRoom({ roomId: "calm-foxes-jump" });
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => room), joinById: vi.fn(async () => next) });
+    const connector = connectorWith({ create: vi.fn(async () => room), joinById: vi.fn(async () => next) });
     const { result } = renderHook(() => useGameSession(connector));
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.status).toBe("playing"));
     act(() => result.current.rematch());
     expect(result.current.rematching).toBe(true);
@@ -615,9 +616,9 @@ describe("game-session › Rematch", () => {
   it("Second player follows: the id is known, so no command is sent", async () => {
     const { room } = finishedRoom();
     room.state.rematchRoomId = "calm-foxes-jump";
-    const connector = connectorWith({ joinOrCreate: vi.fn(async () => room), joinById: vi.fn(async () => fakeRoom({ roomId: "calm-foxes-jump" })) });
+    const connector = connectorWith({ create: vi.fn(async () => room), joinById: vi.fn(async () => fakeRoom({ roomId: "calm-foxes-jump" })) });
     const { result } = renderHook(() => useGameSession(connector));
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.status).toBe("playing"));
     act(() => result.current.rematch());
     await waitFor(() => expect(result.current.view?.roomId).toBe("calm-foxes-jump"));
@@ -628,11 +629,11 @@ describe("game-session › Rematch", () => {
     const { room } = finishedRoom();
     room.state.rematchRoomId = "calm-foxes-jump";
     const connector = connectorWith({
-      joinOrCreate: vi.fn(async () => room),
+      create: vi.fn(async () => room),
       joinById: vi.fn(async () => Promise.reject(matchMakeError("room is locked", 522))),
     });
     const { result } = renderHook(() => useGameSession(connector));
-    act(() => result.current.play("Maija"));
+    act(() => result.current.createGame("Maija"));
     await waitFor(() => expect(result.current.status).toBe("playing"));
     act(() => result.current.rematch());
     await waitFor(() => expect(result.current.startNotice).toBe("notOpen"));

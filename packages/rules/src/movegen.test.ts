@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { bitsToSquares } from "./bitboard.js";
 import { CLASSIC } from "./config.js";
 import { placement, positionWith } from "./engineFixtures.js";
-import { forbiddenSquares, freeCorners, hasLegalMove, legalMoves } from "./movegen.js";
+import { fittingPieces, forbiddenSquares, freeCorners, hasLegalMove, legalMoves } from "./movegen.js";
 import { decodeMove, encodeMove } from "./moves.js";
-import { MAX_ORIENTATIONS, ORIENTATIONS, PIECE_COUNT } from "./pieces.js";
+import { MAX_ORIENTATIONS, ORIENTATIONS, PIECE_COUNT, pieceNumber } from "./pieces.js";
 import { checkPlacement, newPosition } from "./position.js";
 import { randomGame, referenceMoves } from "./reference.js";
 
@@ -23,6 +23,13 @@ describe("placement › Complete list of legal moves", () => {
     for (const colour of [2, 3, 4]) expect(legalMoves(position, colour)).toHaveLength(58);
   });
 
+  it("fittingPieces on the first move: I5 fits the start corner, X5 does not", () => {
+    const fitting = fittingPieces(newPosition(CLASSIC, [1, 2], 1), 1);
+    expect(fitting.has(pieceNumber("I5"))).toBe(true);
+    expect(fitting.has(pieceNumber("X5"))).toBe(false);
+    expect(fitting.size).toBe(20);
+  });
+
   it("Matches the definition: fast list equals the reference list along random games", () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: 2 ** 32 - 1 }), fc.subarray([1, 2, 3, 4], { minLength: 2 }), (seed, colours) => {
@@ -36,6 +43,7 @@ describe("placement › Complete list of legal moves", () => {
             expect(sorted(fast)).toEqual(sorted(referenceMoves(position, colour)));
             expect(legalMoves(position, colour)).toEqual(fast);
             expect(hasLegalMove(position, colour)).toBe(fast.length > 0);
+            expect(fittingPieces(position, colour)).toEqual(new Set(fast.map((code) => decodeMove(code, 20).piece)));
           }
         });
       }),

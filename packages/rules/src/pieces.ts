@@ -121,6 +121,27 @@ export const PIECE_SIZES: readonly number[] = ORIENTATIONS.map((o) => o[0]!.cell
 /** Squares of a full piece set (89). */
 export const SET_SQUARES = PIECE_SIZES.reduce((a, b) => a + b, 0);
 
+/** For each piece and orientation index, the index of the given transform of that orientation. */
+function transformTable(transform: (cells: readonly ShapeCell[]) => ShapeCell[]): readonly (readonly number[])[] {
+  return ORIENTATIONS.map((list) => {
+    const index = new Map(list.map((o) => [shapeKey(o.cells), o.index]));
+    return list.map((o) => index.get(shapeKey(transform(o.cells)))!);
+  });
+}
+
+const TURN_CW = transformTable(rotateShape);
+const MIRROR = transformTable(mirrorShape);
+
+/** The orientation of `piece` a quarter turn clockwise from orientation `index`. */
+export function turnOrientation(piece: number, index: number): number {
+  return TURN_CW[piece]![index]!;
+}
+
+/** The orientation of `piece` mirrored left to right from orientation `index`. */
+export function mirrorOrientation(piece: number, index: number): number {
+  return MIRROR[piece]![index]!;
+}
+
 export function pieceNumber(name: string): number {
   const index = (PIECE_IDS as readonly string[]).indexOf(name);
   if (index < 0) throw new RangeError(`Unknown piece ${name}`);

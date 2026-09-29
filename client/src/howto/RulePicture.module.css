@@ -1,0 +1,50 @@
+.figure {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+}
+
+/* A corner of the board: the top-left square is the start corner of Järvi. */
+.board {
+  width: 96px;
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  padding: 2px;
+  background: var(--board);
+  border-radius: var(--radius-s);
+  box-sizing: border-box;
+}
+
+.cell {
+  border-radius: 2px;
+  background: var(--cell);
+}
+
+.piece {
+  background: var(--seat-1);
+}
+
+/* The new piece: outlined, in the warning style when the placement is not allowed. */
+.newOk {
+  box-shadow: inset 0 0 0 1.5px var(--preview-ok-outline);
+}
+
+.newBad {
+  outline: 2px dashed var(--preview-bad);
+  outline-offset: -2px;
+}
+
+.caption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-s);
+  text-align: center;
+}
+
+.bad {
+  color: var(--danger);
+}
