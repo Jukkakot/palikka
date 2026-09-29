@@ -1,0 +1,11 @@
+[
+  {
+    "name": "greedy beats random",
+    "candidate": "greedy",
+    "baseline": "random",
+    "colours": 4,
+    "games": 40,
+    "seed": 1,
+    "minShare": 0.9
+  }
+]

@@ -2,7 +2,7 @@
   "name": "game-bots",
   "version": "0.1.0",
   "private": true,
-  "description": "Game-independent bot brains: a game interface, budgets, greedy and random players",
+  "description": "Game-independent bot brains: a game interface, budgets, greedy and random players, tournaments and Elo",
   "type": "module",
   "sideEffects": false,
   "exports": {

@@ -1,0 +1,111 @@
+import { applyMove, CLASSIC, createRng, newPosition, scores, type Move, type Position } from "@palikka/rules";
+import { systemClock, type Bot, type Budget, type GameResult, type MoveTiming, type ScheduledGame } from "game-bots";
+import { greedyPlayer, randomPlayer } from "./adapter.js";
+
+/** A bot a tournament can use, with the budget it gets when its name carries none. */
+interface RegisteredBot {
+  readonly bot: Bot<Position, Move>;
+  readonly budget: Budget;
+}
+
+/** The known bots by name. `bot-search` adds its bots here. */
+export const BOTS: Readonly<Record<string, RegisteredBot>> = {
+  random: { bot: randomPlayer, budget: { depth: 1 } },
+  greedy: { bot: greedyPlayer, budget: { depth: 1 } },
+};
+
+/** A bot as named in a tournament: `greedy`, `greedy@200ms` (time limit) or `greedy@d2` (depth). */
+export interface TournamentBot {
+  /** The full name as given; it identifies the bot in results and reports. */
+  readonly label: string;
+  readonly name: string;
+  readonly bot: Bot<Position, Move>;
+  readonly budget: Budget;
+}
+
+/** Parses a bot name with an optional budget; throws with the known names listed when it is not valid. */
+export function parseBot(label: string): TournamentBot {
+  const match = /^([a-z][a-z0-9-]*)(?:@(?:(\d+)ms|d(\d+)))?$/.exec(label);
+  const known = Object.keys(BOTS).join(", ");
+  if (!match) throw new RangeError(`Bot "${label}" is not valid: use a name, name@<n>ms or name@d<n>. Known bots: ${known}`);
+  const [, name, ms, depth] = match;
+  const registered = BOTS[name!];
+  if (!registered) throw new RangeError(`Unknown bot "${name}". Known bots: ${known}`);
+  const budget: Budget = ms !== undefined ? { timeMs: Number(ms) } : depth !== undefined ? { depth: Number(depth) } : registered.budget;
+  if ((budget.timeMs ?? 1) < 1 || (budget.depth ?? 1) < 1) throw new RangeError(`Bot "${label}" needs a budget of at least 1`);
+  return { label, name: name!, bot: registered.bot, budget };
+}
+
+/** Tournament formats by number of colours: the colours each side of a pairing plays. */
+export const FORMATS = {
+  /** Classic board, all four colours: the first bot on 1 and 3, the second on 2 and 4. */
+  4: { description: "4 colours, classic board", sides: [[1, 3], [2, 4]] },
+  /** Classic board, colours 1 and 2 (as a 2-player room seats them). */
+  2: { description: "2 colours, classic board", sides: [[1], [2]] },
+} as const satisfies Record<number, { description: string; sides: readonly [readonly number[], readonly number[]] }>;
+
+export type Colours = keyof typeof FORMATS;
+
+export function isColours(value: number): value is Colours {
+  return Object.hasOwn(FORMATS, value);
+}
+
+/** A played game plus how long each bot took per move. */
+export interface PlayedGame {
+  readonly result: GameResult;
+  readonly timing: Record<string, MoveTiming>;
+}
+
+/**
+ * Plays one scheduled game: the pairing's first bot takes the format's first side (the second when
+ * swapped); colour 1 moves first; every bot gets its own budget; one rng seeded by the game's seed.
+ * Seats in the result are the colours in order, each with its bot's label and final score.
+ */
+export function playTournamentGame(colours: Colours, bots: ReadonlyMap<string, TournamentBot>, game: ScheduledGame): PlayedGame {
+  const [first, second] = game.swapped ? [game.pairing[1], game.pairing[0]] : game.pairing;
+  const [sideA, sideB] = FORMATS[colours].sides;
+  const byColour = new Map<number, TournamentBot>();
+  for (const [label, side] of [[first, sideA], [second, sideB]] as const) {
+    const bot = bots.get(label);
+    if (!bot) throw new RangeError(`Bot ${label} is not in the tournament`);
+    for (const colour of side) byColour.set(colour, bot);
+  }
+
+  const timing: Record<string, { moves: number; totalMs: number; maxMs: number }> = {};
+  const rng = createRng(game.seed);
+  let position = newPosition(CLASSIC, [...byColour.keys()], 1);
+  while (!position.ended) {
+    const player = byColour.get(position.turn)!;
+    const started = systemClock();
+    const move = player.bot.choose(position, player.budget, rng);
+    const ms = systemClock() - started;
+    if (move === undefined) throw new Error(`${player.label} on colour ${position.turn} has no move`);
+    const applied = applyMove(position, position.turn, move);
+    if (!applied.ok) throw new Error(`${player.label} played a refused move: ${applied.code}`);
+    position = applied.position;
+    const t = (timing[player.label] ??= { moves: 0, totalMs: 0, maxMs: 0 });
+    t.moves++;
+    t.totalMs += ms;
+    t.maxMs = Math.max(t.maxMs, ms);
+  }
+
+  const final = scores(position);
+  return {
+    result: { ...game, seats: final.map((s) => byColour.get(s.colour)!.label), scores: final.map((s) => s.score) },
+    timing,
+  };
+}
+
+/** Adds one game's timing into running totals. */
+export function addTiming(totals: Map<string, MoveTiming>, timing: Readonly<Record<string, MoveTiming>>): void {
+  for (const [bot, t] of Object.entries(timing)) {
+    const sum = totals.get(bot) ?? { moves: 0, totalMs: 0, maxMs: 0 };
+    totals.set(bot, { moves: sum.moves + t.moves, totalMs: sum.totalMs + t.totalMs, maxMs: Math.max(sum.maxMs, t.maxMs) });
+  }
+}
+
+/** Whether any bot plays with a time limit (the results then depend on the machine). */
+export function isTimeLimited(bots: Iterable<TournamentBot>): boolean {
+  for (const bot of bots) if (bot.budget.timeMs !== undefined) return true;
+  return false;
+}

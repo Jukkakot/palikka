@@ -17,15 +17,19 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.cli.json",
     "test": "vitest run",
-    "bench": "tsx --conditions=source scripts/bench.ts"
+    "bench": "tsx --conditions=source scripts/bench.ts",
+    "tournament": "tsx --conditions=source cli/tournament.ts",
+    "strength": "tsx --conditions=source cli/strength.ts"
   },
   "dependencies": {
     "@palikka/rules": "*",
     "game-bots": "*"
   },
   "devDependencies": {
+    "@types/node": "^24.13.3",
+    "tsx": "^4.21.0",
     "typescript": "~6.0.2",
     "vitest": "^5.0.2"
   }

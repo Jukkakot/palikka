@@ -21,6 +21,7 @@ logs/
 e2e/test-results
 e2e/playwright-report
 tools/axiom/dashboard.json
+tournament-results/
 
 # Background agents' git worktrees
 .claude/worktrees/

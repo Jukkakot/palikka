@@ -1,12 +1,12 @@
 /**
  * Greedy bot benchmark (not in CI; timing is flaky there): plays seeded 4-colour games with a
- * greedy bot on every colour and reports the time per move, plus the greedy bot's win rate against
- * three random players with its seat rotating.
+ * greedy bot on every colour and reports the time per move. Strength is measured by the tournament
+ * runner and the strength check (`npm run tournament`, `npm run strength`).
  *
  *   npm run bench -w @palikka/bots [-- games]
  */
-import { CLASSIC, newPosition, winners } from "@palikka/rules";
-import { greedyPlayer, randomPlayer } from "../src/adapter.js";
+import { CLASSIC, newPosition } from "@palikka/rules";
+import { greedyPlayer } from "../src/adapter.js";
 import { playGame } from "../src/match.js";
 
 const games = Number(process.argv[2] ?? 10);
@@ -29,12 +29,3 @@ for (let seed = 1; seed <= games; seed++) playGame(start, { 1: timed, 2: timed, 
 const ms = performance.now() - started;
 console.log(`greedy vs greedy: ${games} games, ${moves} moves, ${(ms / moves).toFixed(2)} ms per move, slowest ${slowest.toFixed(1)} ms`);
 
-let wins = 0;
-const rateGames = games * 4;
-for (let seed = 1; seed <= rateGames; seed++) {
-  const seat = ((seed - 1) % 4) + 1;
-  const bots = { 1: randomPlayer, 2: randomPlayer, 3: randomPlayer, 4: randomPlayer, [seat]: greedyPlayer };
-  const end = playGame(start, bots, seed).at(-1)!;
-  if (winners(end).includes(seat)) wins++;
-}
-console.log(`greedy vs 3 random: won ${wins}/${rateGames} (${((wins / rateGames) * 100).toFixed(1)} %)`);

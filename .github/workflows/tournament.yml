@@ -1,0 +1,91 @@
+name: Bot tournament
+
+# Bot strength is measured here, not in the unit tests (nfr → Testing). Separate from CI, so a
+# missed strength requirement shows red on the commit but never blocks a deploy.
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/bots/**
+      - packages/palikka-bots/**
+      - packages/rules/**
+      - package-lock.json
+      - .github/workflows/tournament.yml
+  pull_request:
+    paths:
+      - packages/bots/**
+      - packages/palikka-bots/**
+      - packages/rules/**
+      - package-lock.json
+      - .github/workflows/tournament.yml
+  workflow_dispatch:
+    inputs:
+      bots:
+        description: "Bots, space-separated (name, name@<n>ms or name@d<n>)"
+        default: random greedy
+      games:
+        description: Games per pairing (even)
+        default: "100"
+      colours:
+        description: Colours per game
+        type: choice
+        options: ["4", "2"]
+        default: "4"
+      seed:
+        description: First seed
+        default: "1"
+
+concurrency:
+  group: tournament-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  strength:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Strength requirements
+        run: npm run strength -w @palikka/bots -- --summary "$GITHUB_STEP_SUMMARY" --out "$RUNNER_TEMP/strength.json"
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strength-results
+          path: ${{ runner.temp }}/strength.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  tournament:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Tournament
+        env:
+          BOTS: ${{ inputs.bots }}
+          GAMES: ${{ inputs.games }}
+          COLOURS: ${{ inputs.colours }}
+          SEED: ${{ inputs.seed }}
+        # $BOTS is split into words on purpose: one argument per bot.
+        run: npm run tournament -w @palikka/bots -- $BOTS --games "$GAMES" --colours "$COLOURS" --seed "$SEED" --summary "$GITHUB_STEP_SUMMARY" --out "$RUNNER_TEMP/tournament.json"
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tournament-results
+          path: ${{ runner.temp }}/tournament.json
+          if-no-files-found: ignore
+          retention-days: 30
