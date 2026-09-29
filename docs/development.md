@@ -53,10 +53,27 @@ npm run e2e   # smoke test, when UI or connection code changed
 
 | Level | Tools | Status |
 |---|---|---|
-| Rules | Vitest; fast-check property tests for invariants; test names follow spec scenarios (`game › Placing › …`). **Planned (`tournament-elo`):** a bot tournament driver with Elo, heavy runs in GitHub Actions | Implemented |
+| Rules | Vitest; fast-check property tests for invariants; test names follow spec scenarios (`game › Placing › …`) | Implemented |
+| Bot strength | Tournaments and strength requirements (below), outside `npm test`; heavy runs in GitHub Actions. The unit tests keep one fast greedy-vs-random check | Implemented |
 | Server | Vitest + @colyseus/testing (real rooms, SDK clients in-process); `captureLogs()` asserts log lines; `test/support/game.ts`: `waitingRoom(n)`, `startedGame(n, { startSeat })` (nicknamed players, host starts, start seat forced via the `chooseStartSeat` hook), `placeFree(client, room)` plays a turn | Implemented |
 | Client | Vitest; jsdom + Testing Library for components (`// @vitest-environment jsdom`) | Implemented |
 | E2E | Playwright, Galaxy S24 profile — **one smoke test** for now (two browser contexts: the host creates a game ("Luo peli"), the guest joins by the invite link, the host starts, both see the whole board, fits 360×780, the host's piece placed from the tray with taps reaches the guest) | Implemented |
+
+### Bot tournaments and strength
+
+```
+npm run tournament -w @palikka/bots -- random greedy greedy@5ms --games 100 [--colours 4|2] [--seed 1] [--jobs 4]
+npm run strength -w @palikka/bots          # the requirements in packages/palikka-bots/strength.json
+npm run bench -w @palikka/bots -- 20       # greedy time per move only
+```
+
+- Bots: a registry name (`random`, `greedy`) with an optional budget, `@<n>ms` or `@d<n>`. Depth
+  budgets give identical results on any machine and job count; time limits do not (the report
+  says so).
+- The report (Markdown) goes to stdout; the JSON with every game to
+  `packages/palikka-bots/tournament-results/` (git-ignored) or `--out`.
+- A new bot: add it to `BOTS` in `packages/palikka-bots/src/tournament.ts`, then add a
+  requirement "new beats previous ≥ 60 % over 200 games" to `strength.json`.
 
 ### E2E smoke
 

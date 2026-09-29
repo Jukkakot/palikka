@@ -65,9 +65,12 @@ formats (`variants` adds them to the format list), SPRT or other sequential test
   each opposing colour, which is what the game rewards; a "whole-game win" share is reported per
   bot as extra information (winner or shared winner among all colours).
 - The 95 % interval uses the **seed pair** (the two games that share a seed) as the independent
-  unit: the bot's share in each seed pair, mean ± 1.96 · sd / √pairs, clamped to [0, 1]. The
-  comparisons inside a game or a seed pair are correlated, so counting them as independent would
-  overstate confidence. With one seed pair the interval is [0, 1].
+  unit, because comparisons inside a game or a seed pair are correlated. *Changed during
+  implementation:* a plain mean ± 1.96 · sd / √pairs gave "100 %–100 %" for a clean sweep (zero
+  spread). Instead the spread between seed pairs gives an effective number of independent
+  comparisons, n = p(1 − p) / SE² (capped at the real count; the real count when the pairs do not
+  vary), and the interval is the Wilson score interval on n. It stays inside [0, 1], narrows with
+  more games and never collapses to a point. With one seed pair the interval is [0, 1].
 
 ### Elo: Bradley–Terry maximum likelihood with a virtual draw
 
@@ -91,10 +94,11 @@ formats (`variants` adds them to the format list), SPRT or other sequential test
   results depend on the machine".
 - Pool: `node:worker_threads`, `--jobs` default `os.availableParallelism()`; each worker gets a
   batch message `{ format, bots, games[] }` and answers per game. The runner is started through
-  `tsx` (as `bench` already is); workers inherit `process.execArgv`, so they load the TypeScript
-  source the same way. `--jobs 1` plays in the main thread (no worker), used by the tests.
-  If `tsx` cannot start workers, the implementation may instead run the CLI from the built `dist/`
-  output; record the choice in this file.
+  `tsx` (as `bench` already is). *Found during implementation:* worker threads do not inherit
+  tsx's loader (even with `process.execArgv`; `.js` → `.ts` import mapping fails), so the worker
+  entry is a tiny `cli/worker-entry.mjs` that calls `register()` from `tsx/esm/api` and then
+  imports `worker.ts`; the pool passes `--conditions=source`. Verified: `--jobs 1` and `--jobs 4`
+  give identical games for a depth-budget run. `--jobs 1` plays in the main thread (no worker).
 - Limits: `--games` 2–10 000 and even, at most 8 bots, `--jobs` 1–64; refused with a message
   otherwise.
 
@@ -135,6 +139,15 @@ formats (`variants` adds them to the format list), SPRT or other sequential test
 
 - `bench` keeps the per-move timing and drops its greedy-vs-random win rate (the strength check
   and the report's ms-per-move column cover it).
+
+### Measured (developer container, 4 cores, 2026-09-29)
+
+- `npm run strength`: greedy beats random **99.7 %** (40 games, 4 colours) in 10.6 s; bar 90 %.
+- `random greedy greedy@5ms`, 100 games per pairing, 4 colours: greedy 2124, greedy@5ms 2063,
+  random 1000 (anchor); greedy vs greedy@5ms 58.9 % (52.5–65.0 %); 300 games in 49 s on 4 jobs
+  (≈ 0.65 s per game per core). Greedy averages 21 ms per move when four workers share the cores
+  (bench alone: 8–13 ms).
+- 2 colours, 20 games: greedy 100 % against random.
 
 ## How the NFRs are met
 

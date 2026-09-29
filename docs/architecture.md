@@ -40,8 +40,8 @@ delivered by that roadmap change.
 |---|---|---|
 | `packages/rules` | Game rules as pure functions on plain data. Randomness only from an injected seed. | Depend on React, Colyseus or any I/O. |
 | `packages/protocol` | What client and server agree on: command codes, payload and join-option schemas, close codes, log event catalogue. zod schemas sit in `*-schema.ts` modules; rules the client needs are plain functions, so the client bundle has no zod. | Contain game logic. |
-| `packages/bots` (`game-bots`) | Game-independent bot brains: a game interface, budgets, players (greedy now; search and MCTS later). | Know any game; carry Palikka names. |
-| `packages/palikka-bots` (`@palikka/bots`) | Palikka's adapter to `game-bots`, its evaluation and the worker entry point `chooseMove`. | Do I/O or hold state. |
+| `packages/bots` (`game-bots`) | Game-independent bot brains: a game interface, budgets, players (greedy now; search and MCTS later), and the tournament core (schedule, pairwise results, Elo, report). | Know any game; carry Palikka names. |
+| `packages/palikka-bots` (`@palikka/bots`) | Palikka's adapter to `game-bots`, its evaluation, the worker entry point `chooseMove`, the tournament bot registry and formats; Node-only tournament CLI in `cli/`. | Do I/O or hold state in `src/` (the client bundles it); Node code stays in `cli/`. |
 | `server` | Rooms, matchmaking, command validation (via rules), state sync, bot runner and fallback. Source of truth. | Trust the client; compute bots (beyond the fallback). |
 | `client` | Rendering, input, games on the device, i18n, settings. | Hold authoritative state of server games. |
 
@@ -164,6 +164,23 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
 - Strength and speed (`npm run bench -w @palikka/bots -- 50`, developer desktop, 2026-09-29):
   greedy vs three random players wins **99 %** (198/200); **7.9 ms per move** on average, slowest
   77 ms. A unit test keeps the ≥ 90 % bar over 12 seeded games.
+- **Tournaments and Elo** (strength is measured, not guessed):
+  - `game-bots` `tournament/`: a round robin of named bots; each pairing's games come in seed
+    pairs with the seats swapped. A finished game becomes **pairwise results** (every two colours
+    of different bots, by final score: 1 / ½ / 0). Ratings are Bradley–Terry maximum likelihood on
+    the Elo scale (order-independent, one virtual draw per pairing, `random` or the first bot
+    anchored at 1000). Each pairing's share gets a 95 % Wilson interval with the seed pairs as the
+    independent unit. The game supplies only "play this scheduled game → seats and scores".
+  - `@palikka/bots`: the bot registry (`random`, `greedy`; a name may carry a budget:
+    `greedy@200ms`, `greedy@d2`), formats (4 colours: one bot on 1 and 3, the other on 2 and 4;
+    2 colours: 1 and 2), `playTournamentGame` with per-move timing; `cli/` runs games on worker
+    threads (`worker-entry.mjs` registers tsx's loader in each worker), prints the Markdown report
+    and writes JSON.
+  - **Strength requirements** live in `packages/palikka-bots/strength.json` ("candidate beats
+    baseline ≥ X over N games"); `npm run strength` fails when one is missed. The workflow
+    `tournament.yml` runs it when bot or rules code changes (operations → Bot tournaments).
+  - Measured (4 cores, 2026-09-29): greedy beats random 99.7 % (4 colours); greedy vs
+    `greedy@5ms` 58.9 %; about 0.65 s per 4-colour greedy game per core.
 - **In the client** (`client/src/bots/`): `bot.worker.ts` runs `chooseMove` in a module Web Worker
   (budget 500 ms; own size-limit entry); `askBotWorker` asks it by message and answers in-thread
   where no worker can run (tests, a failed load). `LocalRoom` gets its bots' moves there, and so

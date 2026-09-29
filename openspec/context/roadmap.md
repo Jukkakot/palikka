@@ -11,7 +11,7 @@ specs and tasks written), **planned**.
 | 2 | `game-room` | done | Room on the real rules: turns, time limit and passing, 2–4 seats, bots on empty seats computed by the host's browser (Web Worker) and validated by the server |
 | 3 | `basic-ui` | done | Playable on desktop, at least usable on mobile: board, piece tray, rotate/mirror, placing, scores; simplified start screen |
 | 4 | `bot-greedy` | done | Bot v1: greedy heuristic (free corners, piece size, area control) in the new game-independent bot library package |
-| 5 | `tournament-elo` | planned | Tournament driver and Elo; bot strength as a measurable requirement (e.g. "v2 beats v1 ≥ 60 % over 200 games"); heavy runs in GitHub Actions |
+| 5 | `tournament-elo` | done | Tournament driver and Elo; bot strength as a measurable requirement (e.g. "v2 beats v1 ≥ 60 % over 200 games"); heavy runs in GitHub Actions |
 | 6 | `bot-search` | planned | Search bots: paranoid or best-reply search and MCTS, time budget (difficulty levels possible later) |
 | 7 | `variants` | planned | Duo 14×14, 2 players with two colours each, 3 players |
 | 8 | `daily-puzzle` | planned | Daily puzzle: fill a given shape with pieces |

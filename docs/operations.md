@@ -27,6 +27,19 @@ environment.
 Pages deploy on its next load (the new worker takes over and reloads the page once). To rule out a
 stale client when checking a deploy, compare the footer's "Client …" build time.
 
+### Bot tournaments — Implemented
+
+`.github/workflows/tournament.yml`, separate from CI so a weaker bot never blocks a deploy:
+
+- **strength** job: on pushes to `main` and pull requests that touch `packages/bots`,
+  `packages/palikka-bots`, `packages/rules`, the lock file or the workflow. Runs
+  `npm run strength`; red when a requirement is missed. Report on the run's summary page, JSON as
+  the `strength-results` artifact (30 days).
+- **tournament** job: Actions → Bot tournament → Run workflow, with bots (space-separated),
+  games per pairing, colours and first seed. Report on the summary page, JSON as the
+  `tournament-results` artifact. 4 vCPUs; about 0.65 s per greedy game per core, so 1 000 games
+  take about 3 minutes (timeout 5 h).
+
 ### After a deploy (manual checks)
 
 1. Open https://jukkakot.github.io/palikka/ on the phone. If the server was asleep, "Luo peli" is

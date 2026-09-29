@@ -51,8 +51,10 @@ Palikka-specific places (listed).
 
 | Path | Status | Notes |
 |---|---|---|
-| `packages/bots/` (`game-bots`) | generic (new) | game interface, budget, greedy and random players; no game names, no dependencies; meant to become a shared package for all the browser games |
+| `packages/bots/` (`game-bots`) | generic (new) | game interface, budget, greedy and random players, tournament core (schedule, pairwise results, Elo, Markdown report, requirement check); no game names, no dependencies; meant to become a shared package for all the browser games |
 | `packages/palikka-bots/` | game-specific | the adapter pattern (`Game` over the rules, evaluation, `chooseMove`, `playGame`) is the part to copy |
+| `packages/palikka-bots/cli/`, `strength.json` | adapted | tournament CLI (worker pool, tsx worker entry, report, JSON) and strength requirements: generic apart from the bot registry and formats they import |
+| `.github/workflows/tournament.yml` | adapted | strength check on bot changes, tournament by hand; package name and paths are game-specific |
 
 ## Client (`client/`)
 
