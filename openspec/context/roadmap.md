@@ -7,7 +7,7 @@ specs and tasks written), **planned**.
 | # | Change | Status | What |
 |---|---|---|---|
 | 0 | `bootstrap-foundation` | done | Labyrinth's generic parts, placeholder "claim a cell" game, theme Kuura, docs, CI/deploy |
-| 1 | `rules-engine` | planned | Pieces and orientations (rotation, mirror), start corners, corner rule, move generation (bitboards, corner-based), passing, end and scoring (+15/+5); property-based tests |
+| 1 | `rules-engine` | specced | Pieces and orientations (rotation, mirror), start corners, corner rule, move generation (bitboards, corner-based), passing, end and scoring (+15/+5); property-based tests |
 | 2 | `game-room` | planned | Room on the real rules: turns, time limit and passing, 2–4 seats, bots on empty seats computed by the host's browser (Web Worker) and validated by the server |
 | 3 | `basic-ui` | planned | Playable on desktop, at least usable on mobile: board, piece tray, rotate/mirror, placing, scores; simplified start screen |
 | 4 | `bot-greedy` | planned | Bot v1: greedy heuristic (free corners, piece size, area control) in the new game-independent bot library package |

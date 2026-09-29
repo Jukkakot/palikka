@@ -76,8 +76,10 @@ corner-touching game. Never use the original's trademarked name, logos or look (
 - "Vihje" shows the bot's three best moves. TV mode: a host screen with phones as controllers.
   Duo as the default on a phone.
 
-## Open questions (for the spec phase)
+## Decided in the spec phase (2026-09-29)
 
-- Turn time limit for the real game (60 s like now, or longer; pieces take thought).
-- Voluntary pass allowed or not; how a stuck colour is shown.
-- Undo in games against bots on the device.
+- Turn time limit online: 120 s; then the others may remove the slow player (as now).
+- No voluntary pass: a colour passes only when it has no legal move, and is then out.
+- Undo: in games against bots on the device, "Peru" takes back the player's own last move (and the
+  bots' moves after it); never online.
+- Scoring: the advanced scoring; the end screen also shows each colour's squares on the board.
