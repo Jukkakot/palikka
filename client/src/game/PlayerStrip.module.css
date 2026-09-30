@@ -74,15 +74,55 @@
 }
 
 /* The colour cannot move any more: its score is final. */
-.out /* A seat's colour marks (two in Tuplaväri), kept tight. */
-.marks {
-  flex: none;
-  display: inline-flex;
-  gap: 2px;
+.out .count {
+  text-decoration: line-through;
 }
 
-.count {
-  text-decoration: line-through;
+/* Out of moves: the chip is frosted over. */
+.out {
+  background: var(--frost);
+  border-color: var(--frost-edge);
+}
+
+/* Seen going out: the chip freezes (a brief bright flash as the frost comes over it). */
+.freeze {
+  animation: freeze 300ms ease-out;
+}
+
+@keyframes freeze {
+  0% {
+    background: var(--surface);
+  }
+  45% {
+    filter: brightness(1.25);
+  }
+}
+
+/* The seat on turn: a bar in its colour under the chip, growing in from the left as the turn arrives. */
+.chip {
+  position: relative;
+}
+
+.chip::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -5px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--turn-colour, transparent);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition:
+    opacity var(--motion) ease-out,
+    transform var(--motion) ease-out;
+}
+
+.turn::after {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 .offlineIcon {

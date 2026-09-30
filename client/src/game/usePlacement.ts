@@ -50,6 +50,15 @@ export interface Placing {
   active: boolean;
   /** The pieces that can be chosen now: those that fit somewhere, or in corner mode on the corner. */
   fitting?: ReadonlySet<number>;
+  /**
+   * The tray colour's pieces that fit somewhere on the board, on and off turn (the rest are frozen:
+   * only the colour's own moves open new corners, so they never fit again). Undefined without a tray.
+   */
+  fitsAnywhere?: ReadonlySet<number>;
+  /** Counts refused placing attempts (a tap or Enter on an illegal preview, a drop on an illegal spot). */
+  nudge: number;
+  /** Counts hints shown: each press of "Vihje" that shows one. */
+  hintShown: number;
   /** The viewer's free corners on their turn (board indexes). */
   corners?: ReadonlySet<number>;
   /** Corner mode: the tapped free corner. */
@@ -92,6 +101,8 @@ export interface Placing {
   hint(): void;
   /** The move to send for "Aseta" or Enter: the legal preview's. */
   ready?: Placement;
+  /** Enter: the legal preview's move, or a refused attempt (nudge) when the preview is illegal. */
+  confirm(): Placement | undefined;
 }
 
 /** The board indexes of a bit set. */
@@ -119,8 +130,14 @@ export function usePlacement(view: PlacementView, transform: ViewTransform = UNT
   const state: State = stored.turn === turn && active ? stored : fresh(turn);
   const update = useCallback((change: (s: State) => State) => setState((prev) => change(prev.turn === turn ? prev : fresh(turn))), [turn]);
 
+  const [nudge, setNudge] = useState(0);
+  const [hintShown, setHintShown] = useState(0);
+  const refuse = useCallback(() => setNudge((n) => n + 1), []);
+
   const size = position?.config.size ?? 0;
-  const anywhere = useMemo(() => (active ? fittingPieces(position!, colour!) : undefined), [active, position, colour]);
+  // On and off turn, so the tray shows frozen pieces all the time.
+  const fitsAnywhere = useMemo(() => (position !== undefined && colour !== undefined ? fittingPieces(position, colour) : undefined), [position, colour]);
+  const anywhere = active ? fitsAnywhere : undefined;
   const corners = useMemo(() => (active ? squaresOfBits(freeCorners(position!, colour!), size) : undefined), [active, position, colour, size]);
   const onCorner = useMemo(
     () => (active && state.corner !== undefined ? piecesCovering(position!, colour!, state.corner) : undefined),
@@ -182,7 +199,11 @@ export function usePlacement(view: PlacementView, transform: ViewTransform = UNT
   );
   const click = (square: number): Placement | undefined => {
     if (!active) return undefined;
-    if (state.piece !== undefined && preview?.legal && preview.squares.includes(square)) return preview.move;
+    if (state.piece !== undefined && preview?.squares.includes(square)) {
+      if (preview.legal) return preview.move;
+      refuse();
+      return undefined;
+    }
     if (corners?.has(square) && (state.piece === undefined || state.corner !== undefined)) {
       update((s) => cornerState(s, square, s.piece));
       return undefined;
@@ -246,6 +267,7 @@ export function usePlacement(view: PlacementView, transform: ViewTransform = UNT
   );
   const dragEnd = useCallback(
     (overBoard: boolean) => {
+      if (overBoard && preview && !preview.legal) refuse();
       update((s) => {
         if (!s.drag) return s;
         if (overBoard && s.square !== undefined) return { ...plain(s), dropped: true };
@@ -254,7 +276,7 @@ export function usePlacement(view: PlacementView, transform: ViewTransform = UNT
         return { turn: s.turn, piece: s.piece, orientation: back.orientation, square: back.square, snap: back.snap, ...hintsOf(s) };
       });
     },
-    [update],
+    [update, preview, refuse],
   );
 
   // The hint list is computed once per turn and position (it is the slow part), on the first press.
@@ -266,6 +288,7 @@ export function usePlacement(view: PlacementView, transform: ViewTransform = UNT
     const moves = cached && cached.key.every((k, i) => k === key[i]) ? cached.moves : hintMoves(position!, colour!, turn, viewpoint);
     hintCache.current = { key, moves };
     if (moves.length === 0) return;
+    setHintShown((n) => n + 1);
     update((s) => {
       const hints = ((s.hints ?? 0) % moves.length) + 1;
       return { turn, ...aimOf(moves[hints - 1]!, size), hints, hintCount: moves.length };
@@ -276,6 +299,9 @@ export function usePlacement(view: PlacementView, transform: ViewTransform = UNT
   return {
     active,
     fitting,
+    fitsAnywhere,
+    nudge,
+    hintShown,
     corners,
     corner: active ? state.corner : undefined,
     spots: spotList && spotList.length > 0 ? { index: spot + 1, count: spotList.length } : undefined,
@@ -297,5 +323,11 @@ export function usePlacement(view: PlacementView, transform: ViewTransform = UNT
     dragEnd,
     hint,
     ready: preview?.legal ? preview.move : undefined,
+    confirm: () => {
+      if (!active || !preview) return undefined;
+      if (preview.legal) return preview.move;
+      refuse();
+      return undefined;
+    },
   };
 }

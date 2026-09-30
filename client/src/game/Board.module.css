@@ -99,6 +99,74 @@
   background: transparent;
 }
 
+/* The last move: a ring and a small square in the neutral mark colour over the piece's colour (static, so it stays with reduced motion). */
+.last {
+  box-shadow: inset 0 0 0 2px var(--last-mark);
+  background-image: linear-gradient(var(--last-mark), var(--last-mark));
+  background-size: 26% 26%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* A newly filled square settles into place: from small and frost-white to its colour. */
+.settle {
+  animation: settle var(--motion) ease-out both;
+}
+
+@keyframes settle {
+  from {
+    transform: scale(0.6);
+    background-color: var(--frost);
+  }
+}
+
+/* A refused placing attempt shakes the preview; a hint pulses it once. Two identical keyframes each, so a quick repeat restarts. */
+.shakeA {
+  animation: shakeA 200ms ease-in-out;
+}
+
+.shakeB {
+  animation: shakeB 200ms ease-in-out;
+}
+
+.pulseA {
+  animation: pulseA var(--motion) ease-out;
+}
+
+.pulseB {
+  animation: pulseB var(--motion) ease-out;
+}
+
+@keyframes shakeA {
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes shakeB {
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes pulseA {
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes pulseB {
+  50% {
+    transform: scale(1.06);
+  }
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

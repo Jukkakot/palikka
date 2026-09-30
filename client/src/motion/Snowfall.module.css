@@ -1,0 +1,37 @@
+/* Over everything, but never in the way: taps go through to the buttons underneath. */
+.snow {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 50;
+}
+
+/* Square flakes (Kuura: nothing round), falling from above the top edge with a little drift. */
+.flake {
+  position: absolute;
+  top: -12px;
+  background: var(--snow);
+  border-radius: 1px;
+  opacity: 0;
+  animation-name: fall;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+@keyframes fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  10% {
+    opacity: 0.9;
+  }
+  85% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), 100vh) rotate(var(--spin));
+  }
+}

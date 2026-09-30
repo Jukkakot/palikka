@@ -184,6 +184,54 @@ describe("board-view › Game result shown", () => {
     expect(rows[2]!.querySelector("[aria-label='Voittaja']")).toBeNull();
   });
 
+  describe("game-motion › Celebration at the end", () => {
+    afterEach(() => vi.unstubAllGlobals());
+    const row = { colours: [1], shared: false, isBot: false, squares: 80, piecesLeft: 2, left: false };
+    const won = [
+      { ...row, seat: 1, name: "Maija", isMe: true, score: 15, winner: true, rank: 1 },
+      { ...row, seat: 2, colours: [2], name: "Pekka", isMe: false, score: -12, winner: false, rank: 2 },
+    ];
+    const ended = (winners: number[], results = won) => ({ phase: "finished", finished: true, isMyTurn: false, winners, results }) as const;
+    const motion = () => {
+      vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
+      vi.stubGlobal("requestAnimationFrame", () => 1);
+      vi.stubGlobal("cancelAnimationFrame", () => {});
+    };
+
+    it("Viewer wins / Buttons usable at once: snow falls, the final scores are in the accessible text, buttons work", () => {
+      motion();
+      const { rerender, leave } = setup();
+      rerender(ended([1]));
+      expect(document.querySelector("[data-snowfall]")).toBeTruthy();
+      const rows = screen.getByRole("table", { name: "Tulokset" }).querySelectorAll("tbody tr");
+      expect(rows[0]!.querySelector("td:nth-of-type(2) [aria-hidden='true']")?.textContent).toBe("-12");
+      expect(rows[0]!.textContent).toContain("15");
+      fireEvent.click(screen.getByRole("button", { name: "Alkuun" }));
+      expect(leave).toHaveBeenCalledTimes(1);
+    });
+
+    it("Viewer loses: no snowfall", () => {
+      motion();
+      const { rerender } = setup();
+      rerender(ended([2], won.map((r) => ({ ...r, winner: r.seat === 2 }))));
+      expect(document.querySelector("[data-snowfall]")).toBeNull();
+    });
+
+    it("No winner: no count-up and no snowfall", () => {
+      motion();
+      const { rerender } = setup();
+      rerender(ended([], won.map((r) => ({ ...r, winner: false }))));
+      expect(document.querySelector("[data-snowfall]")).toBeNull();
+      expect(screen.getByRole("table", { name: "Tulokset" }).querySelector("[aria-hidden='true'] + span")).toBeNull();
+    });
+
+    it("a game already finished when opened: no celebration", () => {
+      motion();
+      setup(ended([1]));
+      expect(document.querySelector("[data-snowfall]")).toBeNull();
+    });
+  });
+
   it("Someone else wins: named with their colour, and Alkuun leaves", () => {
     const { leave } = setup({ phase: "finished", finished: true, isMyTurn: false, winners: [2] });
     expect(screen.getByText("Pekka voitti – talvi on hänen")).toBeTruthy();

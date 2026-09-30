@@ -16,7 +16,7 @@ specs and tasks written), **planned**.
 | 7 | `variants` | done | Duo 14×14, 2 players with two colours each, 3 players |
 | 8 | `daily-puzzle` | done | Daily puzzle: fill a given shape with pieces |
 | 9 | `mobile-ui` | done | The mobile ideas in product.md (corner-first picking, drag with snap, board turned to the player, zoom, hint top 3, Duo on phone; TV mode dropped); after `variants` |
-| 10 | `game-motion` | specced | Motion and feedback: last move marked, placing/turn/out animations, frozen tray pieces at all times, playful end (count-up, square snowfall) |
+| 10 | `game-motion` | done | Motion and feedback: last move marked, placing/turn/out animations, frozen tray pieces at all times, playful end (count-up, square snowfall) |
 
 ## Later, to consider (not now)
 

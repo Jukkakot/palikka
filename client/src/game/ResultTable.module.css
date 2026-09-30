@@ -69,3 +69,30 @@
 .marks:has(> :nth-child(2)) {
   flex-direction: column;
 }
+
+/* A game seen ending: the winners' rows get one frost sweep. */
+.shimmer {
+  background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--snow) 45%, transparent) 50%, transparent 70%);
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  background-position: 120% 0;
+  animation: shimmer var(--motion-slow) ease-out 300ms both;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

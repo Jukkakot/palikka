@@ -16,6 +16,8 @@ import { PlayerStrip } from "../game/PlayerStrip.tsx";
 import { ResultTable } from "../game/ResultTable.tsx";
 import { SpectatorCount, SpectatorPanel } from "../game/SpectatorControls.tsx";
 import { TurnLine } from "../game/TurnLine.tsx";
+import { useEnded, useLastMove } from "../motion/hooks.ts";
+import { Snowfall } from "../motion/Snowfall.tsx";
 import { usePieceDrag } from "../game/usePieceDrag.ts";
 import { usePlacement } from "../game/usePlacement.ts";
 import { NOTICE_MS, type GameSession } from "../session/useGameSession.ts";
@@ -72,6 +74,12 @@ export function GameScreen({ view, session }: GameScreenProps) {
   const turns = phone && !view.spectating && startSquare && position ? turnsFor(startSquare, position.config.size).turns : 0;
   const transform = useMemo<ViewTransform>(() => (turns === 0 ? UNTURNED : { turns }), [turns]);
   const placing = usePlacement(view, transform);
+  // The last move's squares: marked and settling in; none once the game is over.
+  const lastMove = useLastMove(view.board, `${view.roomId}:${view.variant}`);
+  const shownLastMove = view.finished ? undefined : lastMove;
+  // The end, seen as it happens and with a winner: scores count up; snow when the viewer won or watches.
+  const celebrate = useEnded(view.finished) && view.winners.length > 0;
+  const snow = celebrate && (view.spectating || view.results.some((r) => r.winner && r.isMe));
   const drag = usePieceDrag(placing);
   // The colour the viewer places and sees in the tray (the one on turn when it is theirs).
   const colour = view.trayColour ?? mySeat;
@@ -172,16 +180,20 @@ export function GameScreen({ view, session }: GameScreenProps) {
             onPoint={placing.active ? placing.point : undefined}
             onSquare={placing.active ? (square) => void (drag.takeClick() || send(placing.click(square))) : undefined}
             onMove={placing.moveBy}
-            onConfirm={() => void send(placing.ready)}
+            onConfirm={() => void send(placing.confirm())}
             onPreviewPointerDown={placing.active && preview ? drag.fromBoard : undefined}
             announce={announce}
             view={transform}
             zoom={zoom}
             dragging={placing.dragging}
+            lastMove={shownLastMove}
+            fresh={shownLastMove}
+            shake={placing.nudge}
+            pulse={placing.hintShown}
           />
         </div>
         <div className={styles.side}>
-          {view.finished && view.results.length > 0 && <ResultTable rows={view.results} />}
+          {view.finished && view.results.length > 0 && <ResultTable rows={view.results} celebrate={celebrate} />}
           {view.finished ? (
             view.spectating ? (
               <GameOverControls
@@ -234,6 +246,7 @@ export function GameScreen({ view, session }: GameScreenProps) {
               seat={colour}
               placed={position.placed[colour] ?? []}
               fitting={placing.fitting}
+              fitsAnywhere={placing.fitsAnywhere}
               chosen={chosen}
               onChoose={(piece) => void (drag.takeClick() || placing.choose(piece))}
               disabled={pending || view.myAutoplay}
@@ -253,6 +266,7 @@ export function GameScreen({ view, session }: GameScreenProps) {
           )}
         </div>
       </div>
+      {snow && <Snowfall />}
       <Notice message={message} />
       <FirstGameTips playing={!view.spectating && view.phase === "playing" && !view.finished} isMyTurn={view.isMyTurn} />
     </Screen>

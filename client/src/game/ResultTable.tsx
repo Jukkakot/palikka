@@ -1,5 +1,6 @@
 import { IconRobot, IconTrophy } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import { useCountUp } from "../motion/hooks.ts";
 import type { ResultRow } from "../session/viewModel.ts";
 import styles from "./ResultTable.module.css";
 import { SeatMark } from "./SeatMark.tsx";
@@ -7,10 +8,13 @@ import { SeatMark } from "./SeatMark.tsx";
 /**
  * The result of a finished game: every player ranked by score (shared ranks for equal scores), with
  * their colours, the squares on the board and the pieces left; winners get a trophy, a player who left
- * says so. A shared colour comes last, not counted and without a rank.
+ * says so. A shared colour comes last, not counted and without a rank. With `celebrate` (a game seen
+ * ending with a winner) the scores count up and the winners' rows shimmer once.
  */
-export function ResultTable({ rows }: { rows: readonly ResultRow[] }) {
+export function ResultTable({ rows, celebrate = false }: { rows: readonly ResultRow[]; celebrate?: boolean }) {
   const { t } = useTranslation();
+  // Scores may be negative: every count starts from the lowest of them (or 0).
+  const from = Math.min(0, ...rows.map((r) => r.score));
   return (
     <table className={styles.table} aria-label={t("result.label")}>
       <thead>
@@ -28,7 +32,7 @@ export function ResultTable({ rows }: { rows: readonly ResultRow[] }) {
         {rows.map((row) => (
           <tr
             key={row.shared ? `shared-${row.colours.join()}` : row.seat}
-            className={row.winner ? styles.winner : row.shared ? styles.shared : undefined}
+            className={row.winner ? [styles.winner, celebrate && styles.shimmer].filter(Boolean).join(" ") : row.shared ? styles.shared : undefined}
             data-seat={row.seat}
             data-colours={row.colours.join(",")}
             data-rank={row.rank}
@@ -53,12 +57,24 @@ export function ResultTable({ rows }: { rows: readonly ResultRow[] }) {
                 {row.left && row.name && <span className={styles.departed}>· {t("result.departed")}</span>}
               </span>
             </th>
-            <td>{row.score}</td>
+            <ScoreCell score={row.score} run={celebrate} from={from} />
             <td>{row.squares}</td>
             <td>{row.piecesLeft}</td>
           </tr>
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** A score counting up to its final value; the accessible text holds the final value all along. */
+function ScoreCell({ score, run, from }: { score: number; run: boolean; from: number }) {
+  const shown = useCountUp(score, run, 900, from);
+  if (shown === score) return <td>{score}</td>;
+  return (
+    <td>
+      <span aria-hidden="true">{shown}</span>
+      <span className={styles.srOnly}>{score}</span>
+    </td>
   );
 }

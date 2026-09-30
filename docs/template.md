@@ -66,6 +66,7 @@ Palikka-specific places (listed).
 | `src/settings/*`, `src/tips/*` (mechanism), `src/ui/*` | as is | `ui/tokens.css` holds the game's theme |
 | `src/screens/StartScreen.tsx`, `WaitingRoomScreen.tsx` | as is | |
 | `src/game/{AutoplayControls,GameIdBadge,GameOverControls,KickControl,LeaveControls,SpectatorControls,TurnTimer,HintButton,UndoButton}.tsx`, `copyLine.ts`, `turnClock.ts` | as is | |
+| `src/motion/*` (board diff, `useLastMove`, `useEnded`, `useCountUp`, `useBlip`, `usePrevious`, `prefersReducedMotion`, `Snowfall`) | as is | no game names; `Snowfall` uses the `--snow` token |
 | `src/i18n/locales/*.json` | adapted | generic keys (start, waiting, errors, settings …) plus game texts |
 
 ## E2E (`e2e/`)

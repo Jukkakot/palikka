@@ -26,6 +26,12 @@
   --preview-ok-outline: #1c2430;
   --preview-bad: #b42336;
 
+  /* Frost: a piece or chip out of play; the last move's ring and dot; snowflakes */
+  --frost: #dfe7ef;
+  --frost-edge: #b9c6d4;
+  --last-mark: rgba(255, 255, 255, 0.9);
+  --snow: #9fb4cc;
+
   /* Seats: Järvi, Lakka, Puolukka, Kuusi */
   --seat-1: #3a78c2;
   --seat-2: #f0a53a;
@@ -43,6 +49,11 @@
   --radius-m: 12px;
   --radius-pill: 999px;
   --tap-min: 44px;
+
+  /* Motion: everything in play stays within --motion; only the end of a game is slow */
+  --motion-fast: 150ms;
+  --motion: 250ms;
+  --motion-slow: 700ms;
 
   /* Type */
   --font: system-ui, "Segoe UI", Roboto, sans-serif;
@@ -74,6 +85,10 @@
     --target: #e6ebf2;
     --preview-ok-outline: #e6ebf2;
     --preview-bad: #ff7a85;
+    --frost: #2a3340;
+    --frost-edge: #46546a;
+    --last-mark: rgba(8, 11, 16, 0.85);
+    --snow: #e6ebf2;
 
     --seat-1: #5d9cf0;
     --seat-2: #ffbe5c;
@@ -98,6 +113,10 @@
   --target: #e6ebf2;
   --preview-ok-outline: #e6ebf2;
   --preview-bad: #ff7a85;
+  --frost: #2a3340;
+  --frost-edge: #46546a;
+  --last-mark: rgba(8, 11, 16, 0.85);
+  --snow: #e6ebf2;
 
   --seat-1: #5d9cf0;
   --seat-2: #ffbe5c;

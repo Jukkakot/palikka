@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { Board } from "../game/Board.tsx";
 import controls from "../game/Controls.module.css";
 import { PieceTray } from "../game/PieceTray.tsx";
+import { useEnded, useLastMove } from "../motion/hooks.ts";
+import { Snowfall } from "../motion/Snowfall.tsx";
 import { BackButton } from "../ui/BackButton.tsx";
 import { Button } from "../ui/Button.tsx";
 import { Screen } from "../ui/Screen.tsx";
@@ -38,6 +40,10 @@ export default function PuzzleScreen({ onClose, options, sharer = browserSharer(
   const puzzle = usePuzzle({ ...options, date });
   const { chosen, preview, result, turn, mirror, choose, save } = puzzle;
   const count = puzzle.puzzle.pieces.length;
+  // A placed piece settles in as in a game (no last-move mark: every move is the player's own).
+  const fresh = useLastMove(puzzle.owner, date);
+  // Solved while watched (not on reopening a solved puzzle): snow falls once.
+  const solvedNow = useEnded(result !== undefined);
 
   // R, F and Escape while a piece is chosen (as in a game).
   useEffect(() => {
@@ -85,6 +91,7 @@ export default function PuzzleScreen({ onClose, options, sharer = browserSharer(
           <Board
             board={puzzle.owner}
             outside={puzzle.outside}
+            fresh={fresh}
             preview={preview && { squares: new Set(preview.squares), legal: preview.legal, seat: TRAY_SEAT }}
             onPoint={result ? undefined : puzzle.point}
             onSquare={result ? undefined : puzzle.click}
@@ -102,7 +109,10 @@ export default function PuzzleScreen({ onClose, options, sharer = browserSharer(
         </div>
         <div className={styles.side}>
           {result ? (
-            <SolvedPanel result={result} date={date} sharer={sharer} store={options?.store} />
+            <>
+              <SolvedPanel result={result} date={date} sharer={sharer} store={options?.store} />
+              {solvedNow && <Snowfall />}
+            </>
           ) : (
             <>
               <div className={controls.controls}>

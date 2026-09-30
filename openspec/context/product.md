@@ -68,6 +68,10 @@ corner-touching game. Never use the original's trademarked name, logos or look (
   corners, no shadows or textures. Light = a frosty morning (pale blue-grey ground, white cells),
   dark = the polar night (near-black ground, slate cells). Seat colours as above, brighter in dark.
 - Pieces are always squares; nothing round.
+- Motion (built in `game-motion`): restrained in play (squares settle in ≤ 250 ms, the last move
+  keeps a ring and a small square, pieces and chips "freeze" when out of play), playful at the end
+  (scores count up, winners' rows shimmer, square snowflakes). `prefers-reduced-motion` stops all
+  of it; the marks stay as static styles.
 - Voice: playful and wintery throughout (the user wants it "reilusti"): the server "wakes from
   hibernation", a leaver "wandered off into the forest", the winner "has the winter". Keep texts
   clear first, playful second.

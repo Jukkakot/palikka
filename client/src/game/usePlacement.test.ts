@@ -42,6 +42,22 @@ describe("piece-controls › Choosing a piece", () => {
     expect(result.current.fitting).toBeUndefined();
   });
 
+  it("Frozen off turn: pieces that fit nowhere are known off turn too, and nothing is selectable", () => {
+    // Colour 1's I5 stands in the first column; colour 2 takes its only free corner (5,1).
+    const blocked = positionWith(
+      [
+        [1, placement("I5", ["#", "#", "#", "#", "#"], 0, 0)],
+        [2, placement("I1", ["#"], 5, 1)],
+      ],
+      [1, 2],
+    );
+    const { result } = setup(gameView({ position: blocked, board: blocked.cells, isMyTurn: false, turnSeat: 2, turnColour: 2 }));
+    expect(result.current.fitting).toBeUndefined();
+    expect(result.current.fitsAnywhere?.size).toBe(0);
+    const open = setup(gameView({ isMyTurn: false, turnSeat: 2, turnColour: 2 }));
+    expect(open.result.current.fitsAnywhere?.has(I5)).toBe(true);
+  });
+
   it("the choice is dropped when the turn changes", () => {
     const { result, rerender } = setup();
     act(() => result.current.choose(I5));
@@ -98,6 +114,24 @@ describe("piece-controls › Placing", () => {
     });
     expect(move).toBeUndefined();
     expect(result.current.ready).toBeUndefined();
+  });
+
+  it("Illegal attempt shakes: a tap inside an illegal preview or Enter on it counts a nudge", () => {
+    const { result } = setup();
+    act(() => result.current.choose(I5));
+    act(() => void result.current.click(210));
+    expect(result.current.nudge).toBe(0);
+    act(() => void result.current.click(210));
+    expect(result.current.nudge).toBe(1);
+    act(() => void result.current.confirm());
+    expect(result.current.nudge).toBe(2);
+    act(() => void result.current.click(0));
+    let move;
+    act(() => {
+      move = result.current.confirm();
+    });
+    expect(move).toBeDefined();
+    expect(result.current.nudge).toBe(2);
   });
 
   it("arrow keys start at the start corner and move one square, exactly", () => {
@@ -285,6 +319,14 @@ describe("piece-controls › Dragging a piece", () => {
     act(() => result.current.dragTo(before[2]! + 2));
     expect(result.current.preview?.squares).toEqual(before.map((s) => s + 2));
     expect(result.current.preview?.legal).toBe(false);
+  });
+
+  it("a drop on an illegal spot counts a nudge", () => {
+    const { result } = setup(viewOf(played));
+    act(() => result.current.dragStart(I1));
+    act(() => result.current.dragTo(8 * 20 + 1));
+    act(() => result.current.dragEnd(true));
+    expect(result.current.nudge).toBe(1);
   });
 
   it("Drop outside: the piece stays chosen and the preview returns to where it was", () => {

@@ -138,3 +138,17 @@ candidates for the shared template.
   bitboard-fast; memoised on `position` and colour.
 - [Several state patches for one move (board, then turn) re-trigger the settle] → the diff of an
   unchanged board is empty and keeps the mark, and a square only settles when it was empty before.
+
+## Implementation notes (2026-09-30)
+
+- Shake and pulse use `useBlip` (a counter that is "on" for the animation's length) with two
+  identical keyframes alternated by parity, instead of re-keying a wrapper: the preview squares are
+  board cells, so there is no wrapper, and a preview moved after the blip must not replay it.
+- The hint pulse counts presses (`usePlacement.hintShown`), not `hints.index`, so a turn with only
+  one hint still pulses on every press.
+- `usePlacement` gained `confirm()` for Enter (the legal move, or a nudge on an illegal preview) and
+  `fitsAnywhere` (on and off turn); `fitting` keeps meaning "selectable now".
+- The tray and strip compare with `usePrevious(value, same)` by content, since every state patch
+  builds a new position (a new set with the same pieces must not cut an animation).
+- Fixed on the way: `PlayerStrip.module.css` had a broken `.out` rule that struck through every
+  chip's score; now only an out chip's score is struck through.

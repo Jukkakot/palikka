@@ -1,5 +1,6 @@
 import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useBlip } from "../motion/hooks.ts";
 import styles from "./Board.module.css";
 import { toBoard, UNTURNED, type ViewTransform, type ZoomBox } from "./boardView.ts";
 
@@ -41,6 +42,14 @@ export interface BoardProps {
   zoom?: ZoomBox;
   /** A piece is being dragged: the board takes all touch movement (no page scrolling). */
   dragging?: boolean;
+  /** The squares the last move filled: marked with a ring and a small square (static). */
+  lastMove?: ReadonlySet<number>;
+  /** Newly filled squares: they settle into place with a short animation. */
+  fresh?: ReadonlySet<number>;
+  /** Changes on a refused placing attempt: the preview shakes. */
+  shake?: number;
+  /** Changes when a hint is shown: the preview pulses once. */
+  pulse?: number;
 }
 
 const ARROWS: Record<string, readonly [number, number]> = {
@@ -77,8 +86,13 @@ function zoomStyle(zoom: ZoomBox | undefined, size: number): CSSProperties | und
  */
 export function Board(props: BoardProps) {
   const { board, corners, corner, preview, onPoint, onSquare, onMove, onConfirm, onPreviewPointerDown, announce, busy = false, outside } = props;
-  const { view = UNTURNED, zoom, dragging = false } = props;
+  const { view = UNTURNED, zoom, dragging = false, lastMove, fresh, shake, pulse } = props;
   const { t } = useTranslation();
+  // A shake or pulse runs on the preview squares of that moment only (not on a preview moved later).
+  const shaking = useBlip(shake, 200);
+  const pulsing = useBlip(pulse, 250);
+  const previewMotion =
+    shaking !== undefined ? styles[shaking % 2 ? "shakeA" : "shakeB"] : pulsing !== undefined ? styles[pulsing % 2 ? "pulseA" : "pulseB"] : undefined;
   const size = Math.round(Math.sqrt(board.length));
   const placing = onSquare !== undefined && !busy;
 
@@ -136,12 +150,15 @@ export function Board(props: BoardProps) {
             corner === i && styles.cornerOn,
             inPreview && (preview!.legal ? styles.previewOk : styles.previewBad),
             inPreview && onPreviewPointerDown && styles.handle,
+            inPreview && previewMotion,
+            !inPreview && owner !== 0 && lastMove?.has(i) && styles.last,
+            !inPreview && owner !== 0 && fresh?.has(i) && styles.settle,
             outside?.has(i) && styles.outside,
           ]
             .filter(Boolean)
             .join(" ");
           const colour = inPreview && preview!.legal ? preview!.seat : owner;
-          const style = colour > 0 ? { background: `var(--seat-${colour})` } : undefined;
+          const style = colour > 0 ? { backgroundColor: `var(--seat-${colour})` } : undefined;
           return (
             <span
               key={i}
@@ -150,6 +167,7 @@ export function Board(props: BoardProps) {
               data-cell={i}
               data-owner={owner || undefined}
               data-preview={inPreview ? (preview!.legal ? "ok" : "bad") : undefined}
+              data-last={!inPreview && owner !== 0 && lastMove?.has(i) ? "" : undefined}
             />
           );
         })}

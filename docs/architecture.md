@@ -258,6 +258,8 @@ client/src/
   tips/         first-game tips (pure pick + localStorage) and the start screen's reset link
   settings/     device settings store, settings screen, theme, generated sounds, turn alert
   howto/        the rules screen ("Näin pelaat")
+  motion/       generic motion helpers: board diff, useLastMove, useEnded, useCountUp, useBlip,
+                usePrevious, prefersReducedMotion, Snowfall
   puzzle/       the daily puzzle: screen, state hook, fit-rule placing, device store
   ui/           tokens.css (theme "Kuura", light + dark) and shared components
   logging/ i18n/ config.ts CrashBoundary.tsx
@@ -287,7 +289,8 @@ client/src/
   (`palikka.localGame`) after every step; a save of an older format (before the variants: no
   `variant`, `control` or `sides`) is dropped. Watched bot games (`local-watch-…`) are never saved.
 - **Piece controls:** the viewer's 21 pieces sit in the tray (`PieceTray`; placed = empty slot,
-  pieces that fit nowhere dimmed, from the rules' `fittingPieces`). `usePlacement` holds the choice
+  pieces that fit nowhere frozen on and off turn, from the rules' `fittingPieces` via
+  `usePlacement.fitsAnywhere`). `usePlacement` holds the choice
   (piece, orientation, aimed square) for the current turn; `turnOrientation` / `mirrorOrientation`
   step the orientation ("Käännä", "Peilaa", R, F). `placing.ts` turns an aim into a preview: a
   pointer snaps to the legal spot of that orientation covering the square whose reference square
@@ -324,6 +327,18 @@ client/src/
   `overflow: clip` (not `hidden`: a hidden frame can still be scrolled by focus or scrollIntoView).
   The control bar's zoom toggle (phone only) is the `boardZoom` setting. The start screen's bot way
   starts at the `lastVariant` setting, else Duo on a phone and Perus otherwise.
+- **Motion** (`motion/`, CSS keyframes only, tokens `--motion*`, `--frost*`, `--last-mark`,
+  `--snow`): the last move comes from a board diff in the client (`useLastMove`: squares empty
+  before and filled now; an update that only empties clears it; the first board and another room
+  have none), so bot, online and catch-up moves all work with no protocol change. `Board` marks
+  `lastMove` (ring + small square, static) and settles `fresh` squares; the puzzle passes only
+  `fresh`. `usePlacement.nudge` (refused tap, Enter or drop) shakes and `hintShown` pulses the
+  preview (`useBlip`, so a preview moved later does not replay it). The tray and the player strip
+  compare with the value before the last change (`usePrevious` by content) to freeze only on a
+  seen transition. The end celebrates only when `useEnded` saw `finished` turn true (not after a
+  reload): `ResultTable` counts up (`useCountUp`, the final score in accessible text) and shimmers
+  winners; `Snowfall` when the viewer won or spectates; the puzzle's solved panel too. The global
+  `prefers-reduced-motion` rule stops all keyframes; the count-up and snowfall check it themselves.
 - **Layout:** phone portrait stacks turn line, players, board, control bar and tray; from 900 px
   landscape the board sits left and the rest in a column beside it (`GameScreen.module.css`).
 - **Result:** a finished game shows `ResultTable` from `GameView.results` (every player ranked by
