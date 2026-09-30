@@ -70,4 +70,11 @@ describe("piece-controls › Hint as a preview", () => {
     expect(squaresOf(move, 20)).toContain(0);
     expect(hintMove(position, 1, 1)).toEqual(move);
   });
+
+  it("Hint for the shared colour: a legal colour-4 move chosen for the viewer's side", () => {
+    const position = { ...newPosition(CLASSIC, [1, 2, 3, 4], 4, { 1: 1, 2: 2, 3: 3, 4: 0 }) };
+    const move = hintMove(position, 4, 4, 2)!;
+    expect(checkPlacement(position, 4, move)).toBeUndefined();
+    expect(hintMove(position, 4, 4, 2)).toEqual(move);
+  });
 });

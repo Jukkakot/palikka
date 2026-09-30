@@ -29,6 +29,23 @@ describe("board-view › Whose turn is shown", () => {
   });
 
 
+  it("Second colour on turn: Tuplaväri names the colour before the text", () => {
+    const double = [seatView(1, "Maija", { colours: [1, 3] }), seatView(2, "Pekka", { colours: [2, 4], isMe: false })];
+    const { container } = render(<TurnLine view={{ seats: double, turnSeat: 1, turnColour: 3, isMyTurn: true, mySeat: 1, variant: "double" }} />);
+    expect(screen.getByText("Puolukka · Sinun vuorosi")).toBeTruthy();
+    expect(container.querySelector("[data-seat='3']")).not.toBeNull();
+  });
+
+  it("Shared colour on turn: says the shared colour is theirs to play", () => {
+    render(<TurnLine view={{ seats, turnSeat: 1, turnColour: 4, turnShared: true, isMyTurn: true, mySeat: 1, variant: "trio" }} />);
+    expect(screen.getByText("Kuusi (yhteinen) · Sinun vuorosi")).toBeTruthy();
+  });
+
+  it("classic keeps the plain text", () => {
+    render(<TurnLine view={{ seats, turnSeat: 2, turnColour: 2, isMyTurn: false, variant: "classic" }} />);
+    expect(screen.getByText("Pekka miettii…")).toBeTruthy();
+  });
+
   it("shows nothing before anybody holds the turn", () => {
     const { container } = render(<TurnLine view={{ seats, turnSeat: 0, isMyTurn: false }} />);
     expect(container.textContent).toBe("");

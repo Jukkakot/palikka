@@ -5,7 +5,7 @@ import styles from "./PlayerStrip.module.css";
 import { SeatMark } from "./SeatMark.tsx";
 
 /**
- * One chip per seat: the seat's colour, the nickname (shortened with an ellipsis; the full name is in
+ * One chip per seat: the seat's colour or colours, the nickname (shortened with an ellipsis; the full name is in
  * the accessible text) and the score (the rules' points), a struck-through score once the colour
  * cannot move any more, and a dimmed chip with an icon when disconnected. A bot's chip has a robot icon, and so does a person's while the bot plays for them.
  */
@@ -28,7 +28,11 @@ export function PlayerStrip({ view }: { view: Pick<GameView, "seats"> }) {
         return (
           <li key={s.seat} className={cls} data-seat={s.seat} data-offline={s.connected ? undefined : ""} data-autoplay={s.autoplay ? "" : undefined} data-out={s.out ? "" : undefined}>
             <span className={styles.srOnly}>{summary}</span>
-            <SeatMark seat={s.seat} isMe={s.isMe} />
+            <span className={styles.marks}>
+              {(s.colours.length > 0 ? s.colours : [s.seat]).map((colour) => (
+                <SeatMark key={colour} seat={colour} isMe={s.isMe} />
+              ))}
+            </span>
             {(s.isBot || s.autoplay) && <IconRobot size={16} stroke={2} aria-hidden="true" className={styles.botIcon} />}
             <span className={styles.name} aria-hidden="true">
               {s.name}

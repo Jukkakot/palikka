@@ -1,4 +1,4 @@
-import { applyMove, CLASSIC, createRng, newPosition, scores, type Move, type Position } from "@palikka/rules";
+import { applyMove, CLASSIC, createRng, DUO, newPosition, scores, type BoardConfig, type Move, type Position } from "@palikka/rules";
 import { systemClock, type Bot, type Budget, type GameResult, type MoveTiming, type ScheduledGame } from "game-bots";
 import { brsPlayer, greedyPlayer, mctsPlayer, randomPlayer } from "./adapter.js";
 
@@ -47,18 +47,28 @@ export function parseBot(label: string): TournamentBot {
   return { label, name: name!, bot: registered.bot, budget };
 }
 
-/** Tournament formats by number of colours: the colours each side of a pairing plays. */
+/** Tournament formats (`--colours`): the board and the colours each side of a pairing plays. */
 export const FORMATS = {
   /** Classic board, all four colours: the first bot on 1 and 3, the second on 2 and 4. */
-  4: { description: "4 colours, classic board", sides: [[1, 3], [2, 4]] },
+  4: { description: "4 colours, classic board", board: CLASSIC, sides: [[1, 3], [2, 4]] },
   /** Classic board, colours 1 and 2 (as a 2-player room seats them). */
-  2: { description: "2 colours, classic board", sides: [[1], [2]] },
-} as const satisfies Record<number, { description: string; sides: readonly [readonly number[], readonly number[]] }>;
+  2: { description: "2 colours, classic board", board: CLASSIC, sides: [[1], [2]] },
+  /** The Duo variant: 14×14 board, colours 1 and 2. */
+  duo: { description: "Duo, 14×14 board", board: DUO, sides: [[1], [2]] },
+} as const satisfies Record<number | string, { description: string; board: BoardConfig; sides: readonly [readonly number[], readonly number[]] }>;
 
 export type Colours = keyof typeof FORMATS;
 
-export function isColours(value: number): value is Colours {
-  return Object.hasOwn(FORMATS, value);
+/** Whether `value` names a format: 4, 2 (numbers or digit strings) or "duo". */
+export function isColours(value: unknown): value is Colours {
+  return (typeof value === "number" || typeof value === "string") && Object.hasOwn(FORMATS, value) && (value === "duo" || typeof value === "number");
+}
+
+/** A `--colours` option value as a format; throws with the allowed values when it is not one. */
+export function parseColours(value: string): Colours {
+  const colours = /^\d+$/.test(value) ? Number(value) : value;
+  if (!isColours(colours)) throw new RangeError(`--colours must be 4, 2 or duo, got ${value}`);
+  return colours;
 }
 
 /** A played game plus how long each bot took per move. */
@@ -74,7 +84,8 @@ export interface PlayedGame {
  */
 export function playTournamentGame(colours: Colours, bots: ReadonlyMap<string, TournamentBot>, game: ScheduledGame): PlayedGame {
   const [first, second] = game.swapped ? [game.pairing[1], game.pairing[0]] : game.pairing;
-  const [sideA, sideB] = FORMATS[colours].sides;
+  const { board, sides } = FORMATS[colours];
+  const [sideA, sideB] = sides;
   const byColour = new Map<number, TournamentBot>();
   for (const [label, side] of [[first, sideA], [second, sideB]] as const) {
     const bot = bots.get(label);
@@ -84,7 +95,7 @@ export function playTournamentGame(colours: Colours, bots: ReadonlyMap<string, T
 
   const timing: Record<string, { moves: number; totalMs: number; maxMs: number }> = {};
   const rng = createRng(game.seed);
-  let position = newPosition(CLASSIC, [...byColour.keys()], 1);
+  let position = newPosition(board, [...byColour.keys()], 1);
   while (!position.ended) {
     const player = byColour.get(position.turn)!;
     const started = systemClock();

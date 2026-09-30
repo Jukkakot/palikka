@@ -31,10 +31,42 @@ export function scores(position: Position): ColourScore[] {
   });
 }
 
-/** The colours with the highest score once the game has ended; none while running or when aborted. */
-export function winners(position: Position): number[] {
+export interface SideScore {
+  /** The seat that owns the colours (classic: the colour itself). */
+  readonly side: number;
+  readonly colours: readonly number[];
+  readonly score: number;
+  readonly squares: number;
+}
+
+/** The side a colour scores for; 0 = shared (no one). */
+export function sideOf(position: Position, colour: number): number {
+  return position.sides[colour] ?? colour;
+}
+
+/** Scores summed per side, sides ascending; a shared colour (side 0) is left out. */
+export function sideScores(position: Position): SideScore[] {
+  const bySide = new Map<number, { colours: number[]; score: number; squares: number }>();
+  for (const s of scores(position)) {
+    const side = sideOf(position, s.colour);
+    if (side === 0) continue;
+    const entry = bySide.get(side) ?? { colours: [], score: 0, squares: 0 };
+    entry.colours.push(s.colour);
+    entry.score += s.score;
+    entry.squares += s.squares;
+    bySide.set(side, entry);
+  }
+  return [...bySide.entries()].sort(([a], [b]) => a - b).map(([side, e]) => ({ side, ...e }));
+}
+
+/**
+ * The sides with the highest score once the game has ended, among those not in `excluded` (sides
+ * that left); none while running or when aborted. Classic: sides are colours.
+ */
+export function winners(position: Position, excluded: readonly number[] = []): number[] {
   if (!position.ended || position.aborted) return [];
-  const all = scores(position);
+  const all = sideScores(position).filter((s) => !excluded.includes(s.side));
+  if (all.length === 0) return [];
   const best = Math.max(...all.map((s) => s.score));
-  return all.filter((s) => s.score === best).map((s) => s.colour);
+  return all.filter((s) => s.score === best).map((s) => s.side);
 }

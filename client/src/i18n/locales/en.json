@@ -45,7 +45,7 @@
     "nicknameLength": "A nickname needs 2–16 characters",
     "nicknameCharacters": "The nickname has characters that cannot be used",
     "openGames": "Open games",
-    "gameEntryLabel": "Join game: {{host}}, {{count}}/4 players",
+    "gameEntryLabel": "Join game: {{host}}, {{variant}}, {{count}}/{{max}} players",
     "hostLeft": "The game's creator left, so the game was closed",
     "notOpen": "The game is no longer open",
     "serverFull": "The server is full – try again in a moment",
@@ -62,7 +62,7 @@
     "botGameLabel_other": "Quick game: you and {{count}} bots",
     "randomName": "Pick a new name",
     "runningGames": "Running games",
-    "runningEntryLabel": "Watch game: {{host}}, {{count}} players",
+    "runningEntryLabel": "Watch game: {{host}}, {{variant}}, {{count}} players",
     "runningCount": "{{count}} players",
     "watchBotsLabel": "Watch a game of {{count}} bots",
     "watchBotCount_one": "{{count}} bot",
@@ -91,7 +91,9 @@
     "disconnected": "{{name}} – connection lost",
     "timeLeft": "Time left {{time}}",
     "autoplayMine": "The bot plays for you",
-    "autoplay": "The bot plays: {{name}}"
+    "autoplay": "The bot plays: {{name}}",
+    "colour": "{{colour}} · {{text}}",
+    "shared": "{{colour}} (shared)"
   },
   "place": {
     "wait": "Wait for your turn",
@@ -119,7 +121,7 @@
     "NOT_KICKABLE": "This player cannot be removed now",
     "TURN_NOT_EXPIRED": "The player's time is not up yet",
     "NOT_HOST": "Only the game's creator can start the game",
-    "NOT_ENOUGH_PLAYERS": "At least 2 players are needed",
+    "NOT_ENOUGH_PLAYERS": "Not enough players yet",
     "SEAT_TAKEN": "The seat is already taken",
     "NOT_A_BOT": "There is no bot in that seat",
     "NOT_SPECTATOR": "Only a spectator can change the speed",
@@ -134,7 +136,8 @@
     "NO_CORNER_CONTACT": "The piece must touch one of your own pieces at a corner",
     "NOT_BOT_RUNNER": "Another player is computing the bots’ moves now",
     "NOT_BOT_SEAT": "No bot plays in that seat",
-    "INVALID_MOVE": "The piece cannot go there"
+    "INVALID_MOVE": "The piece cannot go there",
+    "TOO_MANY_PLAYERS": "This variant has no seat for everyone"
   },
   "hint": {
     "button": "Hint",
@@ -167,7 +170,9 @@
     "squares": "Squares",
     "piecesLeft": "Pieces left",
     "winner": "Winner",
-    "departed": "Wandered off"
+    "departed": "Wandered off",
+    "sharedColour": "Shared colour",
+    "notCounted": "not counted"
   },
   "kick": {
     "timeUp": "{{name}} – time is up",
@@ -196,7 +201,8 @@
     "bot": "bot",
     "addBot": "Add bot",
     "addBotLabel": "Add a bot to seat {{seat}}",
-    "removeBot": "Remove bot {{name}}"
+    "removeBot": "Remove bot {{name}}",
+    "needPlayers": "{{count}} players are needed"
   },
   "leave": {
     "button": "Leave game",
@@ -272,10 +278,37 @@
       "start": "The first piece on the starting corner",
       "corner": "Corner contact with your colour: allowed",
       "edge": "Side contact with your colour: not allowed"
+    },
+    "variants": {
+      "title": "Variants",
+      "classic": "Classic: 2–4 players on the 20×20 board, each playing their own colour from a corner.",
+      "duo": "Duo: two players on a small 14×14 board. The start squares are inside the board, not in the corners.",
+      "double": "Double: two players with two colours each. The colours’ scores are added up.",
+      "trio": "Trio: three players. The fourth colour, Kuusi, is played in turns, and its score counts for no one."
     }
   },
   "undo": {
     "label": "Undo move"
+  },
+  "variant": {
+    "label": "Variant",
+    "classic": "Classic",
+    "duo": "Duo",
+    "double": "Double",
+    "trio": "Trio",
+    "about": {
+      "classic": "2–4 players, a colour each",
+      "duo": "2 players on a small 14×14 board",
+      "double": "2 players with two colours each",
+      "trio": "3 players, the fourth colour taken in turns"
+    },
+    "chosen": "Variant: {{name}}"
+  },
+  "colour": {
+    "1": "Järvi",
+    "2": "Lakka",
+    "3": "Puolukka",
+    "4": "Kuusi"
   },
   "puzzle": {
     "title": "Daily puzzle",

@@ -29,6 +29,9 @@ export function useBotRunner(room: GameRoomLike | undefined, view: GameView | un
   if (turn.key !== key) setTurn({ key, position: key ? view?.position : undefined });
   const position = turn.key === key ? turn.position : undefined;
   const seat = view?.turnSeat ?? 0;
+  const colour = view?.turnColour || seat;
+  // The shared colour is played for the seat whose turn it is to play it.
+  const viewpoint = view?.turnShared ? view.seats.find((s) => s.seat === seat)?.colours[0] : undefined;
   const speed = view?.botSpeed ?? 1;
 
   useEffect(() => {
@@ -46,7 +49,7 @@ export function useBotRunner(room: GameRoomLike | undefined, view: GameView | un
       }
     };
 
-    askBot({ position, colour: seat, budget: botBudget(speed), seed: randomSeed() }).then(
+    askBot({ position, colour, budget: botBudget(speed), seed: randomSeed(), ...(viewpoint !== undefined && { viewpoint }) }).then(
       (move) => {
         if (cancelled) return;
         if (!move) {
@@ -61,5 +64,5 @@ export function useBotRunner(room: GameRoomLike | undefined, view: GameView | un
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [room, key, position, seat, speed, askBot]);
+  }, [room, key, position, seat, colour, viewpoint, speed, askBot]);
 }

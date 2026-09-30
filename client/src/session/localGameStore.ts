@@ -1,5 +1,5 @@
 import type { BotSpeed } from "@palikka/protocol";
-import { PIECE_COUNT, type Game } from "@palikka/rules";
+import { isVariantId, PIECE_COUNT, type Game } from "@palikka/rules";
 
 /**
  * The game against bots that runs on this device, kept in localStorage so a reload, an update or a
@@ -57,11 +57,19 @@ export function saveLocalGame(saved: SavedLocalGame, store = storage()): void {
 
 const isInt = (value: unknown, min: number, max: number): boolean => Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
 
-/** Throws unless `game` looks like a game of the current rules (an old or broken save is dropped). */
+/**
+ * Throws unless `game` looks like a game of the current rules (an old or broken save is dropped).
+ * Saves from before the variants (no variant, colour control or sides) are dropped too.
+ */
 function checkGame(game: Game): Game {
   const { position, seats } = game;
   const { size } = position.config;
   const ok =
+    isVariantId(game.variant) &&
+    typeof game.control === "object" &&
+    game.control !== null &&
+    typeof position.sides === "object" &&
+    position.sides !== null &&
     Array.isArray(seats) &&
     Array.isArray(game.left) &&
     Array.isArray(game.winners) &&

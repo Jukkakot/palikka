@@ -33,6 +33,7 @@ export const SERVER_LOG_EVENTS = [
   "turn.changed",
   "turn.expired",
   "phase.changed",
+  "variant.changed",
   "cmd.accepted",
   "cmd.rejected",
   "cmd.failed",

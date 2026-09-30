@@ -34,6 +34,19 @@ describe("best-reply search", () => {
     expect(bestReplyBot(grabGame, grabEvaluate).choose(trap, { depth: 2 }, testRng(1))).toBe(C);
   });
 
+  it("A non-opponent never replies", () => {
+    // Player 1 is on the root's side: it could punish A with B, but it is never searched as a reply.
+    const game: MultiplayerGame<Grab, number, number> = {
+      ...grabGame,
+      opponents: (s) => grabGame.players(s).filter((p) => p !== 1),
+      movesOf(s, p) {
+        expect(p).not.toBe(1);
+        return grabGame.movesOf(s, p);
+      },
+    };
+    expect(bestReplyBot(game, grabEvaluate).choose(trap, { depth: 2 }, testRng(1))).toBe(A);
+  });
+
   it("Only colours still in reply", () => {
     // Player 2 is out: it could punish A with B, but it never replies.
     const game: MultiplayerGame<Grab, number, number> = {

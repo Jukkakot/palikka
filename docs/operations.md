@@ -145,17 +145,18 @@ alerts or emails: errors are found on the dashboard.
 | `room.refused` | a join or creation refused, `{ reason }`: `nickname` (invalid), `options` (another invalid or unknown join option, e.g. `bots` or `private` from an old app), `cap` (`open` games at the limit) or `notWatchable` (a spectator for a game not running) |
 | `player.joined` / `left` / `dropped` / `reconnected` | connection changes (a dropped seat is held 5 min); `joined` carries the nickname `name` |
 | `player.removed` | a player is taken out of a game, `{ seat, reason, by? }` (`left`, `kicked` by seat `by`, `timeout` after 5 min disconnected) |
-| `game.started` | the game started, `{ dealSeed, seats, startSeat, runner }` (the seed reproduces the server's fallback moves; never synced; `runner` = the bot runner's seat) |
-| `game.finished` | the game ended, `{ winners, reason, scores }` (winning seats; `complete` when no colour can move, `lastPlayer`; `noPeople` with no winners when only bots were left and nobody watched; `scores` = `colour:score/squares …`) |
+| `game.started` | the game started, `{ dealSeed, variant, seats, startSeat, startColour, runner }` (the seed reproduces the server's fallback moves; never synced; `runner` = the bot runner's seat) |
+| `game.finished` | the game ended, `{ winners, reason, scores }` (winning seats; `complete` when no colour can move, `lastPlayer`; `noPeople` with no winners when only bots were left and nobody watched; `scores` = `colour:score/squares …` per colour; in Tuplaväri a seat's score is the sum of its two colours, in Kolmikko colour 4 counts for no one) |
 | `game.rematch` | a finished game created its rematch game, `{ rematchRoom }` (follow the group into that room) |
 | `spectator.joined` / `spectator.left` | a spectator came or went (left, or the 5-min drop hold ran out), `{ spectators }` = count after; their connection lines are `player.joined` with `spectator: true` etc. |
-| `bot.added` / `bot.removed` | the host seated or removed a bot in the waiting room, `{ seat, name }` |
+| `bot.added` / `bot.removed` | the host seated or removed a bot in the waiting room, `{ seat, name }`; `reason: "variant"` when a variant with fewer seats removed it |
+| `variant.changed` | the host chose another variant in the waiting room, `{ from, to }` (`classic`, `duo`, `double`, `trio`) |
 | `bot.runner` | the seat whose browser computes bot moves changed, `{ from, to }` (0 = none: the server plays them) |
-| `bot.fallback` | the server played a bot-played seat's move itself, `{ seat, reason, runner }`: info with `noRunner` (no person connected, e.g. spectators watching bots), warn with `runnerSilent` (the runner sent no accepted move within 10 s after the pause: a slow, throttled or broken host browser) |
+| `bot.fallback` | the server played a bot-played seat's move itself, `{ seat, colour, reason, runner }`: info with `noRunner` (no person connected, e.g. spectators watching bots), warn with `runnerSilent` (the runner sent no accepted move within 10 s after the pause: a slow, throttled or broken host browser) |
 | `autoplay.changed` | the bot took over a person's seat or gave it back, `{ seat, on, reason }` (`player` handed over or took back, `drop` connection lost, `reconnect` came back); its commands then carry `bot: true` with the person's own `player` |
-| `turn.changed` | every turn change, `{ from, to, out }` seats (0 = nobody; `out` = colours that cannot move any more) |
+| `turn.changed` | every turn change, `{ from, to, colour, out }`: `from`/`to` are seats (0 = nobody), `colour` the colour on turn (in Tuplaväri and Kolmikko not the seat; the shared colour 4 rotates), `out` = colours that cannot move any more |
 | `turn.expired` | the current turn's 120 s ran out, `{ seat }`; from now on the others may kick |
-| `phase.changed` | the phase changes, `{ from, to, turnSeat }` (`waiting` → `play` → `finished`) |
+| `phase.changed` | the phase changes, `{ from, to, turnSeat }` (`waiting` → `play` → `finished`); to `play` it carries `variant` |
 | `cmd.accepted` / `cmd.rejected` / `cmd.failed` | every room command, exactly once, with code and state facts; a bot's commands carry `player: "bot:<seat>"` and `bot: true` |
 | `framework.log` | Colyseus's own messages |
 | `server.started` / `server.shutdown`, `process.*` | process lifecycle and fatal errors |

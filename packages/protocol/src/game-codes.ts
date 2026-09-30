@@ -24,6 +24,7 @@ export const GAME_ERROR_CODES = [
   "TURN_NOT_EXPIRED",
   "NOT_HOST",
   "NOT_ENOUGH_PLAYERS",
+  "TOO_MANY_PLAYERS",
   "SEAT_TAKEN",
   "NOT_A_BOT",
   "NOT_SPECTATOR",
@@ -32,6 +33,19 @@ export const GAME_ERROR_CODES = [
   "SERVER_FULL",
 ] as const;
 export type GameErrorCode = (typeof GAME_ERROR_CODES)[number];
+
+/**
+ * Game variants: Perus (classic), Duo, Tuplaväri (double: two colours each) and Kolmikko (trio: three
+ * players and a shared colour). They mirror `VARIANT_IDS` in `@palikka/rules`; a server test keeps
+ * them equal.
+ */
+export const VARIANT_IDS = ["classic", "duo", "double", "trio"] as const;
+export type VariantId = (typeof VARIANT_IDS)[number];
+
+/** The host's `setVariant` command in the waiting room. */
+export interface VariantPayload {
+  variant: VariantId;
+}
 
 /**
  * Game phases: "waiting" in the waiting room before the host starts, "play" while turns are played,
@@ -114,6 +128,8 @@ export interface JoinOptions {
   watch?: boolean;
   /** Seats that get a bot as soon as the room is created (a rematch keeps the finished game's bots). */
   botSeats?: number[];
+  /** The variant a room is created with (a rematch keeps the finished game's); Perus when missing. */
+  variant?: VariantId;
 }
 
 /** Body of `POST /watch`: join a running game as a spectator. */

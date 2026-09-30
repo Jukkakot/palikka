@@ -48,6 +48,11 @@ export interface MultiplayerGame<S, M, P> extends Game<S, M, P> {
   movesOf(state: S, player: P): readonly M[];
   /** The state after `player` plays `move` (a legal move of that player), on turn or not. */
   playAs(state: S, player: P, move: M): S;
+  /**
+   * The players among `players(state)` that play against `player` (optional; default all of them).
+   * Best-reply search lets only these answer, so a partner is never searched as an opponent.
+   */
+  opponents?(state: S, player: P): readonly P[];
   /** How promising `move` looks for `player`, higher first. Must be cheap (no full evaluation). */
   moveKey(state: S, player: P, move: M): number;
 }

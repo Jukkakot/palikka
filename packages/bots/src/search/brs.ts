@@ -107,7 +107,7 @@ export function bestReplyBot<S, M, P>(
           return leaf(s);
         }
         const replies: { player: P; move: M }[] = [];
-        for (const player of game.players(s)) {
+        for (const player of game.opponents ? game.opponents(s, root) : game.players(s)) {
           if (player === root) continue;
           const own = game.movesOf(s, player);
           for (const move of topByKey(own, (m) => game.moveKey(s, player, m), replyWidth)) replies.push({ player, move });

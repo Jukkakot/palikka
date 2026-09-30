@@ -153,8 +153,8 @@ describe("board-view › Game result shown", () => {
 
   it("result-screen › Result table: ranked rows under the winner line, no tray", () => {
     const results = [
-      { seat: 2, name: "Pekka", isMe: false, isBot: false, score: -3, squares: 86, piecesLeft: 1, left: false, winner: true, rank: 1 },
-      { seat: 1, name: "Maija", isMe: true, isBot: false, score: -10, squares: 79, piecesLeft: 3, left: false, winner: false, rank: 2 },
+      { seat: 2, colours: [2], shared: false, name: "Pekka", isMe: false, isBot: false, score: -3, squares: 86, piecesLeft: 1, left: false, winner: true, rank: 1 },
+      { seat: 1, colours: [1], shared: false, name: "Maija", isMe: true, isBot: false, score: -10, squares: 79, piecesLeft: 3, left: false, winner: false, rank: 2 },
     ];
     setup({ phase: "finished", finished: true, isMyTurn: false, winners: [2], results });
     const table = screen.getByRole("table", { name: "Tulokset" });
@@ -164,6 +164,23 @@ describe("board-view › Game result shown", () => {
     expect(rows[0]!.textContent).toContain("-3");
     expect(rows[0]!.querySelector("[aria-label='Voittaja']")).toBeTruthy();
     expect(screen.queryByRole("list", { name: "Palikkasi" })).toBeNull();
+  });
+
+  it("result-screen › Two colours per player and the shared colour row", () => {
+    const row = { isMe: false, isBot: false, squares: 80, piecesLeft: 2, left: false };
+    const results = [
+      { ...row, seat: 2, colours: [2, 4], shared: false, name: "Pekka", score: -13, winner: true, rank: 1 },
+      { ...row, seat: 1, colours: [1, 3], shared: false, name: "Maija", isMe: true, score: -14, winner: false, rank: 2 },
+      { ...row, seat: 0, colours: [4], shared: true, name: "", score: -1, winner: false, rank: 0 },
+    ];
+    setup({ phase: "finished", finished: true, isMyTurn: false, winners: [2], results });
+    const rows = screen.getByRole("table", { name: "Tulokset" }).querySelectorAll("tbody tr");
+    expect([...rows].map((r) => r.getAttribute("data-colours"))).toEqual(["2,4", "1,3", "4"]);
+    expect(rows[0]!.querySelectorAll("[data-seat]")).toHaveLength(2);
+    expect(rows[0]!.textContent).toContain("-13");
+    expect(rows[2]!.textContent).toContain("Yhteinen väri · ei lasketa");
+    expect(rows[2]!.textContent).toContain("–");
+    expect(rows[2]!.querySelector("[aria-label='Voittaja']")).toBeNull();
   });
 
   it("Someone else wins: named with their colour, and Alkuun leaves", () => {
@@ -314,7 +331,7 @@ describe("spectators › game screen", () => {
     expect(screen.getByText("Kettu voitti – talvi on hänen")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Pelaa uudelleen" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Uusi bottipeli" }));
-    expect(watchBots).toHaveBeenCalledExactlyOnceWith("Maija", 2, 1);
+    expect(watchBots).toHaveBeenCalledExactlyOnceWith("Maija", 2, 1, "classic");
   });
 });
 

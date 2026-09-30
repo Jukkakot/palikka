@@ -3,7 +3,7 @@ import type { GameView, SeatView } from "../session/viewModel.ts";
 
 /** A seat for view tests: seat 1 is the viewer unless `extra` says otherwise. */
 export function seatView(seat: number, name: string, extra: Partial<SeatView> = {}): SeatView {
-  return { seat, sessionId: `s${seat}`, name, connected: true, isMe: seat === 1, isBot: false, score: -89, squares: 0, piecesLeft: 21, out: false, ...extra };
+  return { seat, colours: [seat], sessionId: `s${seat}`, name, connected: true, isMe: seat === 1, isBot: false, score: -89, squares: 0, piecesLeft: 21, out: false, ...extra };
 }
 
 /** A running two-player game seen by seat 1 on turn, on an empty board; `extra` overrides any field. */
@@ -12,6 +12,9 @@ export function gameView(extra: Partial<GameView> = {}): GameView {
   return {
     roomId: "brave-otters-sing",
     phase: "playing",
+    variant: "classic",
+    boardSize: 20,
+    maxSeats: 4,
     spectating: false,
     spectators: 0,
     botSpeed: 1,
@@ -22,6 +25,10 @@ export function gameView(extra: Partial<GameView> = {}): GameView {
     seats: [seatView(1, "Maija"), seatView(2, "Pekka")],
     mySeat: 1,
     turnSeat: 1,
+    turnColour: 1,
+    turnShared: false,
+    myColours: [1],
+    trayColour: 1,
     isMyTurn: true,
     myAutoplay: false,
     canAutoplay: true,

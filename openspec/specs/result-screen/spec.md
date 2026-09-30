@@ -8,11 +8,12 @@ score, squares and pieces left, and the ways on from there.
 
 ### Requirement: Result table
 
-When a game has ended, every client SHALL show a table of the colours in the game, ranked by score
-(highest first; equal scores share a rank), each row with the rank, the colour, the name, the score,
-the squares the colour has on the board and the pieces it has left. Winners SHALL be marked. A
-colour that left the game SHALL be marked as left, and SHALL NOT be marked as a winner. The board
-SHALL stay visible.
+When a game has ended, every client SHALL show a table of the players in the game, ranked by score
+(highest first; equal scores share a rank), each row with the rank, the player's colour or colours,
+the name, the score, the squares the player's colours have on the board and the pieces they have
+left. Winners SHALL be marked. A player who left the game SHALL be marked as left, and SHALL NOT be
+marked as a winner. A shared colour SHALL be shown after the players, with its squares and pieces
+left, marked as not counted and without a rank. The board SHALL stay visible.
 
 #### Scenario: Ranked rows
 
@@ -29,6 +30,16 @@ SHALL stay visible.
 
 - **WHEN** colour 4 left during the game
 - **THEN** its row is marked as left and it is not a winner
+
+#### Scenario: Two colours per player
+
+- **WHEN** a Tuplaväri game ends
+- **THEN** the table has two rows, each showing both of the player's colours and their summed score
+
+#### Scenario: Shared colour row
+
+- **WHEN** a Kolmikko game ends
+- **THEN** colour 4 is shown below the three players as not counted, without a rank
 
 ### Requirement: Ways on after the game
 

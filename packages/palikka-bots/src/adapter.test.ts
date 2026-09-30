@@ -4,6 +4,7 @@ import {
   checkPlacement,
   CLASSIC,
   createRng,
+  DUO,
   encodeMove,
   legalMoves,
   newPosition,
@@ -15,7 +16,8 @@ import {
 } from "@palikka/rules";
 import { placement, positionWith } from "@palikka/rules/testing";
 import { describe, expect, it } from "vitest";
-import { chooseMove, greedyPlayer, palikkaGame, randomPlayer } from "./adapter.js";
+import { bestReplyBot, type MultiplayerGame } from "game-bots";
+import { brsPlayer, chooseMove, devicePlayer, greedyPlayer, palikkaGame, randomPlayer } from "./adapter.js";
 import { evaluate } from "./evaluation.js";
 import { playGame } from "./match.js";
 
@@ -129,4 +131,51 @@ describe("bot-play › Greedy bot is stronger than random play", () => {
     }
     expect(wins / games).toBeGreaterThanOrEqual(0.9);
   }, 20_000);
+});
+
+describe("bot-play › Bots play for their side", () => {
+  const doubleStart = newPosition(CLASSIC, [1, 2, 3, 4], 1, { 1: 1, 3: 1, 2: 2, 4: 2 });
+  const trioStart = newPosition(CLASSIC, [1, 2, 3, 4], 1, { 1: 1, 2: 2, 3: 3, 4: 0 });
+
+  it("Partner colour is not an opponent", () => {
+    const [, , , , position] = playGame(doubleStart, { 1: randomPlayer, 2: randomPlayer, 3: randomPlayer, 4: randomPlayer }, 4);
+    expect(position!.turn).toBe(1);
+    const asked = new Set<number>();
+    const spied: MultiplayerGame<Position, number, number> = {
+      ...palikkaGame,
+      movesOf(state, colour) {
+        asked.add(colour);
+        return palikkaGame.movesOf(state, colour);
+      },
+    };
+    expect(palikkaGame.opponents!(position!, 1)).toEqual([2, 4]);
+    bestReplyBot(spied, evaluate).choose(position!, { depth: 3 }, createRng(1));
+    expect([...asked].sort()).toEqual([1, 2, 4]);
+    // Both colours of a side rate a position the same: their joint score and chances.
+    expect(evaluate(position!, 3)).toBe(evaluate(position!, 1));
+  });
+
+  it("classic colours stay each other's opponents", () => {
+    expect(palikkaGame.opponents!(opening, 1)).toEqual([2, 3, 4]);
+  });
+
+  it("Shared colour for its player: a legal colour-4 move, best for seat 2 one ply ahead", () => {
+    const bots = { 1: randomPlayer, 2: randomPlayer, 3: randomPlayer, 4: randomPlayer };
+    const position = playGame(trioStart, bots, 6).find((p) => p.turn === 4 && p.placed[4]!.length === 1)!;
+    expect(palikkaGame.opponents!(position, 4)).toEqual([1, 2, 3]);
+    const move = chooseMove(position, 4, depth1, 3, devicePlayer, 2)!;
+    expect(checkPlacement(position, 4, move)).toBeUndefined();
+    const forSeat2 = (code: number) => evaluate(palikkaGame.play(position, code), 2);
+    const best = Math.max(...legalMoves(position, 4).map(forSeat2));
+    expect(forSeat2(encodeMove(move, 20))).toBe(best);
+    expect(chooseMove(position, 4, depth1, 3, devicePlayer, 2)).toEqual(move);
+  });
+
+  it("Duo: two bots finish a game with legal moves and a result", () => {
+    const positions = playGame(newPosition(DUO, [1, 2], 1), { 1: brsPlayer, 2: greedyPlayer }, 5, { depth: 2 });
+    const end = positions.at(-1)!;
+    expect(end.ended).toBe(true);
+    expect(winners(end).length).toBeGreaterThan(0);
+    expect(end.moveNumber).toBeGreaterThan(10);
+  }, 30_000);
 });

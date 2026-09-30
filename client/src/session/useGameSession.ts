@@ -13,6 +13,8 @@ import {
   type PlacePayload,
   type SpeedPayload,
   type StartPayload,
+  type VariantId,
+  type VariantPayload,
   type WatchRequest,
 } from "@palikka/protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -51,13 +53,13 @@ export interface Connector {
   /** "Luo peli kavereille": always a new public game, with the caller as its host. */
   create(options: JoinRequest): Promise<GameRoomLike>;
   /** A quick game against `bots` bots: never listed, started as soon as the caller is seated. */
-  createBotGame(options: JoinRequest & { bots: number }): Promise<GameRoomLike>;
+  createBotGame(options: JoinRequest & { bots: number; variant?: VariantId }): Promise<GameRoomLike>;
   /** One particular game, from the list or an invite link. */
   joinById(roomId: string, options: JoinRequest): Promise<GameRoomLike>;
   /** Watch a running game as a spectator (through the server's watch route). */
   watch(roomId: string, options: JoinRequest): Promise<GameRoomLike>;
   /** A new game of 2–4 bots only on the device, watched by the caller. */
-  createBotWatch(options: { bots: number; speed: BotSpeed }): Promise<GameRoomLike>;
+  createBotWatch(options: { bots: number; speed: BotSpeed; variant?: VariantId }): Promise<GameRoomLike>;
   reconnect(token: string): Promise<GameRoomLike>;
 }
 
@@ -93,7 +95,7 @@ export function createConnector(): Connector {
   const withPool = (options: JoinRequest): JoinOptions => ({ ...options, ...(pool && { pool }) });
   return {
     create: (options) => sdkClient().create("game", withPool(options)) as unknown as Promise<GameRoomLike>,
-    createBotGame: async ({ bots, nickname }) => LocalRoom.create(nickname, bots),
+    createBotGame: async ({ bots, nickname, variant }) => LocalRoom.create(nickname, bots, {}, variant),
     joinById: (roomId, options) =>
       isLocalRoomId(roomId) ? restoreLocal(roomId) : (sdkClient().joinById(roomId, withPool(options)) as unknown as Promise<GameRoomLike>),
     watch: async (roomId, { nickname }) => {
@@ -106,7 +108,7 @@ export function createConnector(): Connector {
       if (!res.ok) throw new Error(res.status === 400 ? "INVALID_OPTIONS" : ("NOT_WATCHABLE" satisfies JoinErrorCode));
       return sdkClient().consumeSeatReservation(await res.json()) as unknown as Promise<GameRoomLike>;
     },
-    createBotWatch: async ({ bots, speed }) => LocalRoom.createWatch(bots, speed),
+    createBotWatch: async ({ bots, speed, variant }) => LocalRoom.createWatch(bots, speed, {}, variant),
     reconnect: (token) =>
       isLocalToken(token) ? restoreLocal(roomIdOfToken(token)) : (sdkClient().reconnect(token) as unknown as Promise<GameRoomLike>),
   };
@@ -163,7 +165,7 @@ export function noticeKey(code: string): NoticeKey {
   return (GAME_ERROR_CODES as readonly string[]).includes(code) ? `errors.${code as GameErrorCode}` : "errors.generic";
 }
 
-type Command = "start" | "addBot" | "removeBot" | "place" | "kick" | "setSpeed" | "rematch" | "undo" | "setAutoplay";
+type Command = "start" | "addBot" | "removeBot" | "setVariant" | "place" | "kick" | "setSpeed" | "rematch" | "undo" | "setAutoplay";
 
 export interface GameSession {
   status: SessionStatus;
@@ -174,16 +176,16 @@ export interface GameSession {
   createGame(nickname: string): void;
   /** Joins one particular game (from the list or an invite link). */
   joinById(roomId: string, nickname: string): void;
-  /** A quick game against 1–3 bots, straight into the game. */
-  playBots(nickname: string, bots: number): void;
+  /** A quick game of `variant` (Perus by default) against 1–3 bots (the other variants set the count), straight into the game. */
+  playBots(nickname: string, bots: number, variant?: VariantId): void;
   /** Games against bots on the device: takes back the player's last move and the bots' moves after it. */
   undo(): Promise<CommandResult | undefined>;
   /** Joins an invited game; if it has already started, watches it instead. */
   joinInvite(roomId: string, nickname: string): void;
   /** Watches a running game. */
   watch(roomId: string, nickname: string): void;
-  /** Watches a new game of 2–4 bots on the device (leaving the current game, if any). */
-  watchBots(nickname: string, bots: number, speed?: BotSpeed): void;
+  /** Watches a new game of `variant` with 2–4 bots on the device (leaving the current game, if any). */
+  watchBots(nickname: string, bots: number, speed?: BotSpeed, variant?: VariantId): void;
   /** A spectator sets the bots' speed. Resolves undefined without sending while another command is pending. */
   setSpeed(speed: BotSpeed): Promise<CommandResult | undefined>;
   /** Hands the viewer's seat to the bot (`on`) or takes it back. Resolves undefined without sending while another command is pending. */
@@ -206,6 +208,8 @@ export interface GameSession {
   addBot(seat: number): Promise<CommandResult | undefined>;
   /** The host removes the bot in `seat` from the waiting room. Resolves undefined without sending while another command is pending. */
   removeBot(seat: number): Promise<CommandResult | undefined>;
+  /** The host chooses the variant in the waiting room. Resolves undefined without sending while another command is pending. */
+  setVariant(variant: VariantId): Promise<CommandResult | undefined>;
   /** Places a piece (the whole turn). Resolves undefined without sending while another command is pending. */
   place(move: PlacePayload): Promise<CommandResult | undefined>;
   /** Kicks the current player once their time is up. Resolves undefined without sending while another command is pending. */
@@ -380,7 +384,7 @@ export function useGameSession(connector?: Connector): GameSession {
 
   const createGame = useCallback((nickname: string) => connect(() => getConnector().create({ nickname }), nickname), [connect]);
   const playBots = useCallback(
-    (nickname: string, bots: number) => connect(() => getConnector().createBotGame({ nickname, bots }), nickname),
+    (nickname: string, bots: number, variant?: VariantId) => connect(() => getConnector().createBotGame({ nickname, bots, variant }), nickname),
     [connect],
   );
   const joinById = useCallback(
@@ -392,8 +396,8 @@ export function useGameSession(connector?: Connector): GameSession {
     [connect],
   );
   const watchBots = useCallback(
-    (nickname: string, bots: number, speed: BotSpeed = 1) =>
-      connect(() => getConnector().createBotWatch({ bots, speed }), nickname),
+    (nickname: string, bots: number, speed: BotSpeed = 1, variant?: VariantId) =>
+      connect(() => getConnector().createBotWatch({ bots, speed, variant }), nickname),
     [connect],
   );
   const joinInvite = useCallback(
@@ -436,7 +440,7 @@ export function useGameSession(connector?: Connector): GameSession {
   }, [notice]);
 
   /** Sends one command at a time; a rejection becomes a notice. */
-  const send = useCallback(async (cmd: Command, payload: StartPayload | BotSeatPayload | PlacePayload | KickPayload | SpeedPayload | AutoplayPayload) => {
+  const send = useCallback(async (cmd: Command, payload: StartPayload | BotSeatPayload | VariantPayload | PlacePayload | KickPayload | SpeedPayload | AutoplayPayload) => {
     const room = roomRef.current;
     if (!room || pendingRef.current) return undefined;
     pendingRef.current = true;
@@ -463,6 +467,7 @@ export function useGameSession(connector?: Connector): GameSession {
   const start = useCallback(() => send("start", {}), [send]);
   const addBot = useCallback((seat: number) => send("addBot", { seat }), [send]);
   const removeBot = useCallback((seat: number) => send("removeBot", { seat }), [send]);
+  const setVariant = useCallback((variant: VariantId) => send("setVariant", { variant }), [send]);
   const place = useCallback(({ piece, orientation, row, col }: PlacePayload) => send("place", { piece, orientation, row, col }), [send]);
   const kick = useCallback((seat: number) => send("kick", { seat }), [send]);
   const setSpeed = useCallback((speed: BotSpeed) => send("setSpeed", { speed }), [send]);
@@ -545,6 +550,7 @@ export function useGameSession(connector?: Connector): GameSession {
     start,
     addBot,
     removeBot,
+    setVariant,
     place,
     kick,
     leave,

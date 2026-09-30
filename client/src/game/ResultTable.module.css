@@ -7,7 +7,7 @@
 
 .table th,
 .table td {
-  padding: var(--space-2) var(--space-1);
+  padding: var(--space-2) 2px;
   text-align: right;
   border-bottom: 1px solid var(--border);
 }
@@ -22,7 +22,7 @@
 }
 
 .rank {
-  width: 2.5em;
+  width: 2em;
 }
 
 .who {
@@ -33,8 +33,16 @@
   font-weight: 600;
 }
 
+/* A player's colour marks (two in Tuplaväri), kept tight. */
+.marks {
+  flex: none;
+  display: inline-flex;
+  gap: 2px;
+}
+
+/* Long names end in an ellipsis (as in the player strip), so five columns fit a 360 px phone. */
 .name {
-  max-width: 9em;
+  max-width: 5.5em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -51,4 +59,13 @@
 .departed {
   color: var(--muted);
   font-weight: 400;
+}
+
+.shared {
+  color: var(--muted);
+}
+
+/* Two colour marks (Tuplaväri) stack, so the row is as narrow as with one and fits a phone. */
+.marks:has(> :nth-child(2)) {
+  flex-direction: column;
 }

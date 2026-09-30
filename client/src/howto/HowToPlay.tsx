@@ -1,4 +1,4 @@
-import { IconPuzzle, IconSquaresFilled, IconStar, IconTrophy } from "@tabler/icons-react";
+import { IconLayoutGrid, IconPuzzle, IconSquaresFilled, IconStar, IconTrophy } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { BackButton } from "../ui/BackButton.tsx";
@@ -7,7 +7,7 @@ import { Screen } from "../ui/Screen.tsx";
 import styles from "./HowToPlay.module.css";
 import { RulePicture } from "./RulePicture.tsx";
 
-type SectionId = "goal" | "turn" | "place" | "score";
+type SectionId = "goal" | "turn" | "place" | "score" | "variants";
 
 function Section({ id, icon, children }: { id: SectionId; icon: ReactNode; children: ReactNode }) {
   const { t } = useTranslation();
@@ -24,7 +24,7 @@ function Section({ id, icon, children }: { id: SectionId; icon: ReactNode; child
 
 /**
  * "Näin pelaat": the rules in short sections (goal, a turn, placing a piece with pictures of the
- * start corner and the allowed and forbidden contacts, scoring).
+ * start corner and the allowed and forbidden contacts, scoring, the variants).
  */
 export function HowToPlay({ onClose }: { onClose(): void }) {
   const { t } = useTranslation();
@@ -49,6 +49,11 @@ export function HowToPlay({ onClose }: { onClose(): void }) {
         </Section>
         <Section id="score" icon={icon(<IconStar size={48} stroke={1.5} aria-hidden="true" />)}>
           <p>{t("howTo.score.body")}</p>
+        </Section>
+        <Section id="variants" icon={icon(<IconLayoutGrid size={48} stroke={1.5} aria-hidden="true" />)}>
+          {(["classic", "duo", "double", "trio"] as const).map((variant) => (
+            <p key={variant}>{t(`howTo.variants.${variant}`)}</p>
+          ))}
         </Section>
       </article>
     </Screen>

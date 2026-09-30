@@ -10,8 +10,10 @@ import {
   rematchPayloadSchema,
   speedPayloadSchema,
   startPayloadSchema,
+  variantPayloadSchema,
   watchRequestSchema,
 } from "./game-schema.js";
+import { VARIANT_IDS } from "./game-codes.js";
 
 describe("botSeatPayloadSchema", () => {
   it("accepts seats 1–4", () => {
@@ -169,5 +171,19 @@ describe("startPayloadSchema", () => {
     expect(startPayloadSchema.safeParse({}).success).toBe(true);
     expect(startPayloadSchema.safeParse({ seat: 1 }).success).toBe(false);
     expect(startPayloadSchema.safeParse(null).success).toBe(false);
+  });
+});
+
+describe("variantPayloadSchema", () => {
+  it("accepts the four variants and nothing else", () => {
+    for (const variant of VARIANT_IDS) expect(variantPayloadSchema.safeParse({ variant }).success).toBe(true);
+    expect(variantPayloadSchema.safeParse({ variant: "junior" }).success).toBe(false);
+    expect(variantPayloadSchema.safeParse({}).success).toBe(false);
+    expect(variantPayloadSchema.safeParse({ variant: "duo", extra: 1 }).success).toBe(false);
+  });
+
+  it("join options take an optional variant (a rematch keeps it)", () => {
+    expect(joinOptionsSchema.safeParse({ nickname: "Maija", variant: "trio" }).success).toBe(true);
+    expect(joinOptionsSchema.safeParse({ nickname: "Maija", variant: "junior" }).success).toBe(false);
   });
 });

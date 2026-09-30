@@ -8,8 +8,11 @@ in `openspec/specs/`, the spec wins.
 A territory game with polyomino pieces on a square grid, in the spirit of the classic
 corner-touching game. Never use the original's trademarked name, logos or look (nfr → Legal).
 
-- **Board:** 20×20 for 2–4 players. Variants later: Duo 14×14 (2 players), 2 players with two
-  colours each on 20×20, 3 players (roadmap `variants`).
+- **Board:** 20×20 for 2–4 players. Variants (built in `variants`; ids `classic` / `duo` /
+  `double` / `trio`): **Perus** (as above), **Duo** 14×14 for 2 (start squares row 5, column 5 and
+  row 10, column 10), **Tuplaväri** 2 players with colours 1+3 and 2+4 (scores summed),
+  **Kolmikko** 3 players with the fourth colour Kuusi shared (played in turn, not counted). The
+  host picks the variant in the waiting room; the bot way on the start screen offers it too.
 - **Pieces:** each colour has the 21 free polyominoes of size 1–5 (1 monomino, 1 domino,
   2 trominoes, 5 tetrominoes, 12 pentominoes; 89 squares). A piece may be rotated and mirrored
   (up to 8 orientations).
@@ -29,8 +32,8 @@ corner-touching game. Never use the original's trademarked name, logos or look (
 
 ## Modes
 
-- **Against bots on the device:** 1 person + 1–3 bots, runs fully in the browser (no server), also
-  offline. Watching bots only (2–4) as well.
+- **Against bots on the device:** 1 person + 1–3 bots (Perus; other variants their own count), runs
+  fully in the browser (no server), also offline. Watching bots only (2–4) as well.
 - **Online:** a waiting room with an invite link; empty seats get bots. The host's browser computes
   the bots' moves (Web Worker); the server validates them like any move. Bot strength therefore
   depends on the host's device (accepted).
@@ -76,7 +79,8 @@ corner-touching game. Never use the original's trademarked name, logos or look (
   flip through only their legal orientations → confirm.
 - Drag with the piece shown above the finger, snapping to the nearest legal spot. Automatic zoom to
   the own corners; the own start corner always at the bottom corner of the screen.
-- "Vihje" shows the bot's three best moves. TV mode: a host screen with phones as controllers.
+- "Vihje" shows the bot's three best moves. TV mode (a host screen with phones as controllers) was
+  dropped from the plans (2026-09-30).
   Duo as the default on a phone.
 
 ## Decided in the spec phase (2026-09-29)

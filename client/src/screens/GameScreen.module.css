@@ -10,6 +10,8 @@
     "head"
     "board"
     "side";
+  /* Content never widens the column past the screen (a long player strip wraps instead). */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   justify-items: center;
 }

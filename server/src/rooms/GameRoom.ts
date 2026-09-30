@@ -13,13 +13,13 @@ import {
   rematchPayloadSchema,
   speedPayloadSchema,
   startPayloadSchema,
+  variantPayloadSchema,
   type JoinErrorCode,
   type JoinOptions,
   type TurnPhase,
 } from "@palikka/protocol";
 import {
   botRng,
-  CLASSIC,
   DISCONNECT_LIMIT_SECONDS,
   endGame,
   kickRejection,
@@ -29,9 +29,13 @@ import {
   playMove,
   removeSeat,
   scores,
+  seatOnTurn,
   simpleBotMove,
   startGame,
   TURN_TIME_LIMIT_SECONDS,
+  variantOf,
+  VARIANTS,
+  type VariantId,
   type Game,
   type GameResult,
   type Placement,
@@ -42,6 +46,7 @@ import { CommandRejection, type Actor } from "./command.js";
 import { LoggedRoom } from "./LoggedRoom.js";
 import { ColourState, GameState, Player } from "./schema/GameState.js";
 
+/** The most seats any variant has (Perus). */
 export const MAX_SEATS = 4;
 
 /** At most this many games exist at a time (one 0 € instance); creating more is refused. */
@@ -55,8 +60,10 @@ export interface GameMetadata {
   open: boolean;
   /** Matchmaking pool: "" for real players, set by E2E tests. */
   pool: string;
-  /** Seats taken by people and bots; the list shows it and hides a game with all 4 taken. */
+  /** Seats taken by people and bots; the list shows it and hides a game with all seats taken. */
   seated: number;
+  /** The variant the host chose; the list shows it and takes the seat count from it. */
+  variant: VariantId;
   /** True while the game runs and has room for another spectator: the start screen lists it to watch. */
   watchable: boolean;
 }
@@ -113,8 +120,8 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
 
   /** Draws the game's seed at the start; room tests replace it. */
   drawDealSeed = () => randomInt(0, MAX_SEED + 1);
-  /** The first seat: the rule's choice (the lowest seat); room tests replace it to start elsewhere. */
-  chooseStartSeat = (seat: number) => seat;
+  /** The first colour: the rule's choice (colour 1, in Perus the lowest seat's); room tests replace it to start elsewhere. */
+  chooseStartSeat = (colour: number) => colour;
 
   /** Pause before a bot's turn; room tests shorten it. */
   botDelayMs = BOT_DELAY_MS;
@@ -152,13 +159,27 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
       if (!player) throw new CommandRejection("NOT_SEATED");
       if (player.seat !== this.state.hostSeat) throw new CommandRejection("NOT_HOST", { seat: player.seat });
       if (this.state.phase !== "waiting") throw new CommandRejection("WRONG_PHASE", { expected: "waiting" });
-      if (this.state.players.size < MIN_SEATS) throw new CommandRejection("NOT_ENOUGH_PLAYERS", { seated: this.state.players.size });
+      const needed = Math.max(MIN_SEATS, this.variant().minPlayers);
+      if (this.state.players.size < needed) throw new CommandRejection("NOT_ENOUGH_PLAYERS", { seated: this.state.players.size, needed });
       this.startGame();
+    }),
+
+    setVariant: this.command("setVariant", variantPayloadSchema, (client, { variant }) => {
+      this.requireHostInWaitingRoom(client);
+      const { maxPlayers } = VARIANTS[variant];
+      const people = this.people();
+      const joining = this.pendingSeats().length;
+      if (people.length + joining > maxPlayers || people.some((p) => p.seat > maxPlayers)) {
+        throw new CommandRejection("TOO_MANY_PLAYERS", { variant, people: people.length + joining });
+      }
+      this.applyVariant(variant);
     }),
 
     addBot: this.command("addBot", botSeatPayloadSchema, (client, { seat }) => {
       this.requireHostInWaitingRoom(client);
-      if (this.seatHolder(seat) || this.pendingSeats().includes(seat)) throw new CommandRejection("SEAT_TAKEN", { seat });
+      if (seat > this.variant().maxPlayers || this.seatHolder(seat) || this.pendingSeats().includes(seat)) {
+        throw new CommandRejection("SEAT_TAKEN", { seat });
+      }
 
       this.seatBot(seat);
     }),
@@ -247,17 +268,19 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     this.startBotSeats = this.bots().map((p) => p.seat).sort((a, b) => a - b);
     const dealSeed = this.drawDealSeed();
     const players = [...this.state.players.values()].map(({ seat, name, bot }) => ({ seat, name, bot }));
-    const game = startGame(dealSeed, players);
-    const startSeat = this.chooseStartSeat(game.position.turn);
-    this.game = { ...game, position: { ...game.position, turn: startSeat } };
+    const variant = this.variant().id;
+    const game = startGame(dealSeed, players, variant);
+    const startColour = this.chooseStartSeat(game.position.turn);
+    this.game = { ...game, position: { ...game.position, turn: startColour } };
+    const startSeat = seatOnTurn(this.game);
     this.syncGame();
     void this.lock();
     // Locked for players; the room admits spectators itself (through the watch route).
     this.maxClients = MAX_SEATS + MAX_SPECTATORS;
     this.syncRunner();
     for (const [id, p] of this.state.players) if (!p.bot && !p.connected) this.startAutoplay(id, "drop");
-    log.info("game.started", this.logCtx(undefined, { dealSeed, seats, startSeat, runner: this.state.botRunnerSeat }));
-    this.setTurn(startSeat);
+    log.info("game.started", this.logCtx(undefined, { dealSeed, variant, seats, startSeat, startColour, runner: this.state.botRunnerSeat }));
+    this.setTurn();
     this.syncListing({ open: false });
   }
 
@@ -266,23 +289,55 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     this.game = this.accepted(this.game && playMove(this.game, seat, move), seat, move);
     this.syncGame();
     if (this.game.position.ended) this.finish(this.game.winners, "complete");
-    else this.setTurn(this.game.position.turn);
+    else this.setTurn();
+  }
+
+  /** The variant chosen for this room. */
+  private variant() {
+    return variantOf(this.state.variant);
+  }
+
+  /**
+   * Switches the waiting room to `variant`: bots on seats beyond its player count go, the board is
+   * resized, and matchmaking and the listing follow the new seat count. People were checked first.
+   */
+  private applyVariant(variant: VariantId): void {
+    const from = this.state.variant;
+    const { board, maxPlayers } = VARIANTS[variant];
+    this.state.variant = variant;
+    for (const bot of this.bots()) {
+      if (bot.seat <= maxPlayers) continue;
+      this.state.players.delete(botKey(bot.seat));
+      log.info("bot.removed", this.logCtx(undefined, { seat: bot.seat, name: bot.name, reason: "variant" }));
+    }
+    this.resizeBoard(board.size);
+    log.info("variant.changed", this.logCtx(undefined, { from, to: variant }));
+    void this.setMetadata({ ...this.metadata, variant });
+    this.syncSeats();
+  }
+
+  /** An empty board of `size` × `size` squares. */
+  private resizeBoard(size: number): void {
+    const cells = size * size;
+    if (this.state.cells.length === cells) return;
+    this.state.cells.clear();
+    this.state.cells.push(...Array.from({ length: cells }, () => 0));
   }
 
   /** Mirrors the engine's game into the synced state: squares, and each colour's pieces and status. */
   private syncGame(): void {
-    const { position, left } = this.game!;
+    const { position, left, control } = this.game!;
     position.cells.forEach((owner, i) => {
       if (this.state.cells[i] !== owner) this.state.cells[i] = owner;
     });
     if (this.state.colours.length === 0) {
-      for (const colour of position.colours) this.state.colours.push(new ColourState({ colour }));
+      for (const colour of position.colours) this.state.colours.push(new ColourState({ colour, seat: control[colour] ?? 0 }));
     }
     for (const c of this.state.colours) {
       const pieces = position.placed[c.colour] ?? [];
       for (let i = c.pieces.length; i < pieces.length; i++) c.pieces.push(pieces[i]!);
       c.out = position.out.includes(c.colour);
-      c.left = left.includes(c.colour);
+      c.left = c.seat !== 0 && left.includes(c.seat);
     }
   }
 
@@ -313,6 +368,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
       nickname,
       ...(this.pool && { pool: this.pool }),
       botSeats: this.startBotSeats,
+      variant: this.variant().id,
     };
     let roomId: string;
     try {
@@ -376,7 +432,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     const reserved = (this as unknown as { _reservedSeats: Record<string, unknown[]> })._reservedSeats;
     const pending = Object.entries(reserved).filter(([id, seat]) => !seat[3] && !this.state.players.has(id)).length;
     const taken = new Set(this.seats());
-    const free = [1, 2, 3, 4].filter((seat) => !taken.has(seat));
+    const free = this.seatNumbers().filter((seat) => !taken.has(seat));
     return free.slice(0, pending);
   }
 
@@ -386,7 +442,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
    * shows people and bots together.
    */
   private syncSeats(): void {
-    if (this.state.phase === "waiting" && !this.closing) this.maxClients = MAX_SEATS - this.bots().length;
+    if (this.state.phase === "waiting" && !this.closing) this.maxClients = Math.max(0, this.variant().maxPlayers - this.bots().length);
     void this.setMetadata({ ...this.metadata, seated: this.state.players.size });
     this.syncRunner();
   }
@@ -403,6 +459,7 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
       hostSeat: this.state.hostSeat,
       seated: this.state.players.size,
       turnSeat: this.state.turnSeat,
+      turnColour: this.state.turnColour,
       turnExpired: this.state.turnExpired,
       turn: this.state.turn,
       runner: this.state.botRunnerSeat,
@@ -448,7 +505,8 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     // Bots never play on alone, only for someone watching; dropped people and spectators in their hold count.
     if (this.nobodyLeft()) this.finish([], "noPeople");
     else if (this.game.position.ended) this.finish(this.game.winners, this.game.seats.length === 1 ? "lastPlayer" : "complete");
-    else if (this.game.position.turn !== this.state.turnSeat) this.setTurn(this.game.position.turn);
+    // A new turn when the colour on turn changed, or someone else now plays it (the shared colour).
+    else if (this.game.position.turn !== this.state.turnColour || seatOnTurn(this.game) !== this.state.turnSeat) this.setTurn();
     else this.restartClock(true);
   }
 
@@ -562,13 +620,16 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     throw new CommandRejection(result.code, facts[result.code] ?? { seat, move: placementText(move) });
   }
 
-  /** A new turn starts with a fresh clock; the engine has already moved to it. */
-  private setTurn(seat: number): void {
+  /** A new turn starts with a fresh clock; the engine has already moved to it (the colour on turn and the seat that plays it). */
+  private setTurn(): void {
     const from = this.state.turnSeat;
+    const seat = seatOnTurn(this.game!);
+    const colour = this.game!.position.turn;
     this.state.turnSeat = seat;
+    this.state.turnColour = colour;
     this.state.turn++;
     if (this.state.phase !== "play") this.setPhase("play");
-    log.info("turn.changed", this.logCtx(undefined, { from, to: seat, out: this.game?.position.out.join(",") }));
+    log.info("turn.changed", this.logCtx(undefined, { from, to: seat, colour, out: this.game?.position.out.join(",") }));
     this.restartClock();
     this.clearBotTimer();
     if (this.isBotPlayed(seat)) this.scheduleBotStep(seat);
@@ -603,8 +664,9 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     // Taken back (or the turn moved on) before the timer ran out: nothing to play.
     if (!actor || !this.isBotPlayed(seat) || this.state.turnSeat !== seat || !this.game) return;
     const { position, seed } = this.game;
-    const move = simpleBotMove(position, seat, botRng(seed, position, seat));
-    const fields = this.logCtx(actor, { seat, reason, runner: this.state.botRunnerSeat });
+    const colour = position.turn;
+    const move = simpleBotMove(position, colour, botRng(seed, position, colour));
+    const fields = this.logCtx(actor, { seat, colour, reason, runner: this.state.botRunnerSeat });
     if (reason === "runnerSilent") log.warn("bot.fallback", fields);
     else log.info("bot.fallback", fields);
     // The engine never hands the turn to a colour that cannot move.
@@ -636,7 +698,8 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
   private setPhase(phase: TurnPhase): void {
     const from = this.state.phase;
     this.state.phase = phase;
-    log.info("phase.changed", this.logCtx(undefined, { from, to: phase, turnSeat: this.state.turnSeat }));
+    const variant = phase === "play" ? { variant: this.state.variant } : {};
+    log.info("phase.changed", this.logCtx(undefined, { from, to: phase, turnSeat: this.state.turnSeat, ...variant }));
   }
 
   async onCreate(options?: unknown) {
@@ -662,10 +725,13 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     await super.onCreate(options);
     const { data } = parsed;
     this.pool = data.pool ?? "";
-    await this.setMetadata({ host: "", open: true, pool: data.pool ?? "", seated: 0, watchable: false });
-    this.state.cells.push(...Array.from({ length: CLASSIC.size * CLASSIC.size }, () => 0));
-    // A rematch keeps the finished game's bots in their seats.
-    for (const seat of data.botSeats ?? []) this.seatBot(seat);
+    const variant = variantOf(data.variant);
+    this.state.variant = variant.id;
+    await this.setMetadata({ host: "", open: true, pool: data.pool ?? "", seated: 0, watchable: false, variant: variant.id });
+    this.resizeBoard(variant.board.size);
+    this.maxClients = variant.maxPlayers;
+    // A rematch keeps the finished game's variant and bots in their seats.
+    for (const seat of data.botSeats ?? []) if (seat <= variant.maxPlayers) this.seatBot(seat);
   }
 
   /** Checks the join options before a seat is taken: a player needs a valid nickname (and valid options). */
@@ -679,10 +745,15 @@ export class GameRoom extends LoggedRoom<{ state: GameState; metadata: GameMetad
     return parsed.data;
   }
 
-  /** The lowest seat 1–4 nobody holds (dropped players keep theirs). */
+  /** Seats 1 up to the variant's player count. */
+  private seatNumbers(): number[] {
+    return Array.from({ length: this.variant().maxPlayers }, (_, i) => i + 1);
+  }
+
+  /** The lowest seat of the variant nobody holds (dropped players keep theirs). */
   private freeSeat(): number {
     const taken = new Set([...this.state.players.values()].map((p) => p.seat));
-    for (let seat = 1; seat <= MAX_SEATS; seat++) if (!taken.has(seat)) return seat;
+    for (const seat of this.seatNumbers()) if (!taken.has(seat)) return seat;
     throw new Error("No free seat"); // maxClients prevents this
   }
 

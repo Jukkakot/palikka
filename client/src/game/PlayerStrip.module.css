@@ -53,6 +53,13 @@
   max-width: none;
 }
 
+/* A seat's colour marks (two in Tuplaväri), kept tight. */
+.marks {
+  flex: none;
+  display: inline-flex;
+  gap: 2px;
+}
+
 .count {
   min-width: 2.2em;
 }
@@ -67,7 +74,14 @@
 }
 
 /* The colour cannot move any more: its score is final. */
-.out .count {
+.out /* A seat's colour marks (two in Tuplaväri), kept tight. */
+.marks {
+  flex: none;
+  display: inline-flex;
+  gap: 2px;
+}
+
+.count {
   text-decoration: line-through;
 }
 

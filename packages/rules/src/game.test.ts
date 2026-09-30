@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { botRng, simpleBotMove } from "./bot.js";
-import { CLASSIC, type BoardConfig } from "./config.js";
+import type { BoardConfig } from "./config.js";
 import { placement } from "./engineFixtures.js";
 import { endGame, isFinished, playMove, removeSeat, startGame, type Game, type GameSeat } from "./game.js";
 import type { Placement } from "./moves.js";
@@ -91,7 +91,7 @@ describe("game-end-and-scoring › A colour leaves the game", () => {
   });
 
   it("Leaver cannot win: the best score among those that stayed wins", () => {
-    let game = startGame(1, seats(1, 2, 3), TINY);
+    let game = startGame(1, seats(1, 2, 3), "classic", TINY);
     game = play(game, 1, placement("V3", ["#.", "##"], 0, 0));
     game = removeSeat(game, 1);
     game = play(game, 2, placement("I1", ["#"], 0, 2));
@@ -111,7 +111,7 @@ describe("game-end-and-scoring › A colour leaves the game", () => {
 
 describe("game-room › End and result", () => {
   it("a game played out ends with winners by score, and an aborted game has none", () => {
-    const game = playOut(startGame(42, seats(1, 2, 3, 4), CLASSIC));
+    const game = playOut(startGame(42, seats(1, 2, 3, 4)));
     expect(game.position.ended).toBe(true);
     expect(game.winners.length).toBeGreaterThan(0);
     expect(endGame(startGame(1, seats(1, 2))).winners).toEqual([]);

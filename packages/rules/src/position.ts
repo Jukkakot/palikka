@@ -11,6 +11,11 @@ export interface Position {
   readonly config: BoardConfig;
   /** Colours in this game, ascending. */
   readonly colours: readonly number[];
+  /**
+   * The side each colour scores for: the seat that owns it (classic: the colour itself); 0 for a
+   * shared colour, which scores for no one.
+   */
+  readonly sides: Readonly<Record<number, number>>;
   /** Owner colour per square (0 = empty), row-major. */
   readonly cells: readonly number[];
   /** Placed piece numbers per colour, in placement order. */
@@ -39,17 +44,28 @@ export type MoveRefusal =
   | "GAME_OVER"
   | "CANNOT_PASS";
 
-export function newPosition(config: BoardConfig, colours: readonly number[], first: number): Position {
+/** A fresh position; `sides` defaults to every colour being its own side. */
+export function newPosition(
+  config: BoardConfig,
+  colours: readonly number[],
+  first: number,
+  sides?: Readonly<Record<number, number>>,
+): Position {
   const sorted = [...new Set(colours)].sort((a, b) => a - b);
   for (const colour of sorted) {
     if (!config.starts[colour]) throw new RangeError(`Colour ${colour} has no start square`);
   }
   if (!sorted.includes(first)) throw new RangeError(`First colour ${first} is not in the game`);
   const placed: Record<number, number[]> = {};
-  for (const colour of sorted) placed[colour] = [];
+  const sideOf: Record<number, number> = {};
+  for (const colour of sorted) {
+    placed[colour] = [];
+    sideOf[colour] = sides?.[colour] ?? colour;
+  }
   return {
     config,
     colours: sorted,
+    sides: sideOf,
     cells: new Array<number>(config.size * config.size).fill(0),
     placed,
     out: [],

@@ -1,6 +1,6 @@
 import { schedule } from "game-bots";
 import { describe, expect, it } from "vitest";
-import { parseBot, playTournamentGame, type TournamentBot } from "./tournament.js";
+import { isColours, parseBot, parseColours, playTournamentGame, type TournamentBot } from "./tournament.js";
 
 const bots = (...labels: string[]) => new Map<string, TournamentBot>(labels.map((l) => [l, parseBot(l)]));
 
@@ -32,6 +32,17 @@ describe("bot-tournament › Matches rotate seats fairly", () => {
     expect(game.result.seats).toEqual(["random", "greedy"]);
     expect(game.result.scores).toHaveLength(2);
     expect(playTournamentGame(2, bots("random", "greedy"), swapped!).result.seats).toEqual(["greedy", "random"]);
+  });
+
+  it("Duo: colours 1 and 2 on the 14×14 board", () => {
+    const [plain] = schedule(["random", "greedy"], 2, 5);
+    const game = playTournamentGame("duo", bots("random", "greedy"), plain!);
+    expect(game.result.seats).toEqual(["random", "greedy"]);
+    expect(game.result.scores).toHaveLength(2);
+    expect(parseColours("duo")).toBe("duo");
+    expect(parseColours("2")).toBe(2);
+    expect(() => parseColours("3")).toThrow(/4, 2 or duo/);
+    expect(isColours("4")).toBe(false);
   });
 
   it("times every move of every bot", () => {

@@ -5,9 +5,9 @@ import styles from "./ResultTable.module.css";
 import { SeatMark } from "./SeatMark.tsx";
 
 /**
- * The result of a finished game: every colour ranked by score (shared ranks for equal scores), with
- * the squares on the board and the pieces left; winners get a trophy, a colour whose player left says
- * so.
+ * The result of a finished game: every player ranked by score (shared ranks for equal scores), with
+ * their colours, the squares on the board and the pieces left; winners get a trophy, a player who left
+ * says so. A shared colour comes last, not counted and without a rank.
  */
 export function ResultTable({ rows }: { rows: readonly ResultRow[] }) {
   const { t } = useTranslation();
@@ -26,12 +26,28 @@ export function ResultTable({ rows }: { rows: readonly ResultRow[] }) {
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.seat} className={row.winner ? styles.winner : undefined} data-seat={row.seat} data-rank={row.rank}>
-            <td className={styles.rank}>{row.rank}.</td>
+          <tr
+            key={row.shared ? `shared-${row.colours.join()}` : row.seat}
+            className={row.winner ? styles.winner : row.shared ? styles.shared : undefined}
+            data-seat={row.seat}
+            data-colours={row.colours.join(",")}
+            data-rank={row.rank}
+          >
+            <td className={styles.rank}>{row.shared ? "–" : `${row.rank}.`}</td>
             <th scope="row" className={styles.player}>
               <span className={styles.who}>
-                <SeatMark seat={row.seat} isMe={row.isMe} size={16} />
-                <span className={row.left ? `${styles.name} ${styles.departed}` : styles.name}>{row.left && !row.name ? t("result.departed") : row.name}</span>
+                <span className={styles.marks}>
+                  {row.colours.map((colour) => (
+                    <SeatMark key={colour} seat={colour} isMe={row.isMe} size={16} />
+                  ))}
+                </span>
+                {row.shared ? (
+                  <span className={styles.departed}>
+                    {t("result.sharedColour")} · {t("result.notCounted")}
+                  </span>
+                ) : (
+                  <span className={row.left ? `${styles.name} ${styles.departed}` : styles.name}>{row.left && !row.name ? t("result.departed") : row.name}</span>
+                )}
                 {row.isBot && <IconRobot size={14} aria-label={t("progress.bot")} />}
                 {row.winner && <IconTrophy size={16} className={styles.trophy} aria-label={t("result.winner")} />}
                 {row.left && row.name && <span className={styles.departed}>· {t("result.departed")}</span>}
