@@ -161,6 +161,26 @@ Removed from `product.md` (Mobile ideas) and from the roadmap text for item 9.
 - **Limits:** no new bundle dependency; the size limit is kept (check chain). Corner filtering reuses
   the cached legal-move list.
 
+### D10. As few taps as possible, but no accidental moves (user, 2026-09-30)
+
+Guiding rule for every placing flow: minimise taps, but a move is only sent after a deliberate
+confirmation. So letting go of a drag never places. The confirmation is one tap, either inside the
+legal preview or on "Aseta"; "Aseta" stays. Counts this change aims at (a legal spot, on a phone):
+
+- Drag: drag + let go + 1 tap = one gesture and one tap.
+- Corner first: corner + piece + (stepping only when the first spot is not the one wanted) + 1 tap.
+- Tray + tap: piece + aim + 1 tap (as today).
+
+Small savings that follow from the rule and are part of this change:
+
+- In corner mode, when exactly one piece fits the corner, it is chosen at once (its first spot is
+  the preview). With one legal spot, "‹ ›" is hidden.
+- After a drag is released on a legal spot, the status line says "Napauta palikkaa tai paina
+  Aseta", so the one-tap way is visible.
+
+Considered and left for later: an optional setting "Aseta heti kun päästät irti" (off by default).
+The user wants to keep the confirmation for now.
+
 ## Risks / Trade-offs
 
 - The turned board could confuse players who also play on a desktop → only the view turns, and the

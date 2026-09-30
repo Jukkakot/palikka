@@ -20,7 +20,7 @@ Implement after `variants` is archived (reads Duo, the variant choice and the vi
   more, widened by a preview; tests "Zoom on turn" at model level
 - [ ] 2.4 `usePlacement`: corner mode (tap corner, filtered `fitting`, placements covering the
   corner, "‹ ›" stepping with wrap, switching corners, leaving by square, R/F or the chosen piece);
-  tests "Tap a corner", "Step through spots", "Place from corner mode", "Leave corner mode"
+  one fitting piece chosen at once, "‹ ›" hidden with one spot; tests "Tap a corner", "Only one piece fits", "Step through spots", "Place from corner mode", "Leave corner mode"
 - [ ] 2.5 `usePlacement`: drag aims (start, live landing spot with short-range snap (≤ 1 square), recomputed per aimed square, release over the board keeps the spot legal or not, cancel) and the
   hint cycle over `topMoves` cached per turn; tests "Drag from the tray", "Live landing spot", "No far jumps", "Move the preview", "Drop
   outside", "Second best", and the existing hint tests updated

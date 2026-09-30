@@ -21,6 +21,11 @@ with the normal controls. Choosing a piece first and then aiming SHALL keep work
 - **WHEN** in corner mode the player chooses a piece with seven legal placements covering the corner and taps "›" twice
 - **THEN** the third of those placements is the preview and "3/7" is shown
 
+#### Scenario: Only one piece fits
+
+- **WHEN** the player taps a free corner that exactly one of their pieces can cover
+- **THEN** that piece is chosen at once and its first spot on the corner is the preview
+
 #### Scenario: Place from corner mode
 
 - **WHEN** the player taps inside the corner-mode preview
