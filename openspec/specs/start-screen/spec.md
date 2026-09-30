@@ -78,3 +78,18 @@ solved, the entry SHALL say so with the time and the streak, and still open the 
 
 - **WHEN** today's puzzle was solved in 2:34 with a streak of 3
 - **THEN** the entry shows the time 2:34 and the streak 3, and its button opens the solved puzzle
+
+### Requirement: Variant default on the device
+
+The bot way's variant SHALL start at the variant the player last picked on this device; when none
+has been picked, it SHALL start at Duo in the phone layout and at Perus otherwise.
+
+#### Scenario: First time on a phone
+
+- **WHEN** a player opens the start screen on a phone for the first time
+- **THEN** the bot way has Duo chosen
+
+#### Scenario: Remembered choice
+
+- **WHEN** a player picked Perus last time and opens the start screen on a phone
+- **THEN** the bot way has Perus chosen
