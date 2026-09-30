@@ -12,3 +12,5 @@ export * from "./logging/processHandlers.js";
 export * from "./rooms/LobbyState.js";
 export * from "./rooms/definition.js";
 export * from "./rooms/KitGameRoom.js";
+// The watch route: a seat reservation for a spectator of a running game.
+export * from "./watch.js";

@@ -1,10 +1,10 @@
 import { schema, t, type SchemaType } from "@colyseus/schema";
-import type { CommandResult } from "@palikka/protocol";
+import type { CommandResult } from "@game-kit/protocol";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { z } from "zod";
-import appConfig from "../src/app.config.js";
-import { CommandRejection, configureLogger, LoggedRoom, type Actor } from "@game-kit/server";
+import appConfig from "./support/app.js";
+import { CommandRejection, configureLogger, LoggedRoom, type Actor } from "../src/index.js";
 import { captureLogs } from "./support/captureLogs.js";
 
 const CounterState = schema({ count: t.number().default(0) });

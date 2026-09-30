@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
-import type { CommandResult } from "@palikka/protocol";
-import appConfig from "../src/app.config.js";
-import { configureLogger } from "@game-kit/server";
-import type { GameRoom } from "../src/rooms/GameRoom.js";
+import type { CommandResult } from "@game-kit/protocol";
+import appConfig from "./support/app.js";
+import { configureLogger } from "../src/index.js";
+import type { GameRoom } from "./support/game.js";
 import { captureLogs } from "./support/captureLogs.js";
 import { forceStartSeat, placeFree, startedGame, waitingRoom, type TestClient } from "./support/game.js";
 

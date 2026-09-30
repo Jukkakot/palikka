@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { matchMaker } from "colyseus";
-import { MAX_SPECTATORS, type CommandResult } from "@palikka/protocol";
-import appConfig from "../src/app.config.js";
-import { configureLogger } from "@game-kit/server";
-import type { GameRoom } from "../src/rooms/GameRoom.js";
+import { MAX_SPECTATORS, type CommandResult } from "@game-kit/protocol";
+import appConfig from "./support/app.js";
+import { configureLogger } from "../src/index.js";
+import type { GameRoom } from "./support/game.js";
 import { captureLogs } from "./support/captureLogs.js";
 import { startedGame, waitingRoom, type TestClient } from "./support/game.js";
 
@@ -107,7 +107,7 @@ describe("spectators", () => {
     it("Spectator tries to act: NOT_SEATED for every command, nothing changes", async () => {
       const { room } = await startedGame(colyseus, 2);
       const spectator = await watch(room.roomId);
-      expect(await spectator.request("move", { move: { piece: 0, orientation: 0, row: 0, col: 0 } })).toEqual({ ok: false, code: "NOT_SEATED" });
+      expect(await spectator.request("move", { move: 0 })).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(await spectator.request("kick", { seat: 1 })).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(await spectator.request("rematch", {})).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(room.state.phase).toBe("play");

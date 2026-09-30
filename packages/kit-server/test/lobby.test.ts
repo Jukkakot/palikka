@@ -1,10 +1,11 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { matchMaker } from "colyseus";
-import { CLOSE_CODES } from "@palikka/protocol";
-import appConfig from "../src/app.config.js";
-import { configureLogger } from "@game-kit/server";
-import { GameRoom, MAX_OPEN_GAMES } from "../src/rooms/GameRoom.js";
+import { CLOSE_CODES } from "@game-kit/protocol";
+import appConfig from "./support/app.js";
+import { configureLogger } from "../src/index.js";
+import { MAX_OPEN_GAMES } from "../src/index.js";
+import { ConnectFourRoom as GameRoom } from "./support/app.js";
 import { captureLogs } from "./support/captureLogs.js";
 import { forceStartSeat, join, NAMES, startedGame, waitingRoom, type TestClient } from "./support/game.js";
 
@@ -180,7 +181,7 @@ describe("lobby in a room", () => {
   describe("Open games list", () => {
     it("the listing shows the host's nickname while open, and open: false and locked after the start", async () => {
       const { room, clients } = await waitingRoom(colyseus, 2);
-      await vi.waitFor(async () => expect((await listing(room.roomId))?.metadata).toEqual({ host: NAMES[0], open: true, pool: "", seated: 2, watchable: false, options: { variant: "classic" } }));
+      await vi.waitFor(async () => expect((await listing(room.roomId))?.metadata).toEqual({ host: NAMES[0], open: true, pool: "", seated: 2, watchable: false, options: {} }));
       forceStartSeat(room, 1);
       await clients[0]!.request("start", {});
       await vi.waitFor(async () => {

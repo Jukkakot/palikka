@@ -27,6 +27,11 @@ describe("GameRoom", () => {
     await vi.waitFor(() => expect(room.state.players.has(client.sessionId)).toBe(false));
   });
 
+  it("mounts the kit's watch route", async () => {
+    const res = await colyseus.http.post("/watch", { body: "{}", headers: { "Content-Type": "text/plain" } }).catch((err: { statusCode?: number }) => err);
+    expect((res as { statusCode?: number }).statusCode).toBe(400);
+  });
+
   it("serves a health check reporting the rules version and build", async () => {
     const res = await colyseus.http.get("/health");
     // Tests run from source, without a build: no build time.

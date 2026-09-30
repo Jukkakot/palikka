@@ -1,6 +1,6 @@
 import express, { type Application, type Request, type Response } from "express";
 import { matchMaker } from "colyseus";
-import { watchRequestSchema, type GameMetadata, type JoinOptions } from "@palikka/protocol";
+import { watchRequestSchema, type GameMetadata, type JoinOptions } from "@game-kit/protocol";
 
 /**
  * `POST /watch { roomId, nickname }`: a seat reservation for watching a running game. A started
@@ -8,7 +8,7 @@ import { watchRequestSchema, type GameMetadata, type JoinOptions } from "@palikk
  * spectator (`watch` in the join's auth) while its listing says it is watchable. The body is JSON
  * sent as text/plain (no CORS preflight). 400 bad body, 404 no such game, 409 not watchable now.
  */
-async function handle(req: Request, res: Response): Promise<void> {
+async function handle(roomName: string, req: Request, res: Response): Promise<void> {
   let json: unknown;
   try {
     json = JSON.parse(typeof req.body === "string" ? req.body : "");
@@ -20,7 +20,7 @@ async function handle(req: Request, res: Response): Promise<void> {
     res.status(400).json({ error: "INVALID_OPTIONS" });
     return;
   }
-  const [room] = await matchMaker.query({ roomId: parsed.data.roomId, name: "game" });
+  const [room] = await matchMaker.query({ roomId: parsed.data.roomId, name: roomName });
   if (!room) {
     res.status(404).json({ error: "NOT_WATCHABLE" });
     return;
@@ -38,8 +38,9 @@ async function handle(req: Request, res: Response): Promise<void> {
   }
 }
 
-export function mountWatch(app: Application): void {
+/** Mounts `POST /watch` for the game rooms defined as `roomName`. */
+export function mountWatch(app: Application, roomName = "game"): void {
   app.post("/watch", express.text({ type: () => true, limit: "2kb" }), (req, res, next) => {
-    handle(req, res).catch(next);
+    handle(roomName, req, res).catch(next);
   });
 }

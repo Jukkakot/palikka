@@ -97,6 +97,7 @@ A client and a server from different commits do not understand each other while 
 ### D10. Order: refactor under the old tests, then move the tests
 
 Tasks first extract with the current server and client suites kept as they are, apart from import paths and the wire renames of D3 and D5 (command names, the `state.game.*` paths, `options`). Those suites are the proof that gameplay did not change. Only then do the generic suites (`lifecycle`, `lobby`, `rematch`, `spectators`, `autoplay`, the bot-runner parts of `bots`, `command`, `logger`, and the client's `session`, `lobby`, `localRoom` and `useBotRunner` tests) move to the kit, rewritten over the test game. Palikka keeps its wiring tests (`GameRoom`, `game`, `variants`, `turnRules`, `errors`, and the view model with local-room parts that test Palikka specifics such as the shared colour and variant bot counts). Each behaviour is still tested once.
+*Implemented (server):* the moved suites run in `packages/kit-server/test` over a Connect Four room (`test/support/app.ts`); `bots` moved whole, since its add/remove cases are generic too. The `/watch` route (`mountWatch`) moved to `@game-kit/server` ahead of `game-kit`, because the spectator and autoplay suites need it; Palikka's `GameRoom.test` checks that its app mounts it. The generic payload schema tests moved to `@game-kit/protocol` (`schema.test.ts`).
 
 ## How it meets the NFRs
 

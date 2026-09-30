@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
-import appConfig from "../src/app.config.js";
-import { configureLogger, ROOM_ID_PATTERN, uniqueRoomId } from "@game-kit/server";
+import appConfig from "./support/app.js";
+import { configureLogger, ROOM_ID_PATTERN, uniqueRoomId } from "../src/index.js";
 import { captureLogs } from "./support/captureLogs.js";
 import { NAMES, waitingRoom, type TestClient } from "./support/game.js";
 

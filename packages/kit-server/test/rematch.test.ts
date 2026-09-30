@@ -1,9 +1,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { matchMaker } from "colyseus";
-import appConfig from "../src/app.config.js";
-import { configureLogger } from "@game-kit/server";
-import { GameRoom, MAX_OPEN_GAMES } from "../src/rooms/GameRoom.js";
+import appConfig from "./support/app.js";
+import { configureLogger } from "../src/index.js";
+import { MAX_OPEN_GAMES } from "../src/index.js";
+import { ConnectFourRoom as GameRoom } from "./support/app.js";
 import { captureLogs } from "./support/captureLogs.js";
 import { forceStartSeat, join, startedGame, waitingRoom, type TestClient } from "./support/game.js";
 

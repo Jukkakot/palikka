@@ -3,9 +3,8 @@ import { RULES_VERSION } from "@palikka/rules";
 import { clientLogBatchSchema } from "@palikka/protocol";
 import { readBuiltAt } from "./buildInfo.js";
 import { configureCors } from "./cors.js";
-import { attachHttpAudit, frameworkLogger, mountClientLogs, serverVersion } from "@game-kit/server";
+import { attachHttpAudit, frameworkLogger, mountClientLogs, mountWatch, serverVersion } from "@game-kit/server";
 import { GameRoom } from "./rooms/GameRoom.js";
-import { mountWatch } from "./watch.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 /** Read once: which build is running (shown on the start screen, doubles as the wake-up request). */
