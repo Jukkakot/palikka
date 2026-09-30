@@ -53,59 +53,62 @@ interface GameRules<G, M, O> {          // shared by server and device games; pu
 }
 ```
 
-The server part (`@game-kit/server`, `GameServerDefinition`) adds the zod schemas for the move and the extra join options, the synced schema fields and `sync(game, state)` / `reset(options, state)`, the commands' wire names (D5), and the listing metadata extras. The client part (`@game-kit/client`, `GameClientDefinition`) adds `toView(state, lobby)`, `askBot(view, budget, seed)`, the device-game setup (seats for `playBots` / `watchBots` from the options), and the save key and format check.
+The server part (`@game-kit/server`, `GameServerDefinition`) adds the zod schemas for the move and the extra join options, the game child schema with `sync(game, child)` / `reset(options, child)`, and `optionsChange` (D5). The client part (`@game-kit/client`, `GameClientDefinition`) adds `toView(state, lobby)`, `askBot(view, budget, seed)`, the device-game setup (seats for `playBots` / `watchBots` from the options), and the save key and format check.
 Palikka's `GameRules` is `palikkaRules` in `packages/rules/src/contract.ts`, a thin wrapper over the match layer. The room and `LocalRoom` already use that same engine.
 *Alternative:* one object with everything. Rejected because the client bundle must not pull in zod or Colyseus schema (an architecture rule).
 
-### D3. The synced state stays flat and identical
+### D3. Synced state: the kit's lobby state with a game child
 
-The kit exports `lobbyFields` (players, phase, hostSeat, turnSeat, turn, winners, turnDeadline, turnExpired, botRunnerSeat, spectators, botSpeed, rematchRoomId). The game builds `GameState = schema({ ...lobbyFields, ...gameFields })`. For Palikka the game fields are variant, cells, colours and turnColour. The kit room types its state as the lobby part only.
-*Alternative:* a nested `state.game` child. It is cleaner, but it changes the wire, so old clients break during the deploy window.
-*Verification step:* with Colyseus 0.18 `schema()`, spreading field definitions must give the same encoding. A server test compares an encoded state from before the change (a fixture captured in task 1.1) with one from after.
+The kit owns `LobbyState` (players, phase, hostSeat, turnSeat, turn, winners, turnDeadline, turnExpired, botRunnerSeat, spectators, botSpeed, rematchRoomId), plus `game`, a child schema that the game defines. For Palikka that child holds variant, cells, colours and turnColour. The kit room creates the child from the definition and never reads inside it.
+*Alternative:* spreading the game's fields flat into one schema. It keeps the wire identical, but the user accepts brief client/server mismatches in this hobby project (2026-09-30), and the nested form keeps the boundary clean.
 
 ### D4. The generic room is a base class with hooks, and Palikka's room extends it
 
-`KitGameRoom<G, M, O>` holds the messages `start`, `addBot`, `removeBot`, `setAutoplay`, `setSpeed`, `rematch`, `kick`, the move and the bot move. It also holds the lifecycle, seats, runner, fallback, clock, removal and finish (the current code, with the rules calls going through `GameRules`). `PalikkaRoom` passes its definition and adds `setVariant` in its own `messages`, using protected hooks: `options()`, `setOptions(o)` (resync seats, maxClients and metadata, remove bots on seats above the range), `seatRange()`. `MAX_OPEN_GAMES`, `MAX_SPECTATORS`, `BOT_DELAY_MS`, the grace time and the clock limits stay the same values, set through the kit's config. Room tests still override them per instance.
+`KitGameRoom<G, M, O>` holds the messages `start`, `addBot`, `removeBot`, `setAutoplay`, `setSpeed`, `rematch`, `kick`, the move and the bot move. It also holds the lifecycle, seats, runner, fallback, clock, removal and finish (the current code, with the rules calls going through `GameRules`). It also holds `setOptions` (D5). Palikka's room only passes its definition. A game that needs its own commands adds them to `messages` and uses the protected helpers (`requireSeated`, `requireHostInWaitingRoom`, `options()`, `game()`). `MAX_OPEN_GAMES`, `MAX_SPECTATORS`, `BOT_DELAY_MS`, the grace time and the clock limits stay the same values, set through the kit's config. Room tests still override them per instance.
 
-### D5. Wire names are the game's choice
+### D5. Generic wire names; the game's options in one field
 
-The definition names the move commands. Palikka keeps `place` and `botPlace`, and the kit's defaults for new games are `move` and `botMove`. The bot move payload stays `{ seat, ...move }`, so the kit requires a move to be a plain object. Join options: the kit's schema (nickname, pool, watch, botSeats) is extended by the game's options schema (Palikka: `variant`), and the metadata by the game's extras (`variant`). Close codes and join error codes are generic and unchanged.
+- **Move commands:** every game uses `move { move }` and `botMove { seat, move }`, validated by the game's move schema. Palikka's `place` and `botPlace` go away.
+- **Game options:** join options are `{ nickname, pool?, watch?, botSeats?, options? }`, where the game's schema validates `options` (Palikka: `{ variant }`). The listing metadata carries `options` too. A rematch copies them.
+- **Setting options:** the host's `setOptions { options }` in the waiting room is generic. The game's `optionsChange(state, from, to)` hook checks the change and can refuse it (Palikka: `TOO_MANY_PLAYERS`). The kit then drops bots above the new seat range, resets the game child and resyncs seats. Palikka's `setVariant` goes away, and so does the log event `variant.changed`, replaced by `options.changed { from, to }`. Palikka has no other game-specific command, so its room needs no messages of its own.
+- Close codes and join error codes are unchanged.
+
+A client and a server from different commits do not understand each other while one of them is still being deployed. That is accepted, and the PWA auto-update fixes the client on the next load. No version check is added now.
 
 ### D6. Protocol and log catalogue split into kit and game lists
 
-`@game-kit/protocol` holds the generic error codes (NOT_SEATED, NOT_YOUR_TURN, WRONG_PHASE, NOT_BOT_RUNNER, NOT_BOT_SEAT, NOT_KICKABLE, TURN_NOT_EXPIRED, NOT_HOST, NOT_ENOUGH_PLAYERS, TOO_MANY_PLAYERS, SEAT_TAKEN, NOT_A_BOT, NOT_SPECTATOR, PEOPLE_PLAYING, AUTOPLAYING, SERVER_FULL) and the generic log events. `@palikka/protocol` re-exports them and adds its own (placement codes, `variant.changed`, board constants, `PlacePayload`, `VARIANT_IDS`). `GAME_ERROR_CODES` and the event catalogue stay exported under their current names as the union, so i18n keys, the log schema test and Axiom queries do not change. `BOT_NAMES` stays generic (in the kit protocol), because the names are language-neutral and every game can override them later.
+`@game-kit/protocol` holds the generic error codes (NOT_SEATED, NOT_YOUR_TURN, WRONG_PHASE, NOT_BOT_RUNNER, NOT_BOT_SEAT, NOT_KICKABLE, TURN_NOT_EXPIRED, NOT_HOST, NOT_ENOUGH_PLAYERS, TOO_MANY_PLAYERS, SEAT_TAKEN, NOT_A_BOT, NOT_SPECTATOR, PEOPLE_PLAYING, AUTOPLAYING, SERVER_FULL) and the generic log events. `@palikka/protocol` re-exports them and adds its own (placement codes, board constants, `PlacePayload` as the move type, `VARIANT_IDS`). `GAME_ERROR_CODES` and the event catalogue stay exported under their current names as the union, so i18n keys and the log schema test keep working. Event names stay as they are apart from D5's `options.changed`. `tools/axiom` filters and `docs/operations.md` are updated to match. `BOT_NAMES` stays generic (in the kit protocol), because the names are language-neutral and every game can override them later.
 
 ### D7. Client: a generic session, and a Palikka hook on top
 
-`@game-kit/client` holds `useKitSession(definition, connector)` with every current generic method (create, join, joinById, joinInvite, watch, resume, retry, start, addBot, removeBot, kick, leave, rematch, setAutoplay, setSpeed, undo, playBots and watchBots with game options) and `command(name, payload)` for game commands. `client/src/session/useGameSession.ts` becomes `useGameSession()`: the kit hook with Palikka's definition, plus `place` and `setVariant`. It returns exactly today's `GameSession`, so screens and their tests do not change. `GameView` = `LobbyView & PalikkaView`, an intersection, so components keep reading `view.position`, `view.seats[].colours` and so on.
+`@game-kit/client` holds `useKitSession(definition, connector)` with every current generic method (create, join, joinById, joinInvite, watch, resume, retry, start, addBot, removeBot, kick, leave, rematch, setAutoplay, setSpeed, undo, playBots and watchBots with game options) and `command(name, payload)` for game commands. `client/src/session/useGameSession.ts` becomes `useGameSession()`: the kit hook with Palikka's definition, plus `place(move)` (sends `move`) and `setVariant(variant)` (sends `setOptions`). It keeps today's `GameSession` shape, so screens and their tests change at most in test fixtures. `GameView` = `LobbyView & PalikkaView`, an intersection, so components keep reading `view.position`, `view.seats[].colours` and so on.
 
 ### D8. The device-game room is generic, and so is undo
 
-`LocalRoom<G, M, O>` takes `GameRules` and the client definition. History entries record the seat that made each move. Undo restores the game before the last entry by the player's seat, which covers the shared colour because it is played by a seat (as today). The save key (`palikka.localGame`), its format and the drop of older formats stay Palikka's, through the definition. Watched games are still never saved.
+`LocalRoom<G, M, O>` takes `GameRules` and the client definition. History entries record the seat that made each move. Undo restores the game before the last entry by the player's seat, which covers the shared colour because it is played by a seat (as today). The kit owns the save envelope `{ version, roomId, game, history, … }` under a key from the definition (`palikka.localGame`). A save whose version is not the current one is dropped. The new envelope gets a new version, so a game left open on a device from before this change is dropped once (accepted). Watched games are still never saved.
 
 ### D9. The test game lives in the kit protocol
 
-`@game-kit/protocol/testing` exports a minimal Connect Four (7×6, two seats, a column as the move, a draw when full, the first free column as the fallback) as `GameRules`, plus its server and client parts in the kit packages' test support. It proves the contract with a second game. `game-template` later grows it into the real example. It is not in the published entry, so it is never bundled.
+`@game-kit/protocol/testing` exports a minimal Connect Four (7×6, two seats, a column as the move, a draw when full, the first free column as the fallback) as `GameRules`, plus its server and client parts in the kit packages' test support. It proves the contract with a second game and stays the kit's own test fixture. It is kept minimal on purpose: the real Connect Four is its own project (roadmap `connect-four`), the kit's first outside user. It is not in the published entry, so it is never bundled.
 
 ### D10. Order: refactor under the old tests, then move the tests
 
-Tasks first extract with the current server and client suites untouched, apart from import paths. Those suites are the proof of "no behaviour change". Only then do the generic suites (`lifecycle`, `lobby`, `rematch`, `spectators`, `autoplay`, the bot-runner parts of `bots`, `command`, `logger`, and the client's `session`, `lobby`, `localRoom` and `useBotRunner` tests) move to the kit, rewritten over the test game. Palikka keeps its wiring tests (`GameRoom`, `game`, `variants`, `turnRules`, `errors`, and the view model with local-room parts that test Palikka specifics such as the shared colour and variant bot counts). Each behaviour is still tested once.
+Tasks first extract with the current server and client suites kept as they are, apart from import paths and the wire renames of D3 and D5 (command names, the `state.game.*` paths, `options`). Those suites are the proof that gameplay did not change. Only then do the generic suites (`lifecycle`, `lobby`, `rematch`, `spectators`, `autoplay`, the bot-runner parts of `bots`, `command`, `logger`, and the client's `session`, `lobby`, `localRoom` and `useBotRunner` tests) move to the kit, rewritten over the test game. Palikka keeps its wiring tests (`GameRoom`, `game`, `variants`, `turnRules`, `errors`, and the view model with local-room parts that test Palikka specifics such as the shared colour and variant bot counts). Each behaviour is still tested once.
 
 ## How it meets the NFRs
 
-- **Logging and audit:** the same events, the same fields and the same one audit line per command. `turnFacts`, `finishFacts` and `moveText` supply the game-specific fields (`colour`, `scores`, `move`). A captured-log comparison in the Palikka room tests (the existing `captureLogs` assertions) guards it.
+- **Logging and audit:** the same events and fields and the same one audit line per command (the command names follow D5, and `variant.changed` becomes `options.changed`). `turnFacts`, `finishFacts` and `moveText` supply the game-specific fields (`colour`, `scores`, `move`). The existing `captureLogs` assertions in the Palikka room tests guard it.
 - **Tests:** D10. Coverage does not drop, and the check chain runs once before each commit.
-- **Limits and abuse protection:** caps and schemas are unchanged, and the zod strictness of join options holds (the kit schema is extended with `.extend`, still `.strict()`).
-- **Versioning:** no protocol change (D3, D5), so no reload notice is needed.
-- **Performance:** the rules calls are the same, with only one indirection per call. The client bundle is checked by `npm run size`.
+- **Limits and abuse protection:** the caps are unchanged. The join options stay `.strict()`, and so do the game's `options` and move schemas.
+- **Versioning:** the wire changes (D3, D5). A brief mismatch while deploying is accepted (user, 2026-09-30); no reload check is added.
+- **Performance:** the rules calls are the same, with only one indirection per call. Mobile load speed matters more than the exact kB figure (below).
 
 ## Risks / Trade-offs
 
-- [Schema spreading encodes differently] → D3's fixture test. If it fails, fall back to one full `GameState` defined in Palikka that the kit only types structurally (the kit reads only lobby fields).
-- [Bundle over 200 kB] → the kit client has `sideEffects: false` and named exports. The Palikka hook imports only what it uses. If it is still over by 1–2 kB, raise the limit to 205 kB and record it here. Anything more means investigating first.
+- [The bundle grows] → the kit client has `sideEffects: false` and named exports, and the Palikka hook imports only what it uses. The 200 kB limit is not sacred (user, 2026-09-30): raise it as needed and record the new figure here. Anything beyond about 230 kB means finding the cause first, so that mobile loading stays fast.
 - [Hooks leak Palikka concepts into the kit] → the kit must build and pass its tests with only the Connect Four test game. That is its whole test suite.
 - [Large change on every hot file] → no parallel work while it runs, and one commit per task group so a failure can be bisected.
 
 ## Migration Plan
 
-Nothing to migrate: the wire, saves and logs are unchanged. The server and the client deploy as usual in either order. Rollback is a revert.
+Deploy as usual. Clients opened before the deploy fail commands until they reload (the PWA updates on the next load). A device game saved before the change is dropped once (D8). Any Axiom saved query or monitor that filters on `variant.changed` or the `place` command is updated with the tools in `tools/axiom`. Rollback is a revert.
