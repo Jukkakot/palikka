@@ -17,7 +17,7 @@ import {
 import { placement, positionWith } from "@palikka/rules/testing";
 import { describe, expect, it } from "vitest";
 import { bestReplyBot, type MultiplayerGame } from "game-bots";
-import { brsPlayer, chooseMove, devicePlayer, greedyPlayer, palikkaGame, randomPlayer } from "./adapter.js";
+import { brsPlayer, chooseMove, devicePlayer, greedyPlayer, palikkaGame, randomPlayer, topMoves } from "./adapter.js";
 import { evaluate } from "./evaluation.js";
 import { playGame } from "./match.js";
 
@@ -178,4 +178,24 @@ describe("bot-play › Bots play for their side", () => {
     expect(winners(end).length).toBeGreaterThan(0);
     expect(end.moveNumber).toBeGreaterThan(10);
   }, 30_000);
+});
+
+describe("topMoves (the hint's top 3)", () => {
+  it("the first equals the greedy bot's move for the same seed; best first, all legal, stable", () => {
+    const [, , , , , position] = playGame(opening, { 1: randomPlayer, 2: randomPlayer, 3: randomPlayer, 4: randomPlayer }, 7);
+    const colour = position!.turn;
+    for (const seed of [1, 2, 3]) {
+      const top = topMoves(position!, colour, 3, seed);
+      expect(top).toHaveLength(3);
+      expect(top[0]).toEqual(chooseMove(position!, colour, depth1, seed, greedyPlayer));
+      const ratings = top.map((m) => rating(position!, encodeMove(m, 20)));
+      expect([...ratings].sort((a, b) => b - a)).toEqual(ratings);
+      for (const m of top) expect(checkPlacement(position!, colour, m)).toBeUndefined();
+      expect(topMoves(position!, colour, 3, seed)).toEqual(top);
+    }
+  });
+
+  it("gives none for a colour that is out or when the game has ended", () => {
+    expect(topMoves(abort(opening), 1, 3, 1)).toEqual([]);
+  });
 });

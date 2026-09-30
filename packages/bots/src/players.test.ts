@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { greedyBot, randomBot } from "./players.js";
+import { greedyBot, randomBot, rankMoves } from "./players.js";
 import { testRng } from "./search/testing/grab.js";
 import type { Budget, Game } from "./types.js";
 
@@ -108,5 +108,31 @@ describe("random bot", () => {
     }
     expect(seen.size).toBe(2);
     expect(bot.choose({ total: 10, turn: 1 }, depth1, testRng(1))).toBeUndefined();
+  });
+});
+
+describe("rankMoves", () => {
+  it("lists the best moves first, rated for the given player", () => {
+    expect(rankMoves(race, (s) => s.total, start, 0, 3)).toEqual([3, 2, 1]);
+    expect(rankMoves(race, (s) => -s.total, start, 0, 2)).toEqual([1, 2]);
+  });
+
+  it("gives all moves when n is larger than the move count, none when over or n is 0", () => {
+    expect(rankMoves(race, (s) => s.total, { total: 8, turn: 1 }, 1, 5)).toEqual([2, 1]);
+    expect(rankMoves(race, (s) => s.total, { total: 10, turn: 0 }, 0, 3)).toEqual([]);
+    expect(rankMoves(race, (s) => s.total, start, 0, 0)).toEqual([]);
+  });
+
+  it("breaks ties by the seed, the same way each time; the first equals the greedy bot's move", () => {
+    const flat = (s: Race) => (s.total >= 2 ? 1 : 0);
+    const firsts = new Set<number>();
+    for (let seed = 0; seed < 40; seed++) {
+      const ranked = rankMoves(race, flat, start, 0, 3, testRng(seed));
+      expect(rankMoves(race, flat, start, 0, 3, testRng(seed))).toEqual(ranked);
+      expect(ranked[2]).toBe(1);
+      expect(ranked[0]).toBe(greedyBot(race, flat).choose(start, depth1, testRng(seed)));
+      firsts.add(ranked[0]!);
+    }
+    expect([...firsts].sort()).toEqual([2, 3]);
   });
 });

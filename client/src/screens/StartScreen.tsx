@@ -8,6 +8,7 @@ import { checkNickname, loadNickname, randomNickname } from "../session/nickname
 import type { ServerWake } from "../session/serverWake.ts";
 import type { OpenGames } from "../session/useOpenGames.ts";
 import type { GameSession } from "../session/useGameSession.ts";
+import { getSettings, updateSettings } from "../settings/settings.ts";
 import { SettingsButton, SettingsScreen } from "../settings/SettingsScreen.tsx";
 import { TipsReset } from "../tips/TipsReset.tsx";
 import { Button } from "../ui/Button.tsx";
@@ -18,6 +19,7 @@ import { LinkButton } from "../ui/LinkButton.tsx";
 import { Message } from "../ui/Message.tsx";
 import { Screen } from "../ui/Screen.tsx";
 import { Switch } from "../ui/Switch.tsx";
+import { usePhoneLayout } from "../ui/usePhoneLayout.ts";
 import { BuildInfo } from "./BuildInfo.tsx";
 import styles from "./StartScreen.module.css";
 
@@ -107,7 +109,13 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
   // "Pelaan itse": on whenever the screen opens; off offers a game of bots only to watch.
   const [playMyself, setPlayMyself] = useState(true);
   const [puzzleOpen, setPuzzleOpen] = useState(false);
-  const [variant, setVariant] = useState<VariantId>("classic");
+  // The bot way's variant: the last one picked on this device; the first time Duo on a phone, else Perus.
+  const phone = usePhoneLayout();
+  const [variant, setVariant] = useState<VariantId>(() => getSettings().lastVariant ?? (phone ? "duo" : "classic"));
+  const pickVariant = (next: VariantId) => {
+    setVariant(next);
+    updateSettings({ lastVariant: next });
+  };
   // Perus offers a choice of bots; the other variants have a fixed player count.
   const botCounts = variant === "classic" ? BOT_COUNTS : [VARIANTS[variant].maxPlayers - 1];
   const watchCounts = variant === "classic" ? WATCH_COUNTS : [VARIANTS[variant].maxPlayers];
@@ -239,7 +247,7 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
                 {t("start.botsTitle")}
               </h2>
               <p className={styles.wayBody}>{t("start.botsBody")}</p>
-              <VariantPicker value={variant} onChange={setVariant} />
+              <VariantPicker value={variant} onChange={pickVariant} />
               <label className={styles.playMyself}>
                 {t("start.playMyself")}
                 <Switch checked={playMyself} onChange={(e) => setPlayMyself(e.target.checked)} />

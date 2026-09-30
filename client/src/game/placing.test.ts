@@ -1,7 +1,7 @@
 import { checkPlacement, CLASSIC, newPosition, ORIENTATIONS, pieceNumber } from "@palikka/rules";
 import { placement, positionWith } from "@palikka/rules/testing";
 import { describe, expect, it } from "vitest";
-import { aimOf, hintMove, legalMovesOf, previewAt, referenceCell, squaresOf } from "./placing.ts";
+import { aimOf, hintMoves, legalMovesOf, movesCovering, piecesCovering, previewAt, referenceCell, squaresOf } from "./placing.ts";
 
 const I3 = pieceNumber("I3");
 /** The flat orientation of a piece: one row. */
@@ -62,19 +62,53 @@ describe("piece-controls › Placement preview", () => {
   });
 });
 
+describe("piece-controls › Corner first (model)", () => {
+  it("the moves covering a square, and the pieces that have one", () => {
+    const position = newPosition(CLASSIC, [1, 2], 1);
+    const moves = movesCovering(position, 1, 0);
+    expect(moves.length).toBeGreaterThan(21);
+    for (const m of moves) expect(squaresOf(m, 20)).toContain(0);
+    expect(piecesCovering(position, 1, 0).size).toBe(20); // all but X5
+    expect(movesCovering(position, 1, 0, I3).every((m) => m.piece === I3)).toBe(true);
+    expect(piecesCovering(position, 1, 210).size).toBe(0);
+  });
+});
+
+describe("piece-controls › Dragging a piece (near snap)", () => {
+  const position = newPosition(CLASSIC, [1, 2], 1);
+  const o = flat(I3);
+
+  it("snaps to a legal spot at most one square away", () => {
+    // I3 flat's legal spot on the corner has its reference square at (0,1); aimed at (1,2).
+    const preview = previewAt(position, 1, { piece: I3, orientation: o, square: 22, snap: true, near: true });
+    expect(preview.legal).toBe(true);
+    expect(preview.squares).toEqual([0, 1, 2]);
+  });
+
+  it("No far jumps: three squares away the spot is under the piece and illegal", () => {
+    const preview = previewAt(position, 1, { piece: I3, orientation: o, square: 3 * 20 + 4, snap: true, near: true });
+    expect(preview.legal).toBe(false);
+    expect(preview.squares).toEqual([63, 64, 65]);
+    expect(preview.reason).toBe("NOT_ON_START");
+  });
+});
+
 describe("piece-controls › Hint as a preview", () => {
   it("Hint: a legal move, the same within a turn", () => {
     const position = newPosition(CLASSIC, [1, 2], 1);
-    const move = hintMove(position, 1, 1)!;
-    expect(checkPlacement(position, 1, move)).toBeUndefined();
-    expect(squaresOf(move, 20)).toContain(0);
-    expect(hintMove(position, 1, 1)).toEqual(move);
+    const moves = hintMoves(position, 1, 1);
+    expect(moves).toHaveLength(3);
+    for (const move of moves) {
+      expect(checkPlacement(position, 1, move)).toBeUndefined();
+      expect(squaresOf(move, 20)).toContain(0);
+    }
+    expect(hintMoves(position, 1, 1)).toEqual(moves);
   });
 
   it("Hint for the shared colour: a legal colour-4 move chosen for the viewer's side", () => {
     const position = { ...newPosition(CLASSIC, [1, 2, 3, 4], 4, { 1: 1, 2: 2, 3: 3, 4: 0 }) };
-    const move = hintMove(position, 4, 4, 2)!;
-    expect(checkPlacement(position, 4, move)).toBeUndefined();
-    expect(hintMove(position, 4, 4, 2)).toEqual(move);
+    const [move] = hintMoves(position, 4, 4, 2);
+    expect(checkPlacement(position, 4, move!)).toBeUndefined();
+    expect(hintMoves(position, 4, 4, 2)[0]).toEqual(move);
   });
 });

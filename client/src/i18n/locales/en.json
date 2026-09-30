@@ -29,7 +29,11 @@
     "waiting": "Waiting for the server…"
   },
   "board": {
-    "label": "Game board"
+    "label": "Game board",
+    "zoomIn": "Zoom in",
+    "zoomInTitle": "Zoom in to your corners on your turn",
+    "zoomOut": "Whole board",
+    "zoomOutTitle": "Always show the whole board"
   },
   "start": {
     "connecting": "Connecting to the server…",
@@ -106,7 +110,12 @@
     "mirrorTitle": "Mirror (F)",
     "place": "Place",
     "announceOk": "Row {{row}}, column {{col}}: fits",
-    "announceBad": "Row {{row}}, column {{col}}: {{reason}}"
+    "announceBad": "Row {{row}}, column {{col}}: {{reason}}",
+    "corner": "These fit this corner – pick one",
+    "dropped": "Tap the piece or press Place",
+    "prevSpot": "Previous spot on this corner",
+    "nextSpot": "Next spot on this corner",
+    "spots": "{{index}}/{{count}}"
   },
   "tray": {
     "label": "Your pieces",
@@ -141,7 +150,8 @@
   },
   "hint": {
     "button": "Hint",
-    "title": "Put the bot's move ready to place"
+    "title": "Put the bot's move ready to place",
+    "step": "Hint {{index}}/{{count}}"
   },
   "progress": {
     "label": "Players and scores",

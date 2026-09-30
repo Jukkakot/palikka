@@ -188,3 +188,17 @@ The user wants to keep the confirmation for now.
 - Zooming while the player looks can feel jumpy → it zooms only at the start of their turn and when
   a preview leaves the box, and the toggle turns it off.
 - Drag and tap on the same element → the 8 px threshold. The tray's tap behaviour stays as it is.
+
+## Implementation notes (2026-09-30)
+
+- Zoom frame uses `overflow: clip` (fallback `hidden`): a hidden frame was scrolled by
+  `scrollIntoView` in the UI check, showing the wrong part of the board.
+- The floating piece uses the board's square pitch (board width / size), so it lines up with the
+  landing spot under a zoom.
+- Status texts: in corner mode, while dragging and after a drop the legal-preview line is "Napauta
+  palikkaa tai paina Aseta" (no "uudelleen": the piece was never tapped).
+- `touch-action: none` sits on the draggable tray pieces (on the viewer's turn) and the preview's
+  squares, since a browser decides scrolling at the press; the whole board gets it while dragging.
+- `boardZoom` is toggled only from the control bar, not the settings screen.
+- The hint's `rankMoves` has no time limit (it rates all moves); measured 5–30 ms on a desktop
+  mid-game, computed once per turn on the first press.

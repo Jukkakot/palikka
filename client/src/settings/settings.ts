@@ -1,3 +1,4 @@
+import { VARIANT_IDS, type VariantId } from "@palikka/rules";
 import { useSyncExternalStore } from "react";
 
 /**
@@ -14,6 +15,10 @@ export interface Settings {
   turnTitle: boolean;
   /** A short vibration when the viewer's turn begins (where the device can vibrate). */
   vibration: boolean;
+  /** Phone layout: on the viewer's turn the board zooms to their free corners. */
+  boardZoom: boolean;
+  /** The variant last picked for a bot game on this device; none until one is picked. */
+  lastVariant?: VariantId;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -21,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sounds: true,
   turnTitle: true,
   vibration: true,
+  boardZoom: true,
 };
 
 const KEY = "palikka.settings";
@@ -40,12 +46,14 @@ export function loadSettings(storage?: Storage): Settings {
     const raw: unknown = JSON.parse(storageOf(storage)?.getItem(KEY) ?? "{}");
     if (typeof raw !== "object" || raw === null) return { ...DEFAULT_SETTINGS };
     const r = raw as Record<string, unknown>;
-    const flag = (name: keyof Omit<Settings, "theme">) => (typeof r[name] === "boolean" ? (r[name] as boolean) : DEFAULT_SETTINGS[name]);
+    const flag = (name: "sounds" | "turnTitle" | "vibration" | "boardZoom") => (typeof r[name] === "boolean" ? (r[name] as boolean) : DEFAULT_SETTINGS[name]);
     return {
       theme: THEMES.includes(r.theme as Theme) ? (r.theme as Theme) : DEFAULT_SETTINGS.theme,
       sounds: flag("sounds"),
       turnTitle: flag("turnTitle"),
       vibration: flag("vibration"),
+      boardZoom: flag("boardZoom"),
+      ...(VARIANT_IDS.includes(r.lastVariant as VariantId) && { lastVariant: r.lastVariant as VariantId }),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

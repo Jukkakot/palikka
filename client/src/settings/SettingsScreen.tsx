@@ -10,7 +10,7 @@ import { LanguageSwitcher } from "../ui/LanguageSwitcher.tsx";
 import { Switch } from "../ui/Switch.tsx";
 import { Screen } from "../ui/Screen.tsx";
 import { canVibrate } from "./feedback.ts";
-import { updateSettings, useSettings, type Settings, type Theme } from "./settings.ts";
+import { updateSettings, useSettings, type Theme } from "./settings.ts";
 import styles from "./SettingsScreen.module.css";
 
 const THEMES: readonly Theme[] = ["system", "light", "dark"];
@@ -25,7 +25,8 @@ export function SettingsButton({ onClick }: { onClick(): void }) {
   );
 }
 
-type Flag = keyof Omit<Settings, "theme">;
+// The board zoom is toggled from the game's control bar (phone layout), not here.
+type Flag = "sounds" | "turnTitle" | "vibration";
 
 /** One on/off setting: the whole row is the tap target; the note says what it does. */
 function Toggle({ name, disabled = false, note }: { name: Flag; disabled?: boolean; note?: string }) {

@@ -73,15 +73,16 @@ corner-touching game. Never use the original's trademarked name, logos or look (
   clear first, playful second.
 - Accessibility is basic only: contrast and tap targets; colour alone may identify a player.
 
-## Mobile ideas (roadmap `mobile-ui`, not before)
+## Mobile (built in `mobile-ui`, 2026-09-30)
 
-- Choose from legal moves: highlighted free corners → tap one → only the pieces that fit there →
-  flip through only their legal orientations → confirm.
-- Drag with the piece shown above the finger, snapping to the nearest legal spot. Automatic zoom to
-  the own corners; the own start corner always at the bottom corner of the screen.
-- "Vihje" shows the bot's three best moves. TV mode (a host screen with phones as controllers) was
-  dropped from the plans (2026-09-30).
-  Duo as the default on a phone.
+- Corner first: tap a free corner → only the pieces that fit there → "‹ n/m ›" through that piece's
+  spots on the corner → tap the preview or "Aseta". Runs alongside piece-first aiming.
+- Drag from the tray or the preview, the piece held above the finger; the landing spot shows live
+  and snaps only within one square; letting go never places.
+- Phone layout: the board turned so the own start corner is bottom-left (view only); zoom to the
+  own corners on the own turn, with a "Koko lauta" / "Lähennä" toggle.
+- "Vihje" steps through the bot's three best moves ("Vihje 2/3").
+- The bot way starts at the last picked variant, the first time Duo on a phone.
 
 ## Decided in the spec phase (2026-09-29)
 

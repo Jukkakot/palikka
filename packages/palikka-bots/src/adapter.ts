@@ -11,7 +11,7 @@ import {
   type Position,
   type Rng,
 } from "@palikka/rules";
-import { bestReplyBot, greedyBot, mctsBot, randomBot, type Bot, type Budget, type MultiplayerGame } from "game-bots";
+import { bestReplyBot, greedyBot, mctsBot, randomBot, rankMoves, type Bot, type Budget, type MultiplayerGame } from "game-bots";
 import { evaluate, teamKey } from "./evaluation.js";
 import { moveKey } from "./moveKey.js";
 
@@ -107,4 +107,17 @@ export function chooseMove(
   const shared = viewpoint !== undefined && viewpoint !== colour && sideOf(position, colour) === 0;
   const move = shared ? sharedMove(position, colour, viewpoint, random) : bot.choose(withTurn(position, colour), budget, random);
   return move === undefined ? undefined : decodeMove(move, position.config.size);
+}
+
+/**
+ * The hint's list: `colour`'s `n` best moves one ply deep, best first (the first is
+ * `greedyPlayer`'s move for the same seed). For a shared colour, `viewpoint` is a colour of the seat
+ * that plays it: the moves are rated for that side. Empty when the colour has no move.
+ */
+export function topMoves(position: Position, colour: number, n: number, seed: number, viewpoint?: number): Placement[] {
+  if (position.ended || !position.colours.includes(colour) || position.out.includes(colour)) return [];
+  const onTurn = withTurn(position, colour);
+  const player = viewpoint ?? colour;
+  const moves = rankMoves(palikkaGame, (s) => evaluate(s, player), onTurn, colour, n, createRng(seed));
+  return moves.map((move) => decodeMove(move, position.config.size));
 }

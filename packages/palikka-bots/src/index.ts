@@ -1,4 +1,4 @@
-export { brsPlayer, chooseMove, devicePlayer, greedyPlayer, mctsPlayer, palikkaGame, randomPlayer } from "./adapter.js";
+export { brsPlayer, chooseMove, devicePlayer, greedyPlayer, mctsPlayer, palikkaGame, randomPlayer, topMoves } from "./adapter.js";
 export { KEY_WEIGHTS, moveKey } from "./moveKey.js";
 export { countBits, evaluate, popcount, reachOf, teamKey, WEIGHTS } from "./evaluation.js";
 export { playGame } from "./match.js";

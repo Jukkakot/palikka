@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { BotSpeed } from "@palikka/protocol";
-import { freeCorners, type Bits, type MoveRefusal } from "@palikka/rules";
+import type { MoveRefusal } from "@palikka/rules";
 import { useTranslation } from "react-i18next";
 import { AutoplayButton, AutoplayPanel } from "../game/AutoplayControls.tsx";
 import { Board } from "../game/Board.tsx";
+import { turnsFor, UNTURNED, zoomBox, type ViewTransform } from "../game/boardView.ts";
+import { FloatingPiece } from "../game/FloatingPiece.tsx";
 import { GameIdBadge } from "../game/GameIdBadge.tsx";
 import { GameOverControls } from "../game/GameOverControls.tsx";
 import { KickControl } from "../game/KickControl.tsx";
@@ -14,14 +16,17 @@ import { PlayerStrip } from "../game/PlayerStrip.tsx";
 import { ResultTable } from "../game/ResultTable.tsx";
 import { SpectatorCount, SpectatorPanel } from "../game/SpectatorControls.tsx";
 import { TurnLine } from "../game/TurnLine.tsx";
+import { usePieceDrag } from "../game/usePieceDrag.ts";
 import { usePlacement } from "../game/usePlacement.ts";
 import { NOTICE_MS, type GameSession } from "../session/useGameSession.ts";
 import type { GameView } from "../session/viewModel.ts";
+import { updateSettings, useSettings } from "../settings/settings.ts";
 import { SettingsButton, SettingsScreen } from "../settings/SettingsScreen.tsx";
 import { useTurnAlert } from "../settings/turnAlert.ts";
 import { FirstGameTips } from "../tips/FirstGameTips.tsx";
 import { Notice } from "../ui/Notice.tsx";
 import { Screen } from "../ui/Screen.tsx";
+import { usePhoneLayout } from "../ui/usePhoneLayout.ts";
 import styles from "./GameScreen.module.css";
 
 export interface GameScreenProps {
@@ -37,19 +42,14 @@ type PlacementRefusal = (typeof PLACEMENT_REFUSALS)[number];
 const refusalKey = (reason: MoveRefusal | undefined) =>
   `errors.${(PLACEMENT_REFUSALS as readonly string[]).includes(reason ?? "") ? (reason as PlacementRefusal) : "INVALID_MOVE"}` as const;
 
-/** The board indexes of a bit set. */
-function squaresOfBits(bits: Bits, size: number): Set<number> {
-  const squares = new Set<number>();
-  for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if ((bits[r]! >>> c) & 1) squares.add(r * size + c);
-  return squares;
-}
-
 /**
  * The game: whose turn it is, the players and their scores, the board, the controls and the piece
  * tray. On the viewer's turn they choose a piece in the tray, turn and mirror it ("Käännä", "Peilaa",
- * R, F), aim it on the board (hover, tap or arrow keys; a pointer snaps to a legal spot) and place a
- * legal preview with a second tap, a click, Enter or "Aseta". "Vihje" puts the bot's move in the
- * preview. Against bots on the device "Peru" takes back the viewer's last move. A finished game shows
+ * R), aim it on the board (hover, tap or arrow keys; a pointer snaps to a legal spot) or drag it there,
+ * and place a legal preview with a second tap, a click, Enter or "Aseta". With no piece chosen, a tap
+ * on a free corner narrows the tray to what fits there and "‹ ›" steps through the spots. "Vihje"
+ * puts the bot's best move in the preview, again the next best. On a phone a seated player sees the
+ * board turned so their start corner is at the bottom-left, zoomed to their corners on their turn. Against bots on the device "Peru" takes back the viewer's last move. A finished game shows
  * the result table with "Pelaa uudelleen" and "Alkuun". A spectator gets no turn controls: the bots' speed
  * while only bots play, and "Uusi bottipeli" after a bot-only game. Once the current player's time is
  * up, the others get the kick control, and anyone leaving is announced by nickname. The top bar's
@@ -63,15 +63,24 @@ export function GameScreen({ view, session }: GameScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   useTurnAlert(view);
 
-  const placing = usePlacement(view);
   const { position, isMyTurn, mySeat } = view;
+  const phone = usePhoneLayout();
+  const { boardZoom } = useSettings();
+  // Phone layout: a seated player's board turns so their (first) colour's start is bottom-left.
+  const firstColour = view.seats.find((s) => s.isMe)?.colours[0];
+  const startSquare = firstColour !== undefined ? position?.config.starts[firstColour] : undefined;
+  const turns = phone && !view.spectating && startSquare && position ? turnsFor(startSquare, position.config.size).turns : 0;
+  const transform = useMemo<ViewTransform>(() => (turns === 0 ? UNTURNED : { turns }), [turns]);
+  const placing = usePlacement(view, transform);
+  const drag = usePieceDrag(placing);
   // The colour the viewer places and sees in the tray (the one on turn when it is theirs).
   const colour = view.trayColour ?? mySeat;
-  const corners = useMemo(
-    () => (isMyTurn && position && colour !== undefined ? squaresOfBits(freeCorners(position, colour), position.config.size) : undefined),
-    [isMyTurn, position, colour],
-  );
+  const corners = placing.corners;
   const preview = placing.preview;
+  const zoom = useMemo(
+    () => (phone && boardZoom && corners && position && !view.finished ? zoomBox(corners, position.config.size, transform, preview?.squares) : undefined),
+    [phone, boardZoom, corners, position, view.finished, transform, preview],
+  );
   const boardPreview = useMemo(
     () => (preview && colour !== undefined ? { squares: new Set(preview.squares), legal: preview.legal, seat: colour } : undefined),
     [preview, colour],
@@ -103,9 +112,9 @@ export function GameScreen({ view, session }: GameScreenProps) {
 
   let status: string;
   if (!isMyTurn) status = t("place.wait");
-  else if (!chosen) status = t("place.choose");
+  else if (!chosen) status = t(placing.corner !== undefined ? "place.corner" : "place.choose");
   else if (!preview) status = t("place.aim");
-  else if (preview.legal) status = t("place.ready");
+  else if (preview.legal) status = t(placing.dropped || placing.dragging || placing.corner !== undefined ? "place.dropped" : "place.ready");
   else status = t(refusalKey(preview.reason));
   const announce = preview
     ? t(preview.legal ? "place.announceOk" : "place.announceBad", {
@@ -157,13 +166,18 @@ export function GameScreen({ view, session }: GameScreenProps) {
           <Board
             board={view.board}
             corners={corners}
+            corner={placing.corner}
             preview={boardPreview}
             busy={pending}
             onPoint={placing.active ? placing.point : undefined}
-            onSquare={placing.active && chosen ? (square) => void send(placing.click(square)) : undefined}
+            onSquare={placing.active ? (square) => void (drag.takeClick() || send(placing.click(square))) : undefined}
             onMove={placing.moveBy}
             onConfirm={() => void send(placing.ready)}
+            onPreviewPointerDown={placing.active && preview ? drag.fromBoard : undefined}
             announce={announce}
+            view={transform}
+            zoom={zoom}
+            dragging={placing.dragging}
           />
         </div>
         <div className={styles.side}>
@@ -209,6 +223,10 @@ export function GameScreen({ view, session }: GameScreenProps) {
               onHint={placing.hint}
               onUndo={view.canUndo ? () => void undo?.() : undefined}
               canUndo={view.undoable}
+              spots={placing.spots}
+              onStep={placing.step}
+              hint={placing.hints}
+              zoom={phone ? { on: boardZoom, onToggle: () => updateSettings({ boardZoom: !boardZoom }) } : undefined}
             />
           )}
           {!view.finished && !view.spectating && colour !== undefined && position && (
@@ -217,8 +235,20 @@ export function GameScreen({ view, session }: GameScreenProps) {
               placed={position.placed[colour] ?? []}
               fitting={placing.fitting}
               chosen={chosen}
-              onChoose={placing.choose}
+              onChoose={(piece) => void (drag.takeClick() || placing.choose(piece))}
               disabled={pending || view.myAutoplay}
+              onDragStart={placing.active ? drag.fromTray : undefined}
+              view={transform}
+            />
+          )}
+          {drag.floating && placing.dragging && chosen && colour !== undefined && (
+            <FloatingPiece
+              at={drag.floating}
+              piece={chosen.piece}
+              orientation={chosen.orientation}
+              seat={colour}
+              legal={preview?.legal ?? false}
+              view={transform}
             />
           )}
         </div>

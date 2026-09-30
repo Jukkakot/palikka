@@ -48,6 +48,21 @@ export function greedyBot<S, M, P>(game: Game<S, M, P>, evaluate: Evaluate<S, P>
   };
 }
 
+/**
+ * The `n` best moves of `player` in `state`, best first, rated one ply deep: each legal move is
+ * played as `player` (via `play`, so `player` must be the one to move) and the result rated with
+ * `evaluate`. Ties keep a seeded random order when `rng` is given, else the game's move order.
+ * Fewer than `n` when there are fewer legal moves; empty when the game is over.
+ */
+export function rankMoves<S, M, P>(game: Game<S, M, P>, evaluate: Evaluate<S, P>, state: S, player: P, n: number, rng?: Rng): M[] {
+  if (n <= 0 || game.isOver(state)) return [];
+  const moves = game.moves(state);
+  const ordered = rng ? shuffled(rng, moves) : moves;
+  const rated = ordered.map((move, index) => ({ move, index, value: evaluate(game.play(state, move), player) }));
+  rated.sort((a, b) => b.value - a.value || a.index - b.index);
+  return rated.slice(0, n).map((r) => r.move);
+}
+
 /** Plays a uniformly random legal move: the baseline for tests and tournaments. */
 export function randomBot<S, M, P>(game: Game<S, M, P>): Bot<S, M> {
   return {

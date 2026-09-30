@@ -183,6 +183,9 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
   runs out first, a bot ignores limits that do not apply to it). The rng is injected, so a seed
   fixes the choice. Players:
   - `greedyBot` (one ply, seeded tie-breaking, best so far at the time limit), `randomBot`.
+  - `rankMoves(game, evaluate, state, player, n, rng?)`: the `n` best moves one ply deep, best
+    first, ties in seeded order (the first equals `greedyBot`'s move for the same rng). No time
+    limit: it rates every move.
   - `bestReplyBot` (`search/brs.ts`): Best-Reply Search. The root player's layers alternate with
     one layer where the single most harmful reply of any opponent still in is searched; alpha-beta,
     iterative deepening, beams (10 root moves by their one-ply value, then 6 own moves and 3
@@ -236,7 +239,9 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
   pause is over and the answer is there, whichever is later. That holds in `LocalRoom` and in the
   online bot runner (`session/useBotRunner.ts`, which sends the move as `botPlace`). Both ask for
   the colour on turn, with the seat's own colour as `viewpoint` for the shared colour. The hint uses
-  greedy (100 ms, UI thread), with the viewer's colour as viewpoint on a shared turn.
+  `topMoves` (`rankMoves` over `evaluate`, top 3, seeded by the turn, UI thread, computed once per
+  turn on the first press; about 5–30 ms on a desktop), with the viewer's colour as viewpoint on a
+  shared turn.
 
 ## Client — Implemented
 
@@ -289,8 +294,36 @@ client/src/
   (the cell nearest the piece's centre) is nearest; with none, or from the keyboard, the piece sits
   exactly there and `checkPlacement` gives the reason. One click rule for every pointer: a click
   inside a legal preview places it, any other click moves the preview (a mouse previews on hover,
-  so one click places; touch needs two taps). "Aseta" and Enter place too. "Vihje" puts the greedy
-  bot's move (100 ms, seeded by the turn) into the preview.
+  so one click places; touch needs two taps). "Aseta" and Enter place too. "Vihje" puts the bot's
+  best move into the preview; pressed again, the second and third best ("Vihje 2/3", `topMoves`).
+  Every way of placing ends in the same preview and the same one confirming tap.
+- **Corner mode** (`usePlacement`): with no piece chosen, a tap on a free corner narrows the tray
+  (`fitting`) to the pieces with a legal move covering it (`piecesCovering`, from the cached
+  per-position legal-move list in `placing.ts`); one fitting piece is chosen at once. A chosen piece
+  shows its first spot on the corner, "‹ n/m ›" (`step`) cycles its spots in engine order, wrapping.
+  Another free corner switches; any other square, the chosen piece again, R/F, the arrows or a drag
+  leave corner mode, keeping the piece.
+- **Drag** (`usePieceDrag` + `usePlacement.dragStart/dragTo/dragEnd`): pointer events, no library.
+  A press on a fitting tray piece or on the preview that moves over 8 px starts a drag; the
+  `FloatingPiece` (fixed, no pointer events, the board's square pitch) is held by its reference
+  square, 1.5 squares above a finger. The board square under that square (`elementFromPoint`) is
+  the aim; the landing spot is recomputed once per square and snaps only within one square
+  (`Aim.near`), else it is the exact spot, illegal with the reason. Release over the board keeps it
+  as the preview (never places); elsewhere the drag is cancelled and the previous preview returns.
+  The click that ends a drag is ignored. Tray pieces that can be dragged and the preview's squares
+  have `touch-action: none` (so the browser does not scroll instead); the whole board only while
+  dragging.
+- **Phone view** (`game/boardView.ts`, `ui/usePhoneLayout.ts`): "phone" is the negation of the
+  wide layout's media query. A seated player's board turns in quarter turns (`ViewTransform`,
+  `turnsFor` their first colour's start square) so it is at the bottom-left; spectators and the wide
+  layout are unturned. Only the view turns: `Board` renders squares in screen order and reports
+  board indexes; the tray and `FloatingPiece` draw `screenOrientation`s; "Peilaa" mirrors as seen
+  (`mirrorOnScreen`), the arrows move in screen directions (`boardDirection`). On the viewer's turn
+  the board zooms (`zoomBox`: free corners on screen + 2, at least 10 squares, widened for the
+  preview, the whole board from 16) with a CSS scale/translate of the grid in a frame with
+  `overflow: clip` (not `hidden`: a hidden frame can still be scrolled by focus or scrollIntoView).
+  The control bar's zoom toggle (phone only) is the `boardZoom` setting. The start screen's bot way
+  starts at the `lastVariant` setting, else Duo on a phone and Perus otherwise.
 - **Layout:** phone portrait stacks turn line, players, board, control bar and tray; from 900 px
   landscape the board sits left and the rest in a column beside it (`GameScreen.module.css`).
 - **Result:** a finished game shows `ResultTable` from `GameView.results` (every player ranked by

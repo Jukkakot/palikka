@@ -39,6 +39,14 @@ describe("settings › Settings on the device", () => {
     expect(loadSettings(throwing)).toEqual(DEFAULT_SETTINGS);
   });
 
+  it("board zoom is on and no variant is remembered by default; stored ones are read, unknown variants ignored", () => {
+    expect(DEFAULT_SETTINGS.boardZoom).toBe(true);
+    expect(DEFAULT_SETTINGS.lastVariant).toBeUndefined();
+    const stored = loadSettings(memoryStorage({ "palikka.settings": JSON.stringify({ boardZoom: false, lastVariant: "duo" }) }));
+    expect(stored).toMatchObject({ boardZoom: false, lastVariant: "duo" });
+    expect(loadSettings(memoryStorage({ "palikka.settings": JSON.stringify({ lastVariant: "tv" }) })).lastVariant).toBeUndefined();
+  });
+
   it("Setting remembered: a change applies at once, notifies and survives a reload", () => {
     const listener = vi.fn();
     const stop = subscribeSettings(listener);

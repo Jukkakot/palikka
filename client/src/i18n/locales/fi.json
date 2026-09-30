@@ -29,7 +29,11 @@
     "waiting": "Odotetaan palvelinta…"
   },
   "board": {
-    "label": "Pelilauta"
+    "label": "Pelilauta",
+    "zoomIn": "Lähennä",
+    "zoomInTitle": "Lähennä omiin kulmiisi vuorollasi",
+    "zoomOut": "Koko lauta",
+    "zoomOutTitle": "Näytä aina koko lauta"
   },
   "start": {
     "connecting": "Yhdistetään palvelimeen…",
@@ -106,7 +110,12 @@
     "mirrorTitle": "Peilaa (F)",
     "place": "Aseta",
     "announceOk": "Rivi {{row}}, sarake {{col}}: sopii",
-    "announceBad": "Rivi {{row}}, sarake {{col}}: {{reason}}"
+    "announceBad": "Rivi {{row}}, sarake {{col}}: {{reason}}",
+    "corner": "Nämä sopivat tähän kulmaan – valitse yksi",
+    "dropped": "Napauta palikkaa tai paina Aseta",
+    "prevSpot": "Edellinen paikka tässä kulmassa",
+    "nextSpot": "Seuraava paikka tässä kulmassa",
+    "spots": "{{index}}/{{count}}"
   },
   "tray": {
     "label": "Palikkasi",
@@ -141,7 +150,8 @@
   },
   "hint": {
     "button": "Vihje",
-    "title": "Botin siirto valmiiksi asetettavaksi"
+    "title": "Botin siirto valmiiksi asetettavaksi",
+    "step": "Vihje {{index}}/{{count}}"
   },
   "progress": {
     "label": "Pelaajat ja pisteet",

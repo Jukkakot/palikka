@@ -46,3 +46,8 @@
 .dim {
   opacity: 0.3;
 }
+
+/* Can be dragged onto the board: touch movement starts the drag, not scrolling. */
+.draggable {
+  touch-action: none;
+}

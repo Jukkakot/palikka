@@ -1,0 +1,19 @@
+/* Above everything, never in the way of the pointer. */
+.floating {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  line-height: 0;
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 25%));
+}
+
+/* Over a spot where it does not fit: faded, each square with the dashed warning outline. */
+.bad {
+  opacity: 0.55;
+  filter: none;
+}
+
+.bad > span > span {
+  outline: 2px dashed var(--preview-bad);
+  outline-offset: -2px;
+}

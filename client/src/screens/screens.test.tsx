@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../i18n";
 import type { ServerWake } from "../session/serverWake.ts";
+import { reloadSettings, updateSettings } from "../settings/settings.ts";
 import { BuildInfo } from "./BuildInfo.tsx";
 import { StartScreen, type StartScreenProps } from "./StartScreen.tsx";
 
@@ -27,7 +28,11 @@ function sessionOf(overrides: Partial<StartScreenProps["session"]> = {}): StartS
 
 // A returning player: the remembered nickname makes the join actions available.
 beforeEach(() => localStorage.setItem("palikka.nickname", "Maija"));
-afterEach(() => localStorage.clear());
+afterEach(() => {
+  localStorage.clear();
+  reloadSettings();
+  vi.unstubAllGlobals();
+});
 
 describe("game-session › Quick createGame (start screen)", () => {
   it("offers a single Play action", () => {
@@ -386,5 +391,33 @@ describe("how-to-createGame › Rules screen reachable before and during a game"
     expect(screen.getByRole("heading", { level: 1, name: "Näin pelaat" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Takaisin" }));
     expect(screen.getByRole("heading", { level: 1, name: "Palikka" })).toBeTruthy();
+  });
+});
+
+describe("start-screen › Variant default on the device", () => {
+  const phone = (matches: boolean) =>
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches, media: query, addEventListener() {}, removeEventListener() {} }));
+  const chosen = () => document.querySelector("[role=radio][aria-checked=true]")?.getAttribute("data-variant");
+
+  it("First time on a phone: the bot way has Duo chosen; on a wide screen Perus", () => {
+    phone(true);
+    const { unmount } = render(<StartScreen session={sessionOf()} wake={ready} />);
+    expect(chosen()).toBe("duo");
+    unmount();
+    phone(false);
+    render(<StartScreen session={sessionOf()} wake={ready} />);
+    expect(chosen()).toBe("classic");
+  });
+
+  it("Remembered choice: Perus picked last time stays chosen on a phone; a pick is remembered", () => {
+    phone(true);
+    updateSettings({ lastVariant: "classic" });
+    const { unmount } = render(<StartScreen session={sessionOf()} wake={ready} />);
+    expect(chosen()).toBe("classic");
+    fireEvent.click(document.querySelector("[data-variant=trio]")!);
+    unmount();
+    reloadSettings();
+    render(<StartScreen session={sessionOf()} wake={ready} />);
+    expect(chosen()).toBe("trio");
   });
 });

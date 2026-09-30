@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { checkPlacement, PIECE_SIZES } from "@palikka/rules";
+import { checkPlacement, CLASSIC, newPosition, ORIENTATIONS, PIECE_SIZES } from "@palikka/rules";
 import { placement, positionWith } from "@palikka/rules/testing";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import "../i18n";
 import type { GameSession } from "../session/useGameSession.ts";
 import type { GameView } from "../session/viewModel.ts";
+import { loadSettings, reloadSettings } from "../settings/settings.ts";
 import { gameView, seatView } from "../test/views.ts";
 import { GameScreen } from "./GameScreen.tsx";
 
@@ -345,5 +346,101 @@ describe("settings › Settings on the device (in the game)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Takaisin" }));
     expect(screen.queryByRole("heading", { name: "Asetukset" })).toBeNull();
     expect(document.querySelector("[data-board]")).not.toBeNull();
+  });
+});
+
+describe("piece-controls › Phone layout (turned board, corner mode, zoom, hint steps)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+    reloadSettings();
+  });
+  const phone = (matches: boolean) =>
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches, media: query, addEventListener() {}, removeEventListener() {} }));
+  // Seat 2 (start corner top-right, square 19) on turn.
+  const seat2 = () => {
+    const position = { ...newPosition(CLASSIC, [1, 2], 1), turn: 2 };
+    const seats = [seatView(1, "Maija", { isMe: false }), seatView(2, "Pekka", { isMe: true })];
+    return { position, board: position.cells, seats, mySeat: 2, turnSeat: 2, turnColour: 2, trayColour: 2, myColours: [2] };
+  };
+  /** A shape as "row,col" keys, moved to the top-left. */
+  const normalised = (cells: [number, number][]) => {
+    const top = Math.min(...cells.map(([r]) => r));
+    const left = Math.min(...cells.map(([, c]) => c));
+    return cells.map(([r, c]) => `${r - top},${c - left}`).sort();
+  };
+
+  it("Seat 2 on a phone: the board is turned half a turn, the start corner at the bottom-left", () => {
+    phone(true);
+    setup(seat2());
+    expect(board().getAttribute("data-turns")).toBe("2");
+    // Screen order: the last row's first square is board square 19 (row 0, column 19).
+    expect(board().children[19 * 20]!.getAttribute("data-cell")).toBe("19");
+  });
+
+  it("Wide screen: the same player's board is not turned, and there is no zoom toggle", () => {
+    phone(false);
+    setup(seat2());
+    expect(board().hasAttribute("data-turns")).toBe(false);
+    expect(screen.queryByRole("button", { name: "Koko lauta" })).toBeNull();
+  });
+
+  it("What you see is what you place: on a turned board the placed shape is the one the tray shows", async () => {
+    phone(true);
+    const { place } = setup(seat2());
+    fireEvent.click(piece("L4"));
+    fireEvent.click(screen.getByRole("button", { name: /Käännä/ }));
+    const shown = normalised(
+      [...piece("L4").querySelectorAll<HTMLElement>("span > span")].map((s) => [Number(s.style.gridRow) - 1, Number(s.style.gridColumn) - 1]),
+    );
+    fireEvent.click(cell(19));
+    await act(async () => {
+      fireEvent.click(cell(19));
+    });
+    expect(place).toHaveBeenCalledOnce();
+    const move = vi.mocked(place).mock.calls[0]![0];
+    // Where the move's squares are on screen (the view's order of the cells).
+    const order = [...board().children].map((c) => Number(c.getAttribute("data-cell")));
+    const onScreen = ORIENTATIONS[move.piece]![move.orientation]!.cells.map(([r, c]) => {
+      const s = order.indexOf((move.row + r) * 20 + move.col + c);
+      return [Math.floor(s / 20), s % 20] as [number, number];
+    });
+    expect(normalised(onScreen)).toEqual(shown);
+  });
+
+  it("Corner mode: tap a corner, the tray narrows, ‹ n/m › steps, Käännä returns on leaving", () => {
+    phone(false);
+    setup();
+    fireEvent.click(cell(0));
+    expect(screen.getByText("Nämä sopivat tähän kulmaan – valitse yksi")).toBeTruthy();
+    expect(piece("X5").disabled).toBe(true);
+    fireEvent.click(piece("L4"));
+    expect(screen.getByText(/^1\/\d+$/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Käännä/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Seuraava paikka tässä kulmassa" }));
+    expect(screen.getByText(/^2\/\d+$/)).toBeTruthy();
+    fireEvent.click(cell(210));
+    expect(screen.getByRole("button", { name: /Käännä/ })).toBeTruthy();
+    expect(piece("L4").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("Vihje again: the button reads Vihje 2/3", () => {
+    phone(false);
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "Vihje" }));
+    expect(screen.getByRole("button", { name: "Vihje 1/3" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Vihje 1/3" }));
+    expect(screen.getByRole("button", { name: "Vihje 2/3" })).toBeTruthy();
+  });
+
+  it("Zoom on turn, and Toggle off: the whole board from then on, remembered", () => {
+    phone(true);
+    setup(seat2());
+    const frame = () => board().parentElement!;
+    expect(frame().getAttribute("data-zoom")).toBe("10,0,10");
+    fireEvent.click(screen.getByRole("button", { name: "Koko lauta" }));
+    expect(frame().hasAttribute("data-zoom")).toBe(false);
+    reloadSettings();
+    expect(loadSettings().boardZoom).toBe(false);
   });
 });

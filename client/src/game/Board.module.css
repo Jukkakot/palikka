@@ -20,6 +20,40 @@
   cursor: pointer;
 }
 
+/* Zoomed: the grid is scaled up inside the frame, which clips it on purpose (clip: never scrolled, not even by focus). */
+.zoomed {
+  overflow: hidden;
+  overflow: clip;
+  border-radius: var(--radius-s);
+}
+
+.board {
+  transform-origin: 0 0;
+  transition: transform 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board {
+    transition: none;
+  }
+}
+
+/* A piece is being dragged, or may be (the preview): touch movement goes to the drag, not to scrolling. */
+.dragging,
+.handle {
+  touch-action: none;
+}
+
+.handle {
+  cursor: grab;
+}
+
+/* Corner mode: the tapped corner, a bigger dot with a ring. */
+.cell.cornerOn {
+  background-image: radial-gradient(circle, var(--target) 0 30%, transparent 32%);
+  box-shadow: inset 0 0 0 2px var(--target);
+}
+
 .board:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
