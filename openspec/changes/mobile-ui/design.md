@@ -88,10 +88,25 @@ release).
 - While dragging, a floating copy of the piece (screen orientation, seat colour, square size of the
   board) follows the pointer. For touch it is drawn with its reference square 1.5 squares above the
   finger; for a mouse, under the pointer. The aimed square is the board square under the floating
-  piece's reference square. The aim is `snap: true`, so the preview snaps as with pointing.
-- **Release:** over the board the preview stays where it snapped; nothing is sent. Outside the board
-  the drag is cancelled: the piece stays chosen and the preview returns to where it was, or none.
-  In corner mode a drag leaves corner mode.
+  piece's reference square.
+- **Live landing spot (user's wish, 2026-09-30):** on every pointer move, the board shows exactly
+  where the piece would land if let go now, as the preview. A legal spot is drawn in the seat
+  colour with the preview outline. A spot that is not legal is drawn in the warning style (dashed
+  outline, as an illegal preview today), and the status line gives the reason. The floating piece
+  shows the same: full colour over a legal spot, faded with a dashed warning outline over an
+  illegal one. The landing spot is recomputed only when the aimed square changes (at most once per
+  square, not per pixel), so it stays cheap.
+- **Snapping while dragging is short-range:** the landing spot snaps only to a legal spot whose
+  reference square is at most one square (including diagonally) from the aimed square. Otherwise
+  it is the exact spot under the piece, marked illegal. The preview therefore never jumps far away
+  from the finger, and what is shown is where the piece really goes. Tapping and pointing keep
+  today's full snapping (any legal spot covering the square). *Alternative:* full snapping while
+  dragging. Rejected: the landing spot could jump several squares away from the finger, which is
+  exactly what the live view should avoid.
+- **Release:** over the board the landing spot stays as the preview, legal or not; nothing is sent.
+  A legal one is placed by a tap inside it or "Aseta". An illegal one keeps its reason visible and
+  can be dragged again. Outside the board the drag is cancelled: the piece stays chosen and the
+  preview returns to where it was, or none. In corner mode a drag leaves corner mode.
 - The board sets `touch-action: none` only while a piece is being dragged, so page scrolling
   still works otherwise.
 

@@ -35,20 +35,34 @@ with the normal controls. Choosing a piece first and then aiming SHALL keep work
 
 A player SHALL be able to drag a piece from the tray onto the board, and drag the current preview
 on the board, on their turn. While dragging, the piece SHALL follow the pointer (for touch, drawn
-above the finger) and the preview SHALL snap to the nearest legal spot of its orientation as with
-pointing. Letting go over the board SHALL leave the preview there without placing it; letting go
-outside the board SHALL cancel the drag and keep the piece chosen. A short tap on a tray piece SHALL
-still just choose it.
+above the finger), and the board SHALL show live, at every moment, exactly where the piece would
+land if let go now. A legal landing spot SHALL be shown in the player's colour and an illegal one
+in the warning style with the reason in the status line; the dragged piece SHALL show the same
+difference. The landing spot SHALL snap only to a legal spot at most one square away from where the
+piece is held; farther away it SHALL be the spot under the piece, shown as illegal. Letting go over
+the board SHALL leave the landing spot as the preview without placing it; letting go outside the
+board SHALL cancel the drag and keep the piece chosen. A short tap on a tray piece SHALL still just
+choose it.
 
 #### Scenario: Drag from the tray
 
 - **WHEN** the player drags a fitting piece from the tray and lets go over a square where it fits
 - **THEN** the piece is the chosen piece, its legal preview is at that spot, and nothing is placed yet
 
+#### Scenario: Live landing spot
+
+- **WHEN** the player drags a piece over the board from a spot where it fits to one where it touches their own piece edge to edge
+- **THEN** the landing spot is first shown in their colour, then in the warning style with the reason, following the piece as it moves
+
+#### Scenario: No far jumps
+
+- **WHEN** the player holds a piece three squares away from the nearest spot where it fits
+- **THEN** the landing spot is under the piece and shown as illegal, not at the distant legal spot
+
 #### Scenario: Move the preview
 
 - **WHEN** the player drags a legal preview two squares to the right
-- **THEN** the preview snaps to the legal spot nearest the new place
+- **THEN** the landing spot follows it, snapping to a legal spot next to the new place when there is one
 
 #### Scenario: Drop outside
 

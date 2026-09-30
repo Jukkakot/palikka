@@ -21,15 +21,15 @@ Implement after `variants` is archived (reads Duo, the variant choice and the vi
 - [ ] 2.4 `usePlacement`: corner mode (tap corner, filtered `fitting`, placements covering the
   corner, "‹ ›" stepping with wrap, switching corners, leaving by square, R/F or the chosen piece);
   tests "Tap a corner", "Step through spots", "Place from corner mode", "Leave corner mode"
-- [ ] 2.5 `usePlacement`: drag aims (start, move with snap, release over the board, cancel) and the
-  hint cycle over `topMoves` cached per turn; tests "Drag from the tray", "Move the preview", "Drop
+- [ ] 2.5 `usePlacement`: drag aims (start, live landing spot with short-range snap (≤ 1 square), recomputed per aimed square, release over the board keeps the spot legal or not, cancel) and the
+  hint cycle over `topMoves` cached per turn; tests "Drag from the tray", "Live landing spot", "No far jumps", "Move the preview", "Drop
   outside", "Second best", and the existing hint tests updated
 
 ## 3. Client: components
 
 - [ ] 3.1 `Board`: `view` prop (screen order, board indexes out), the zoom box transform (animated,
   none with reduced motion), `touch-action: none` only while dragging; existing Board tests pass
-- [ ] 3.2 Floating piece while dragging (touch: 1.5 squares above the finger); `PieceTray` drag start
+- [ ] 3.2 Floating piece while dragging (touch: 1.5 squares above the finger; full colour over a legal spot, faded and dashed over an illegal one); `PieceTray` drag start
   with the 8 px threshold; tray and `PieceShape` draw screen orientations
 - [ ] 3.3 Control bar: "‹ n/m ›" in corner mode; "Vihje n/3"; zoom toggle in the phone layout;
   "Peilaa" and arrows as seen; fi/en texts in the Kuura voice (locale parity test passes)
