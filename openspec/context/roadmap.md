@@ -14,7 +14,7 @@ specs and tasks written), **planned**.
 | 5 | `tournament-elo` | done | Tournament driver and Elo; bot strength as a measurable requirement (e.g. "v2 beats v1 ≥ 60 % over 200 games"); heavy runs in GitHub Actions |
 | 6 | `bot-search` | done | Search bots: paranoid or best-reply search and MCTS, time budget (difficulty levels possible later) |
 | 7 | `variants` | specced | Duo 14×14, 2 players with two colours each, 3 players |
-| 8 | `daily-puzzle` | planned | Daily puzzle: fill a given shape with pieces |
+| 8 | `daily-puzzle` | specced (in progress in parallel on branch `daily-puzzle`) | Daily puzzle: fill a given shape with pieces |
 | 9 | `mobile-ui` | planned | The mobile ideas in product.md (legal-move-driven picking, drag with snap, zoom, hint top 3, TV mode, Duo on phone) |
 
 ## Later, to consider (not now)
