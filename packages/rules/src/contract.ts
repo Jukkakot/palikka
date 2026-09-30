@@ -34,7 +34,7 @@ export const palikkaRules: GameRules<Game, Placement, PalikkaOptions> = {
 
   seatOnTurn,
 
-  turnFacts: ({ position }): LogFields => ({ colour: position.turn, out: position.out.join(",") }),
+  turnFacts: ({ position }): LogFields => ({ colour: position.turn }),
 
   play(game, seat, move) {
     const result = playMove(game, seat, move);

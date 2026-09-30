@@ -1,11 +1,9 @@
 import { defineServer, defineRoom, LobbyRoom, monitor, playground } from "colyseus";
 import { RULES_VERSION } from "@palikka/rules";
+import { clientLogBatchSchema } from "@palikka/protocol";
 import { readBuiltAt } from "./buildInfo.js";
 import { configureCors } from "./cors.js";
-import { frameworkLogger } from "./logging/frameworkLogger.js";
-import { mountClientLogs } from "./logging/clientLogs.js";
-import { attachHttpAudit } from "./logging/httpAudit.js";
-import { serverVersion } from "./logging/logger.js";
+import { attachHttpAudit, frameworkLogger, mountClientLogs, serverVersion } from "@game-kit/server";
 import { GameRoom } from "./rooms/GameRoom.js";
 import { mountWatch } from "./watch.js";
 
@@ -30,7 +28,7 @@ const server = defineServer({
     configureCors();
     // Render sits behind one proxy; needed for per-client rate limits.
     app.set("trust proxy", 1);
-    mountClientLogs(app);
+    mountClientLogs(app, clientLogBatchSchema);
     mountWatch(app);
 
     app.get("/health", (_req, res) => {

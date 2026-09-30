@@ -1,4 +1,4 @@
-import { configureLogger } from "../../src/logging/logger.js";
+import { configureLogger } from "@game-kit/server";
 
 export interface LogLine {
   level: string;

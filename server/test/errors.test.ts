@@ -2,10 +2,7 @@ import { EventEmitter } from "node:events";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import appConfig from "../src/app.config.js";
-import { frameworkLogger } from "../src/logging/frameworkLogger.js";
-import { configureLogger } from "../src/logging/logger.js";
-import { installProcessHandlers } from "../src/logging/processHandlers.js";
-import { LoggedRoom } from "../src/rooms/LoggedRoom.js";
+import { configureLogger, frameworkLogger, installProcessHandlers, LoggedRoom } from "@game-kit/server";
 import { captureLogs } from "./support/captureLogs.js";
 
 class ThrowingTimerRoom extends LoggedRoom {

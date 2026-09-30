@@ -1,7 +1,6 @@
 import express, { type Application, type Request, type Response } from "express";
 import { matchMaker } from "colyseus";
-import { watchRequestSchema, type JoinOptions } from "@palikka/protocol";
-import type { GameMetadata } from "./rooms/GameRoom.js";
+import { watchRequestSchema, type GameMetadata, type JoinOptions } from "@palikka/protocol";
 
 /**
  * `POST /watch { roomId, nickname }`: a seat reservation for watching a running game. A started

@@ -1,6 +1,6 @@
 import express, { type Application, type NextFunction, type Request, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
-import { clientLogBatchSchema } from "@palikka/protocol";
+import type { ClientLogBatchParser } from "@game-kit/protocol";
 import { log } from "./logger.js";
 
 /** Upper bound for a batch body (50 entries at maximum field sizes stay below this). */
@@ -12,7 +12,7 @@ function reject(res: Response): void {
   res.status(400).json({ error: "invalid batch" });
 }
 
-function handle(req: Request, res: Response): void {
+function handle(batchSchema: ClientLogBatchParser, req: Request, res: Response): void {
   if (typeof req.body !== "string") return reject(res);
 
   let json: unknown;
@@ -22,7 +22,7 @@ function handle(req: Request, res: Response): void {
     return reject(res);
   }
 
-  const parsed = clientLogBatchSchema.safeParse(json);
+  const parsed = batchSchema.safeParse(json);
   if (!parsed.success) return reject(res);
 
   for (const entry of parsed.data.entries) log.client(entry, parsed.data.ver);
@@ -38,9 +38,9 @@ function bodyErrors(err: unknown, _req: Request, res: Response, next: NextFuncti
 /**
  * `POST /client-logs`: client log batches written into the server log stream.
  * The body is JSON sent as text/plain (no CORS preflight). Rate-limited per IP;
- * the IP is only used in memory and never logged.
+ * the IP is only used in memory and never logged. `batchSchema` knows the game's client events.
  */
-export function mountClientLogs(app: Application): void {
+export function mountClientLogs(app: Application, batchSchema: ClientLogBatchParser): void {
   const limiter = rateLimit({ ...CLIENT_LOG_RATE, standardHeaders: "draft-8", legacyHeaders: false });
-  app.post("/client-logs", limiter, express.text({ type: () => true, limit: MAX_BODY }), bodyErrors, handle);
+  app.post("/client-logs", limiter, express.text({ type: () => true, limit: MAX_BODY }), bodyErrors, (req: Request, res: Response) => handle(batchSchema, req, res));
 }

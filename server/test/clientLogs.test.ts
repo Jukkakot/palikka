@@ -3,10 +3,9 @@ import type { AddressInfo } from "node:net";
 import express from "express";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
-import { CLIENT_LOG_LIMITS } from "@palikka/protocol";
+import { CLIENT_LOG_LIMITS, clientLogBatchSchema } from "@palikka/protocol";
 import appConfig from "../src/app.config.js";
-import { CLIENT_LOG_RATE, mountClientLogs } from "../src/logging/clientLogs.js";
-import { configureLogger } from "../src/logging/logger.js";
+import { CLIENT_LOG_RATE, configureLogger, mountClientLogs } from "@game-kit/server";
 import { captureLogs } from "./support/captureLogs.js";
 
 const entry = {
@@ -79,7 +78,7 @@ describe("observability › Client log shipping › Flooding", () => {
   // Own app per test: the shared Colyseus test server would carry limiter state between files.
   async function startApp() {
     const app = express();
-    mountClientLogs(app);
+    mountClientLogs(app, clientLogBatchSchema);
     const server = createServer(app);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const { port } = server.address() as AddressInfo;

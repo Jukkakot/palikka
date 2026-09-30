@@ -14,7 +14,6 @@ import {
   type SpeedPayload,
   type StartPayload,
   type VariantId,
-  type VariantPayload,
   type WatchRequest,
 } from "@palikka/protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -440,7 +439,7 @@ export function useGameSession(connector?: Connector): GameSession {
   }, [notice]);
 
   /** Sends one command at a time; a rejection becomes a notice. */
-  const send = useCallback(async (cmd: Command, payload: StartPayload | BotSeatPayload | VariantPayload | PlacePayload | KickPayload | SpeedPayload | AutoplayPayload) => {
+  const send = useCallback(async (cmd: Command, payload: StartPayload | BotSeatPayload | { variant: VariantId } | PlacePayload | KickPayload | SpeedPayload | AutoplayPayload) => {
     const room = roomRef.current;
     if (!room || pendingRef.current) return undefined;
     pendingRef.current = true;

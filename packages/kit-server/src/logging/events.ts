@@ -1,6 +1,6 @@
 /**
  * Catalogue of server log events. Add a name here before using it; the logger
- * only accepts these (client events come from @palikka/protocol).
+ * only accepts these (client events come from the game's protocol).
  */
 export const SERVER_LOG_EVENTS = [
   "server.started",
@@ -33,7 +33,7 @@ export const SERVER_LOG_EVENTS = [
   "turn.changed",
   "turn.expired",
   "phase.changed",
-  "variant.changed",
+  "options.changed",
   "cmd.accepted",
   "cmd.rejected",
   "cmd.failed",

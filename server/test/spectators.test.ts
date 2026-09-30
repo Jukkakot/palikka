@@ -3,7 +3,7 @@ import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { matchMaker } from "colyseus";
 import { MAX_SPECTATORS, type CommandResult } from "@palikka/protocol";
 import appConfig from "../src/app.config.js";
-import { configureLogger } from "../src/logging/logger.js";
+import { configureLogger } from "@game-kit/server";
 import type { GameRoom } from "../src/rooms/GameRoom.js";
 import { captureLogs } from "./support/captureLogs.js";
 import { startedGame, waitingRoom, type TestClient } from "./support/game.js";
@@ -107,7 +107,7 @@ describe("spectators", () => {
     it("Spectator tries to act: NOT_SEATED for every command, nothing changes", async () => {
       const { room } = await startedGame(colyseus, 2);
       const spectator = await watch(room.roomId);
-      expect(await spectator.request("place", { piece: 0, orientation: 0, row: 0, col: 0 })).toEqual({ ok: false, code: "NOT_SEATED" });
+      expect(await spectator.request("move", { move: { piece: 0, orientation: 0, row: 0, col: 0 } })).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(await spectator.request("kick", { seat: 1 })).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(await spectator.request("rematch", {})).toEqual({ ok: false, code: "NOT_SEATED" });
       expect(room.state.phase).toBe("play");
@@ -159,7 +159,7 @@ describe("spectators", () => {
       await clients[0]!.leave();
       await vi.waitFor(() => expect(room.state.players.size).toBe(2));
       expect(room.state.phase).not.toBe("finished");
-      const moves = () => logs.byEvt("cmd.accepted").filter((l) => l.cmd === "place").length;
+      const moves = () => logs.byEvt("cmd.accepted").filter((l) => l.cmd === "move").length;
       const before = moves();
       await vi.waitFor(() => expect(moves()).toBeGreaterThan(before));
       await spectator.leave();

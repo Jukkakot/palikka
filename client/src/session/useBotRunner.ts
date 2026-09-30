@@ -1,4 +1,6 @@
-import type { BotPlacePayload, CommandResult } from "@palikka/protocol";
+import type { CommandResult, PlacePayload } from "@palikka/protocol";
+
+type BotPlacePayload = PlacePayload & { seat: number };
 import { MAX_SEED, type Position } from "@palikka/rules";
 import { useEffect, useState } from "react";
 import { BOT_DELAY_MS, botBudget, type AskBot } from "../bots/botMoves.ts";

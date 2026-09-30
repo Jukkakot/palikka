@@ -49,7 +49,7 @@ describe("palikkaRules", () => {
 
   it("gives the turn facts and ends like the match layer", () => {
     const game = rules.start(1, seats, { variant: "classic" });
-    expect(rules.turnFacts(game)).toEqual({ colour: 1, out: "" });
+    expect(rules.turnFacts(game)).toEqual({ colour: 1 });
     expect(rules.end(game)).toEqual(endGame(game));
     expect(rules.moveText({ piece: 0, orientation: 0, row: 5, col: 5 })).toBe("I1/0@5,5");
   });

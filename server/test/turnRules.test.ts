@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { CLOSE_CODES, type CommandResult } from "@palikka/protocol";
 import appConfig from "../src/app.config.js";
-import { configureLogger } from "../src/logging/logger.js";
+import { configureLogger } from "@game-kit/server";
 import type { GameRoom } from "../src/rooms/GameRoom.js";
 import { captureLogs } from "./support/captureLogs.js";
 import { placeFree, startedGame, waitingRoom, type TestClient as Client } from "./support/game.js";
@@ -197,8 +197,8 @@ describe("turn rules in a room", () => {
     it("Before the start: a placement in the waiting room is WRONG_PHASE", async () => {
       const { room, clients } = await waitingRoom(colyseus, 2);
       const before = JSON.stringify(room.state.toJSON());
-      expect(await clients[0]!.request("place", { piece: 0, orientation: 0, row: 0, col: 0 })).toEqual({ ok: false, code: "WRONG_PHASE" });
-      expect(await clients[1]!.request("place", { piece: 0, orientation: 0, row: 0, col: 6 })).toEqual({ ok: false, code: "WRONG_PHASE" });
+      expect(await clients[0]!.request("move", { move: { piece: 0, orientation: 0, row: 0, col: 0 } })).toEqual({ ok: false, code: "WRONG_PHASE" });
+      expect(await clients[1]!.request("move", { move: { piece: 0, orientation: 0, row: 0, col: 6 } })).toEqual({ ok: false, code: "WRONG_PHASE" });
       expect(JSON.stringify(room.state.toJSON())).toBe(before);
     });
   });

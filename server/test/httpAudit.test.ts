@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import appConfig from "../src/app.config.js";
-import { configureLogger } from "../src/logging/logger.js";
+import { configureLogger } from "@game-kit/server";
 import { captureLogs } from "./support/captureLogs.js";
 
 describe("observability › HTTP request audit", () => {

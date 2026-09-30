@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import type { CommandResult } from "@palikka/protocol";
 import appConfig from "../src/app.config.js";
-import { configureLogger } from "../src/logging/logger.js";
+import { configureLogger } from "@game-kit/server";
 import type { GameRoom } from "../src/rooms/GameRoom.js";
 import { captureLogs } from "./support/captureLogs.js";
 import { forceStartSeat, placeFree, startedGame, waitingRoom, type TestClient } from "./support/game.js";
@@ -86,14 +86,14 @@ describe("autoplay in a room", () => {
       expect(await placeFree(clients[0]!, room)).toEqual({ ok: true });
 
       await vi.waitFor(() => expect(room.state.turnSeat).toBe(1));
-      expect(botCommands("place")).toEqual([expect.objectContaining({ player: clients[1]!.sessionId, seat: 2 })]);
+      expect(botCommands("move")).toEqual([expect.objectContaining({ player: clients[1]!.sessionId, seat: 2 })]);
     });
 
     it("Handed over on the own turn: the bot plays it", async () => {
       const { room, clients } = await game(2);
       expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
       await vi.waitFor(() => expect(room.state.turnSeat).toBe(2));
-      expect(botCommands("place")).toHaveLength(1);
+      expect(botCommands("move")).toHaveLength(1);
     });
 
     it("Taken back before the bot's pause ends: no turn is played for the player", async () => {
@@ -102,7 +102,7 @@ describe("autoplay in a room", () => {
       expect(await setAutoplay(clients[0]!, false)).toEqual({ ok: true });
       await pause(250);
       expect(room.state.turnSeat).toBe(1);
-      expect(botCommands("place")).toHaveLength(0);
+      expect(botCommands("move")).toHaveLength(0);
       expect(await placeFree(clients[0]!, room)).toEqual({ ok: true });
     });
 
@@ -110,7 +110,7 @@ describe("autoplay in a room", () => {
       const { room, clients } = await game(2, { botMs: LONG_MS });
       expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
       expect(await placeFree(clients[0]!, room)).toEqual({ ok: false, code: "AUTOPLAYING" });
-      expect([...room.state.cells].every((c) => c === 0)).toBe(true);
+      expect([...room.state.game.cells].every((c) => c === 0)).toBe(true);
       expect(room.state.phase).toBe("play");
     });
   });
@@ -128,7 +128,7 @@ describe("autoplay in a room", () => {
       await drop(room, clients[0]!, false);
       await vi.waitFor(() => expect(room.state.turnSeat).toBe(2));
       expect(logs.byEvt("autoplay.changed")).toEqual([expect.objectContaining({ seat: 1, on: true, reason: "drop" })]);
-      expect(botCommands("place")).toEqual([expect.objectContaining({ player: clients[0]!.sessionId })]);
+      expect(botCommands("move")).toEqual([expect.objectContaining({ player: clients[0]!.sessionId })]);
     });
 
     it("Back in time: the drop's autoplay ends", async () => {
@@ -175,7 +175,7 @@ describe("autoplay in a room", () => {
       forceStartSeat(r, 1);
       await clients[0]!.request("start", {});
       expect(await setAutoplay(clients[0]!, true)).toEqual({ ok: true });
-      await vi.waitFor(() => expect(botCommands("place").length).toBeGreaterThanOrEqual(3));
+      await vi.waitFor(() => expect(botCommands("move").length).toBeGreaterThanOrEqual(3));
       expect(r.state.phase).not.toBe("finished");
     });
   });

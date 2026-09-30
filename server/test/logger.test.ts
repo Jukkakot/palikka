@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { axiomOptionsOf, configureLogger, log, serverVersion } from "../src/logging/logger.js";
+import { axiomOptionsOf, configureLogger, log, serverVersion } from "@game-kit/server";
 import { captureLogs } from "./support/captureLogs.js";
 
 afterEach(() => configureLogger());

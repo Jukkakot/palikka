@@ -4,9 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { boot, type ColyseusTestServer } from "@colyseus/testing";
 import { z } from "zod";
 import appConfig from "../src/app.config.js";
-import { configureLogger } from "../src/logging/logger.js";
-import { CommandRejection, type Actor } from "../src/rooms/command.js";
-import { LoggedRoom } from "../src/rooms/LoggedRoom.js";
+import { CommandRejection, configureLogger, LoggedRoom, type Actor } from "@game-kit/server";
 import { captureLogs } from "./support/captureLogs.js";
 
 const CounterState = schema({ count: t.number().default(0) });

@@ -4,15 +4,17 @@ import { BOARD_CELLS_PER_SIDE, MAX_PIECE_ORIENTATIONS, PIECES_PER_COLOUR } from 
 import { CLASSIC, MAX_ORIENTATIONS, PIECE_COUNT, type Game, type Position } from "@palikka/rules";
 import { placement, positionWith } from "@palikka/rules/testing";
 import appConfig from "../src/app.config.js";
-import { configureLogger } from "../src/logging/logger.js";
+import { configureLogger } from "@game-kit/server";
 import type { GameRoom } from "../src/rooms/GameRoom.js";
 import type { GameState } from "../src/rooms/schema/GameState.js";
 import { captureLogs } from "./support/captureLogs.js";
 import { forceStartSeat, NAMES, startedGame, waitingRoom } from "./support/game.js";
 
 type ClientState = {
-  cells: number[];
-  colours: { colour: number; pieces: number[]; out: boolean; left: boolean }[];
+  game: {
+    cells: number[];
+    colours: { colour: number; pieces: number[]; out: boolean; left: boolean }[];
+  };
   players: Map<string, { seat: number; connected: boolean }>;
   turnSeat: number;
 };
@@ -20,8 +22,8 @@ const seen = (client: { state: unknown }) => client.state as ClientState;
 
 /** Puts `position` into the room's running game, to set up a board without playing to it. */
 function setPosition(room: GameRoom, position: Position): void {
-  const holder = room as unknown as { game: Game };
-  holder.game = { ...holder.game, position };
+  const holder = room as unknown as { current: Game };
+  holder.current = { ...holder.current, position };
 }
 
 describe("game-session", () => {
@@ -50,49 +52,49 @@ describe("game-session", () => {
     it("Everyone gets the same empty 20×20 board in the waiting room", async () => {
       const { clients } = await waitingRoom(colyseus, 2);
       for (const client of clients) {
-        await vi.waitFor(() => expect(seen(client).cells?.length).toBe(400));
-        expect([...seen(client).cells].every((c) => c === 0)).toBe(true);
+        await vi.waitFor(() => expect(seen(client).game?.cells?.length).toBe(400));
+        expect([...seen(client).game.cells].every((c) => c === 0)).toBe(true);
       }
     });
 
     it("Legal first move: accepted, seen by every client, and the next colour is on turn", async () => {
       const { room, clients } = await startedGame(colyseus, 2);
-      expect(await clients[0]!.request("place", placement("I1", ["#"], 0, 0))).toEqual({ ok: true });
+      expect(await clients[0]!.request("move", { move: placement("I1", ["#"], 0, 0) })).toEqual({ ok: true });
       expect(room.state.turnSeat).toBe(2);
-      await vi.waitFor(() => expect(seen(clients[1]!).cells[0]).toBe(1));
-      expect([...seen(clients[1]!).colours[0]!.pieces]).toEqual([0]);
+      await vi.waitFor(() => expect(seen(clients[1]!).game.cells[0]).toBe(1));
+      expect([...seen(clients[1]!).game.colours[0]!.pieces]).toEqual([0]);
       expect(seen(clients[1]!).turnSeat).toBe(2);
     });
 
     it("Illegal move: NOT_ON_START, the board is unchanged and the move is in the audit line", async () => {
       const { room, clients } = await startedGame(colyseus, 2);
-      expect(await clients[0]!.request("place", placement("I1", ["#"], 5, 5))).toEqual({ ok: false, code: "NOT_ON_START" });
-      expect([...room.state.cells].every((c) => c === 0)).toBe(true);
+      expect(await clients[0]!.request("move", { move: placement("I1", ["#"], 5, 5) })).toEqual({ ok: false, code: "NOT_ON_START" });
+      expect([...room.state.game.cells].every((c) => c === 0)).toBe(true);
       expect(room.state.turnSeat).toBe(1);
-      expect(logs.byEvt("cmd.rejected")).toEqual([expect.objectContaining({ cmd: "place", code: "NOT_ON_START", move: "I1/0@5,5" })]);
+      expect(logs.byEvt("cmd.rejected")).toEqual([expect.objectContaining({ cmd: "move", code: "NOT_ON_START", move: "I1/0@5,5" })]);
     });
 
     it("Not your turn, and a malformed move", async () => {
       const { clients } = await startedGame(colyseus, 2);
-      expect(await clients[1]!.request("place", placement("I1", ["#"], 0, 19))).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
-      expect(await clients[0]!.request("place", { row: 0, col: 0 })).toEqual({ ok: false, code: "INVALID_COMMAND" });
+      expect(await clients[1]!.request("move", { move: placement("I1", ["#"], 0, 19) })).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
+      expect(await clients[0]!.request("move", { move: { row: 0, col: 0 } })).toEqual({ ok: false, code: "INVALID_COMMAND" });
     });
 
     it("The lowest seat starts by rule", async () => {
       const { room, clients } = await waitingRoom(colyseus, 2);
       expect(await clients[0]!.request("start", {})).toEqual({ ok: true });
       expect(room.state.turnSeat).toBe(1);
-      expect([...room.state.colours].map((c) => c.colour)).toEqual([1, 2]);
+      expect([...room.state.game.colours].map((c) => c.colour)).toEqual([1, 2]);
     });
 
     it("Stuck colour skipped: shown as out, and the next colour is on turn", async () => {
       const { room, clients } = await startedGame(colyseus, 3);
       // Colour 1 already sits on colour 2's start corner, so colour 2 can never move.
       setPosition(room, positionWith([[1, placement("I1", ["#"], 0, 19)]], [1, 2, 3]));
-      expect(await clients[0]!.request("place", placement("I2", ["##"], 1, 17))).toEqual({ ok: true });
-      expect(room.state.colours[1]!.out).toBe(true);
+      expect(await clients[0]!.request("move", { move: placement("I2", ["##"], 1, 17) })).toEqual({ ok: true });
+      expect(room.state.game.colours[1]!.out).toBe(true);
       expect(room.state.turnSeat).toBe(3);
-      await vi.waitFor(() => expect(seen(clients[2]!).colours[1]?.out).toBe(true));
+      await vi.waitFor(() => expect(seen(clients[2]!).game?.colours[1]?.out).toBe(true));
     });
 
     it("End and result: no colour can move, the winners are synced and logged", async () => {
@@ -101,7 +103,7 @@ describe("game-session", () => {
       const cells = new Array<number>(400).fill(2);
       cells[0] = 0;
       setPosition(room, { ...positionWith([], [1, 2]), cells });
-      expect(await clients[0]!.request("place", placement("I1", ["#"], 0, 0))).toEqual({ ok: true });
+      expect(await clients[0]!.request("move", { move: placement("I1", ["#"], 0, 0) })).toEqual({ ok: true });
       expect(room.state.phase).toBe("finished");
       expect([...room.state.winners]).toEqual([1]);
       expect(logs.byEvt("game.finished")).toEqual([expect.objectContaining({ winners: [1], reason: "complete", scores: "1:-88/1 2:-89/0" })]);

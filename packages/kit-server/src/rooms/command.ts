@@ -1,4 +1,4 @@
-import type { CommandResult } from "@palikka/protocol";
+import type { CommandResult } from "@game-kit/protocol";
 import type { z } from "zod";
 import { log, type LogFields } from "../logging/logger.js";
 

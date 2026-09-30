@@ -1,7 +1,7 @@
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import pino, { type DestinationStream, type Logger } from "pino";
 import pretty from "pino-pretty";
-import type { ClientLogEntry, LogLevel } from "@palikka/protocol";
+import type { ClientLogEntry, LogLevel } from "@game-kit/protocol";
 import type { ServerLogEvent } from "./events.js";
 
 /** Extra fields of a log line. `room` and `player` are placed right after `evt`. */
@@ -35,7 +35,8 @@ export function axiomOptionsOf(env: NodeJS.ProcessEnv): AxiomOptions | undefined
   return edge ? { dataset, token, edge } : { dataset, token };
 }
 
-const DEV_LOG_FILE = fileURLToPath(new URL("../../../logs/dev.log", import.meta.url));
+/** The development log file: `logs/dev.log` in the repository (the server runs in its workspace folder). */
+const devLogFile = (env: NodeJS.ProcessEnv) => env.DEV_LOG_FILE ?? resolve(process.cwd(), "../logs/dev.log");
 
 function modeOf(env: NodeJS.ProcessEnv): Mode {
   if (env.NODE_ENV === "production") return "production";
@@ -49,11 +50,11 @@ export function serverVersion(env: NodeJS.ProcessEnv = process.env): string {
   return env.RENDER_GIT_COMMIT?.slice(0, 7) || "dev";
 }
 
-function devDestination(): DestinationStream {
+function devDestination(env: NodeJS.ProcessEnv): DestinationStream {
   return pino.multistream([
     { level: "trace", stream: pretty({ colorize: true, ignore: "src,ver", singleLine: true }) },
     // Sync so the file is always ready, even when the process exits right after an error.
-    { level: "trace", stream: pino.destination({ dest: DEV_LOG_FILE, mkdir: true, sync: true }) },
+    { level: "trace", stream: pino.destination({ dest: devLogFile(env), mkdir: true, sync: true }) },
   ]);
 }
 
@@ -68,7 +69,7 @@ interface LoggerState {
 function createPino(options: LoggerOptions): LoggerState {
   const env = options.env ?? process.env;
   const mode = modeOf(env);
-  const local = options.destination ?? (mode === "development" ? devDestination() : pino.destination(1));
+  const local = options.destination ?? (mode === "development" ? devDestination(env) : pino.destination(1));
   const axiom = axiomOptionsOf(env);
   // Stdout stays even when shipping: Render's log view is the fallback if Axiom is unreachable.
   const destination = axiom

@@ -1,7 +1,6 @@
 import { listen } from "@colyseus/tools";
 import app from "./app.config.js";
-import { log } from "./logging/logger.js";
-import { installProcessHandlers } from "./logging/processHandlers.js";
+import { installProcessHandlers, log } from "@game-kit/server";
 
 installProcessHandlers();
 

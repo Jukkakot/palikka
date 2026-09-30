@@ -14,7 +14,7 @@ PARAMS = ('declare query_parameters (source_filter:string = "", kind_filter:stri
 BASE = PARAMS + f"""['{DS}']
 | extend kind = case(
     evt startswith "cmd.", "audit",
-    evt startswith "game." or evt startswith "turn." or evt startswith "phase." or evt startswith "bot.", "game",
+    evt startswith "game." or evt startswith "turn." or evt startswith "phase." or evt startswith "bot." or evt == "options.changed", "game",
     evt startswith "player." or evt startswith "client.conn" or evt startswith "room.", "conn",
     evt == "http.request", "http",
     "other")

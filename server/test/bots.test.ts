@@ -5,14 +5,14 @@ import type { CommandResult } from "@palikka/protocol";
 import type { Placement } from "@palikka/rules";
 import { placement } from "@palikka/rules/testing";
 import appConfig from "../src/app.config.js";
-import { configureLogger } from "../src/logging/logger.js";
+import { configureLogger } from "@game-kit/server";
 import type { GameRoom } from "../src/rooms/GameRoom.js";
 import { captureLogs } from "./support/captureLogs.js";
 import { forceStartSeat, join, legalMove, placeFree, waitingRoom, type TestClient } from "./support/game.js";
 
 const addBot = (client: TestClient, seat: number) => client.request("addBot", { seat }) as Promise<CommandResult>;
 const removeBot = (client: TestClient, seat: number) => client.request("removeBot", { seat }) as Promise<CommandResult>;
-const botPlace = (client: TestClient, seat: number, move: Placement) => client.request("botPlace", { seat, ...move }) as Promise<CommandResult>;
+const botMove = (client: TestClient, seat: number, move: Placement) => client.request("botMove", { seat, move }) as Promise<CommandResult>;
 const listing = async (roomId: string) => (await matchMaker.query({ roomId }))[0];
 
 interface DecodedPlayer {
@@ -176,32 +176,32 @@ describe("bots in a room", () => {
 
     it("Runner moves for a bot: accepted, audited with the seat, and the next colour is on turn", async () => {
       const { room: r, clients } = await botOnTurn();
-      expect(await botPlace(clients[0]!, 3, legalMove(r, 3))).toEqual({ ok: true });
+      expect(await botMove(clients[0]!, 3, legalMove(r, 3))).toEqual({ ok: true });
       expect(r.state.turnSeat).toBe(1);
-      expect([...r.state.cells].filter((c) => c === 3).length).toBeGreaterThan(0);
-      expect(logs.byEvt("cmd.accepted").filter((l) => l.cmd === "botPlace")).toEqual([expect.objectContaining({ player: clients[0]!.sessionId })]);
+      expect([...r.state.game.cells].filter((c) => c === 3).length).toBeGreaterThan(0);
+      expect(logs.byEvt("cmd.accepted").filter((l) => l.cmd === "botMove")).toEqual([expect.objectContaining({ player: clients[0]!.sessionId })]);
       expect(logs.byEvt("bot.fallback")).toHaveLength(0);
     });
 
     it("Someone else sends a bot move: NOT_BOT_RUNNER", async () => {
       const { room: r, clients } = await botOnTurn();
-      expect(await botPlace(clients[1]!, 3, legalMove(r, 3))).toEqual({ ok: false, code: "NOT_BOT_RUNNER" });
+      expect(await botMove(clients[1]!, 3, legalMove(r, 3))).toEqual({ ok: false, code: "NOT_BOT_RUNNER" });
       expect(r.state.turnSeat).toBe(3);
     });
 
     it("Not a bot's seat: NOT_BOT_SEAT for a seat a connected person plays", async () => {
       const { room: r, clients } = await botOnTurn();
-      expect(await botPlace(clients[0]!, 2, legalMove(r, 2))).toEqual({ ok: false, code: "NOT_BOT_SEAT" });
+      expect(await botMove(clients[0]!, 2, legalMove(r, 2))).toEqual({ ok: false, code: "NOT_BOT_SEAT" });
     });
 
     it("A bot not on turn, an illegal move, and before the start", async () => {
       const { room: r, clients } = await botOnTurn();
-      expect(await botPlace(clients[0]!, 3, placement("I1", ["#"], 5, 5))).toEqual({ ok: false, code: "NOT_ON_START" });
-      expect([...r.state.cells].every((c) => c === 0)).toBe(true);
-      expect(await botPlace(clients[0]!, 3, legalMove(r, 3))).toEqual({ ok: true });
-      expect(await botPlace(clients[0]!, 3, legalMove(r, 3))).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
+      expect(await botMove(clients[0]!, 3, placement("I1", ["#"], 5, 5))).toEqual({ ok: false, code: "NOT_ON_START" });
+      expect([...r.state.game.cells].every((c) => c === 0)).toBe(true);
+      expect(await botMove(clients[0]!, 3, legalMove(r, 3))).toEqual({ ok: true });
+      expect(await botMove(clients[0]!, 3, legalMove(r, 3))).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
       const waiting = await room(1);
-      expect(await botPlace(waiting.clients[0]!, 3, placement("I1", ["#"], 19, 19))).toEqual({ ok: false, code: "WRONG_PHASE" });
+      expect(await botMove(waiting.clients[0]!, 3, placement("I1", ["#"], 19, 19))).toEqual({ ok: false, code: "WRONG_PHASE" });
     });
   });
 
@@ -216,9 +216,9 @@ describe("bots in a room", () => {
       expect(r.state.turnSeat).toBe(2);
       await vi.waitFor(() => expect(r.state.turnSeat).toBe(1));
       const botLines = logs.byEvt("cmd.accepted").filter((l) => l.bot === true);
-      expect(botLines.map((l) => [l.cmd, l.player, l.seat])).toEqual([["place", "bot:2", 2]]);
+      expect(botLines.map((l) => [l.cmd, l.player, l.seat])).toEqual([["move", "bot:2", 2]]);
       expect(logs.byEvt("bot.fallback")).toEqual([expect.objectContaining({ level: "warn", reason: "runnerSilent", seat: 2, runner: 1 })]);
-      expect(r.state.colours[1]!.pieces.length).toBe(1);
+      expect(r.state.game.colours[1]!.pieces.length).toBe(1);
     });
 
     it("No runner: with every person dropped the server plays the bots after the pause", async () => {

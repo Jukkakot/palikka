@@ -55,7 +55,7 @@ export async function join(colyseus: Server, room: GameRoom, nickname: string): 
 
 /** The running game as the room's rules engine holds it (undefined in the waiting room). */
 export function gameOf(room: GameRoom): Game {
-  return (room as unknown as { game: Game }).game;
+  return (room as unknown as { current: Game }).current;
 }
 
 /** A legal move for the colour on turn in the room's game (the first one the engine lists). */
@@ -66,12 +66,12 @@ export function legalMove(room: GameRoom, seat = gameOf(room).position.turn): Pl
 
 /** The client makes a legal move for the colour on turn (a whole turn). */
 export function placeFree(client: TestClient, room: GameRoom): Promise<CommandResult> {
-  return client.request("place", legalMove(room)) as Promise<CommandResult>;
+  return client.request("move", { move: legalMove(room) }) as Promise<CommandResult>;
 }
 
 /** Makes the next start give the first turn to `startSeat` instead of the host. */
 export function forceStartSeat(room: GameRoom, startSeat: number): void {
-  room.chooseStartSeat = () => startSeat;
+  room.adjustStart = (game) => ({ ...game, position: { ...game.position, turn: startSeat } });
 }
 
 /**

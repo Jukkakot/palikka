@@ -1,4 +1,4 @@
-import { KIT_ERROR_CODES } from "@game-kit/protocol";
+import { KIT_ERROR_CODES, type JoinOptions as KitJoinOptions } from "@game-kit/protocol";
 
 // The kit's generic codes, payloads, join options, close codes and turn rules; Palikka's own follow.
 export * from "@game-kit/protocol";
@@ -27,13 +27,13 @@ export type GameErrorCode = (typeof GAME_ERROR_CODES)[number];
 export const VARIANT_IDS = ["classic", "duo", "double", "trio"] as const;
 export type VariantId = (typeof VARIANT_IDS)[number];
 
-/** The host's `setVariant` command in the waiting room. */
-export interface VariantPayload {
+/** Palikka's game options: the variant (the host's `setOptions` in the waiting room). */
+export interface PalikkaOptions {
   variant: VariantId;
 }
 
 /**
- * The move of the `place` command: a piece (0–20, the rules' piece number) in one of its
+ * Palikka's move (the `move` and `botMove` commands): a piece (0–20, the rules' piece number) in one of its
  * orientations, with the top-left of the orientation's bounding box at (row, col).
  */
 export interface PlacePayload {
@@ -43,20 +43,5 @@ export interface PlacePayload {
   col: number;
 }
 
-/** The bot runner's move for the bot-played `seat` on turn. */
-export interface BotPlacePayload extends PlacePayload {
-  seat: number;
-}
-
-/** Options a client sends when it joins or creates a game room. */
-export interface JoinOptions {
-  nickname: string;
-  /** Matchmaking pool; only E2E tests set it, so their games stay out of the real list. */
-  pool?: string;
-  /** The joiner watches a running game instead of taking a seat (games of bots to watch run on the device). */
-  watch?: boolean;
-  /** Seats that get a bot as soon as the room is created (a rematch keeps the finished game's bots). */
-  botSeats?: number[];
-  /** The variant a room is created with (a rematch keeps the finished game's); Perus when missing. */
-  variant?: VariantId;
-}
+/** Options a client sends when it joins or creates a game room, with Palikka's options. */
+export type JoinOptions = KitJoinOptions<PalikkaOptions>;
