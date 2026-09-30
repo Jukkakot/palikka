@@ -74,7 +74,8 @@ corner-touching game. Never use the original's trademarked name, logos or look (
   flip through only their legal orientations → confirm.
 - Drag with the piece shown above the finger, snapping to the nearest legal spot. Automatic zoom to
   the own corners; the own start corner always at the bottom corner of the screen.
-- "Vihje" shows the bot's three best moves. TV mode: a host screen with phones as controllers.
+- "Vihje" shows the bot's three best moves. TV mode (a host screen with phones as controllers) was
+  dropped from the plans (2026-09-30).
   Duo as the default on a phone.
 
 ## Decided in the spec phase (2026-09-29)

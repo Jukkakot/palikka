@@ -15,7 +15,7 @@ specs and tasks written), **planned**.
 | 6 | `bot-search` | done | Search bots: paranoid or best-reply search and MCTS, time budget (difficulty levels possible later) |
 | 7 | `variants` | specced | Duo 14×14, 2 players with two colours each, 3 players |
 | 8 | `daily-puzzle` | specced (in progress in parallel on branch `daily-puzzle`) | Daily puzzle: fill a given shape with pieces |
-| 9 | `mobile-ui` | planned | The mobile ideas in product.md (legal-move-driven picking, drag with snap, zoom, hint top 3, TV mode, Duo on phone) |
+| 9 | `mobile-ui` | specced | The mobile ideas in product.md (corner-first picking, drag with snap, board turned to the player, zoom, hint top 3, Duo on phone; TV mode dropped); after `variants` |
 
 ## Later, to consider (not now)
 
