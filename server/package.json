@@ -19,6 +19,8 @@
     "@axiomhq/pino": "^2.0.0",
     "@colyseus/schema": "^5.0.34",
     "@colyseus/tools": "^0.18.4",
+    "@game-kit/protocol": "*",
+    "@game-kit/server": "*",
     "@palikka/protocol": "*",
     "@palikka/rules": "*",
     "colyseus": "^0.18.8",

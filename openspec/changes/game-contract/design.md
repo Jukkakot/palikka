@@ -30,6 +30,7 @@ See proposal.md → Why. Current state (2026-09-30):
 ### D1. Three kit workspaces now, not folders
 
 Add `packages/kit-protocol` (`@game-kit/protocol`), `packages/kit-server` (`@game-kit/server`) and `packages/kit-client` (`@game-kit/client`). They work like the other packages: the `source` export condition, `tsconfig.build.json`, and their own `test`, `typecheck` and `build` scripts. Lint enforces the boundary. An `.oxlintrc.json` override for `packages/kit-*/**` turns on `no-restricted-imports` for `@palikka/*` and for relative paths that leave the package. If oxlint cannot express the relative-path part, a kit test scans `src/` imports instead.
+*Implemented:* oxlint forbids `@palikka/*`, `game-bots` and relative paths three or more levels up; `packages/kit-protocol/test/boundary.test.ts` checks that every relative import of every kit package stays inside it (oxlint's regex has no look-ahead, so `../../src` versus `../../server` cannot be told apart there). The turn rules (`kickRejection`, the clock and hold limits, `MIN_SEATS`) moved to `@game-kit/protocol`; `@palikka/rules` re-exports them.
 *Alternative:* folders inside `server/` and `client/`. They are cheaper today, but the boundary would not be enforced, and `game-kit` would still have to untangle dependencies.
 
 ### D2. The contract: one rules object, plus a server part and a client part
@@ -90,6 +91,7 @@ A client and a server from different commits do not understand each other while 
 ### D9. The test game lives in the kit protocol
 
 `@game-kit/protocol/testing` exports a minimal Connect Four (7×6, two seats, a column as the move, a draw when full, the first free column as the fallback) as `GameRules`, plus its server and client parts in the kit packages' test support. It proves the contract with a second game and stays the kit's own test fixture. It is kept minimal on purpose: the real Connect Four is its own project (roadmap `connect-four`), the kit's first outside user. It is not in the published entry, so it is never bundled.
+*Implemented (2026-09-30):* the test game takes 2–4 seats (option `seats`, default 4), so the moved room tests that seat three or four players, and `setOptions` dropping bots above the new range, run over it unchanged. Two seats remain its normal game.
 
 ### D10. Order: refactor under the old tests, then move the tests
 

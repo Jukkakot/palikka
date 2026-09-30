@@ -3,16 +3,18 @@
   "compilerOptions": {
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "outDir": "dist",
-    "rootDir": "src",
-    "declaration": true,
-    "sourceMap": true,
-    "types": [],
     "customConditions": [
       "source"
-    ]
+    ],
+    "outDir": "dist",
+    "types": [
+      "node"
+    ],
+    "noEmit": true
   },
   "include": [
-    "src"
+    "src",
+    "test",
+    "vitest.config.ts"
   ]
 }

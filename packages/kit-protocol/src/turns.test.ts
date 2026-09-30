@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { kickRejection } from "./turns.js";
+import { kickRejection } from "./codes.js";
 
 const base = { kicker: 2, target: 1, turnSeat: 1, expired: true, waiting: false, finished: false };
 

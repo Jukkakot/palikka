@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "customConditions": [
+      "source"
+    ],
+    "outDir": "dist",
+    "types": [],
+    "jsx": "react-jsx",
+    "erasableSyntaxOnly": true,
+    "noEmit": true
+  },
+  "include": [
+    "src",
+    "test",
+    "vitest.config.ts"
+  ]
+}

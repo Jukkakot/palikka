@@ -7,7 +7,12 @@
     "rootDir": "src",
     "declaration": true,
     "sourceMap": true,
-    "types": []
+    "types": [],
+    "customConditions": [
+      "source"
+    ]
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }

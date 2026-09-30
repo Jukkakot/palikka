@@ -2,10 +2,10 @@
 
 ## 1. Kit workspaces and the contract
 
-- [ ] 1.1 Add the workspaces `packages/kit-protocol`, `packages/kit-server` and `packages/kit-client` (`@game-kit/*`, `source` export condition, `sideEffects: false`, build, typecheck, test), and add them to the root `workspaces` before `server` and `client`. Add the boundary lint (D1). A deliberate `@palikka/rules` import in a kit file fails `npm run lint`; remove it afterwards.
-- [ ] 1.2 In `@game-kit/protocol`: the contract types (D2), the generic codes, payloads, join options, close codes, `BOT_NAMES`, `BOT_SPEEDS` and the generic log events (D6). `@palikka/protocol` re-exports them, and `GAME_ERROR_CODES` and the event catalogue keep their names and contents (the existing protocol tests pass unchanged).
-- [ ] 1.3 Add `@game-kit/protocol/testing` with the Connect Four test game (D9). Rules tests cover the win (row, column, both diagonals), the draw, a full column refused, a turn out of order refused, `removeSeat` (the other seat wins) and the fallback move.
-- [ ] 1.4 Add `palikkaRules` in `packages/rules/src/contract.ts` over the match layer (no rule changes). Tests show it gives the same games as the match layer calls on a seeded random game. `npm test -w @palikka/rules` passes.
+- [x] 1.1 Add the workspaces `packages/kit-protocol`, `packages/kit-server` and `packages/kit-client` (`@game-kit/*`, `source` export condition, `sideEffects: false`, build, typecheck, test), and add them to the root `workspaces` before `server` and `client`. Add the boundary lint (D1). A deliberate `@palikka/rules` import in a kit file fails `npm run lint`; remove it afterwards.
+- [x] 1.2 In `@game-kit/protocol`: the contract types (D2), the generic codes, payloads, join options, close codes, `BOT_NAMES`, `BOT_SPEEDS` and the generic log events (D6). `@palikka/protocol` re-exports them, and `GAME_ERROR_CODES` and the event catalogue keep their names and contents (the existing protocol tests pass unchanged).
+- [x] 1.3 Add `@game-kit/protocol/testing` with the Connect Four test game (D9). Rules tests cover the win (row, column, both diagonals), the draw, a full column refused, a turn out of order refused, `removeSeat` (the other seat wins) and the fallback move.
+- [x] 1.4 Add `palikkaRules` in `packages/rules/src/contract.ts` over the match layer (no rule changes). Tests show it gives the same games as the match layer calls on a seeded random game. `npm test -w @palikka/rules` passes.
 
 ## 2. Server: the generic room
 

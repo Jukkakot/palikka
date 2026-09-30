@@ -6,6 +6,9 @@
     "node": ">=22"
   },
   "workspaces": [
+    "packages/kit-protocol",
+    "packages/kit-server",
+    "packages/kit-client",
     "packages/rules",
     "packages/protocol",
     "packages/bots",
