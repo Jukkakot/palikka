@@ -36,7 +36,7 @@
 
 ## 4. Docs and wrap-up
 
-- [ ] 4.1 Wiki: `docs/architecture.md` (rules puzzle module, client `puzzle/`, daily puzzle
+- [x] 4.1 Wiki: `docs/architecture.md` (rules puzzle module, client `puzzle/`, daily puzzle
   Planned → Implemented), `openspec/context/product.md` (daily puzzle decided); roadmap item 8
   marked done
 - [x] 4.2 Check chain passes: `npm run lint && npm run typecheck && npm test && npm run build && npm
