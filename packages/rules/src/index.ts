@@ -2,7 +2,7 @@
  * Version of the rules package. Server and client both report it so a mismatch between a deployed
  * server and a cached client is easy to spot.
  */
-export const RULES_VERSION = "1.0.0";
+export const RULES_VERSION = "1.1.0";
 
 export * from "./rng.js";
 export * from "./turns.js";
@@ -14,6 +14,7 @@ export { checkPlacement, newPosition, withTurn, type MoveRefusal, type Position 
 export * from "./movegen.js";
 export * from "./play.js";
 export * from "./scoring.js";
+export * from "./variants.js";
 export * from "./game.js";
 export * from "./bot.js";
 

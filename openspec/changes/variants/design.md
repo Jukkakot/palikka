@@ -173,6 +173,29 @@ client (cached PWA) joining a non-classic room could mis-render it; the PWA's au
 worker replaces it on the next load, so this is accepted (no version handshake is added). Bump
 `RULES_VERSION` to 1.1.0 (shown in the start screen footer and `/health`).
 
+## Decisions made during implementation
+
+- **Join options gain `variant?`** (deviation from D4's "unchanged"): a rematch is created through
+  `matchMaker.createRoom` with join options, so it passes the finished game's variant there (strict
+  schema, one of `VARIANT_IDS`). A client never sends it; new rooms are still Perus.
+- **`startGame(seed, seats, variant, board?)`**: the optional `board` override exists only for
+  rules tests (the tiny 3×3 board); the room and `LocalRoom` never pass it.
+- **`setVariant` refusal**: `TOO_MANY_PLAYERS` also when a person sits in a seat above the new
+  maximum (seats are not renumbered) or joins are pending beyond it. `addBot` on a seat above the
+  variant's maximum answers `SEAT_TAKEN` (no new code). A new log event `variant.changed`.
+- **Device ids unchanged**: the variant lives in the saved `Game`; the "save format bump" is the
+  load check requiring `variant`, `control` and `sides` (older saves dropped).
+- **Tournament `4` format keeps one side per colour** (partners not told they are a team), so
+  existing strength measurements stay comparable; only `duo` is new.
+- **Turn line names the colour only in Tuplaväri and Kolmikko** ("Puolukka · …",
+  "Kuusi (yhteinen) · …"); Perus and Duo keep the plain text. Colour names are the same in English.
+- **`errors.NOT_ENOUGH_PLAYERS`** reads "Pelaajia ei ole vielä tarpeeksi" (Kolmikko needs 3); the
+  waiting room hint says "Tarvitaan 3 pelaajaa" there.
+- **Phone layout** (UI check): the variant picker is 2×2 on a phone (four in a row from 26rem of
+  width); a Tuplaväri player's two colour marks stack in the result table, result names end in an
+  ellipsis after 5.5em (as in the player strip), and the game layout's column never grows past the
+  screen (`minmax(0, 1fr)`), so the table and the strip fit 360 px.
+
 ## Open Questions
 
 - None blocking. Whether the shared colour deserves a full search, and Duo strength numbers, are

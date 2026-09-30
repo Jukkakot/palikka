@@ -4,6 +4,7 @@ import {
   freeCorners,
   rowMask,
   scores,
+  sideOf,
   winners,
   type Bits,
   type Position,
@@ -60,28 +61,41 @@ export function reachOf(position: Position, colour: number, steps: number): Bits
   return reached;
 }
 
+/** Groups colours by side: a side's colours share a key; a shared colour (side 0) is its own group. */
+export function teamKey(position: Position, colour: number): number {
+  const side = sideOf(position, colour);
+  return side === 0 ? -colour : side;
+}
+
 /**
- * Rates `position` for `colour` (higher is better), meant for the position right after its move:
- * its score, its free corners and exclusive reach against the opponents still in (so blocking them
- * counts), and the result once the game has ended.
+ * Rates `position` for `colour`'s side (higher is better), meant for the position right after its
+ * move: the side's score, its free corners and exclusive reach against the opposing colours still in
+ * (so blocking them counts), and the result once the game has ended. With one colour per side (Perus)
+ * this is the colour against every other colour; a partner colour is never an opponent.
  */
 export function evaluate(position: Position, colour: number): number {
-  const own = scores(position).find((s) => s.colour === colour)?.score ?? 0;
+  const key = teamKey(position, colour);
+  const team = position.colours.filter((c) => teamKey(position, c) === key);
+  const own = scores(position)
+    .filter((s) => team.includes(s.colour))
+    .reduce((sum, s) => sum + s.score, 0);
   if (position.ended) {
-    return own + (winners(position).includes(colour) ? WEIGHTS.result : -WEIGHTS.result);
+    return own + (winners(position).includes(sideOf(position, colour)) ? WEIGHTS.result : -WEIGHTS.result);
   }
   const active = (c: number) => !position.out.includes(c);
-  const opponents = position.colours.filter((c) => c !== colour && active(c));
+  const opponents = position.colours.filter((c) => !team.includes(c) && active(c));
 
   const reach = new Map<number, Bits>();
   for (const c of position.colours) if (active(c)) reach.set(c, reachOf(position, c, WEIGHTS.reachSteps));
+  // Squares only `c`'s side can reach: partners do not take them away from each other.
   const exclusive = (c: number): number => {
     const bits = reach.get(c);
     if (!bits) return 0;
+    const side = teamKey(position, c);
     let n = 0;
     for (let r = 0; r < bits.length; r++) {
       let others = 0;
-      for (const [o, b] of reach) if (o !== c) others |= b[r]!;
+      for (const [o, b] of reach) if (teamKey(position, o) !== side) others |= b[r]!;
       n += popcount(bits[r]! & ~others);
     }
     return n;
@@ -89,9 +103,9 @@ export function evaluate(position: Position, colour: number): number {
   const corners = (c: number) => countBits(freeCorners(position, c));
   const average = (f: (c: number) => number) =>
     opponents.length === 0 ? 0 : opponents.reduce((sum, c) => sum + f(c), 0) / opponents.length;
+  const ours = (f: (c: number) => number) => team.filter(active).reduce((sum, c) => sum + f(c), 0);
 
-  const ownActive = active(colour);
-  const cornerTerm = (ownActive ? corners(colour) : 0) - average(corners);
-  const areaTerm = (ownActive ? exclusive(colour) : 0) - average(exclusive);
+  const cornerTerm = ours(corners) - average(corners);
+  const areaTerm = ours(exclusive) - average(exclusive);
   return WEIGHTS.score * own + WEIGHTS.corners * cornerTerm + WEIGHTS.area * areaTerm;
 }

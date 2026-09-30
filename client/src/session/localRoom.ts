@@ -1,5 +1,21 @@
 import { BOT_NAMES, BOT_SPEEDS, type BotSpeed, type CommandResult } from "@palikka/protocol";
-import { botRng, botSeed, MAX_SEED, playMove, simpleBotMove, startGame, type Game, type GameResult, type GameSeat, type Placement, type Position } from "@palikka/rules";
+import {
+  botRng,
+  botSeed,
+  coloursOf,
+  MAX_SEED,
+  playMove,
+  seatOnTurn,
+  simpleBotMove,
+  startGame,
+  VARIANTS,
+  type Game,
+  type GameResult,
+  type GameSeat,
+  type Placement,
+  type Position,
+  type VariantId,
+} from "@palikka/rules";
 import { BOT_DELAY_MS, botBudget, type AskBot } from "../bots/botMoves.ts";
 import { askBotWorker } from "../bots/botWorkerClient.ts";
 import { log } from "../logging/logger.ts";
@@ -51,29 +67,37 @@ function logStarted(roomId: string, game: Game, watch = false): void {
   log.info("client.local.started", {
     room: roomId,
     dealSeed: game.seed,
+    variant: game.variant,
     seats: game.seats.map((s) => s.seat).join(","),
-    startSeat: game.position.turn,
+    startSeat: seatOnTurn(game),
     ...(watch && { watch: true }),
   });
 }
 
-/** A new saved game against `bots` bots, replacing any saved one; logs its start. */
-function newGame(nickname: string, bots: number, deps: LocalRoomDeps): SavedLocalGame {
+/** Bots in a device game of `variant`: the count asked for in Perus, else the variant's own. */
+export function botCount(variant: VariantId, bots: number, watch = false): number {
+  if (variant === "classic") return bots;
+  return VARIANTS[variant].maxPlayers - (watch ? 0 : 1);
+}
+
+/** A new saved game of `variant` against `bots` bots (Perus; the other variants set their own), replacing any saved one; logs its start. */
+function newGame(nickname: string, bots: number, deps: LocalRoomDeps, variant: VariantId = "classic"): SavedLocalGame {
   const roomId = newLocalRoomId();
   // The player sits in seat 1, so they move first.
-  const game = startGame(deps.seed(), quickSeats(nickname, bots));
+  const game = startGame(deps.seed(), quickSeats(nickname, botCount(variant, bots)), variant);
   const saved = { roomId, game };
   saveLocalGame(saved);
   logStarted(roomId, game);
   return saved;
 }
 
-/** A game of `bots` bots only to watch, in seats 1 upwards. Never saved. */
-function newWatchGame(bots: number, speed: BotSpeed, deps: LocalRoomDeps): SavedLocalGame {
+/** A game of `bots` bots only to watch (Perus; the other variants set their own count), in seats 1 upwards. Never saved. */
+function newWatchGame(bots: number, speed: BotSpeed, deps: LocalRoomDeps, variant: VariantId = "classic"): SavedLocalGame {
   const roomId = newLocalRoomId(Math.random, WATCH_ROOM_PREFIX);
   const game = startGame(
     deps.seed(),
-    BOT_NAMES.slice(0, bots).map((name, i) => ({ seat: i + 1, name, bot: true })),
+    BOT_NAMES.slice(0, botCount(variant, bots, true)).map((name, i) => ({ seat: i + 1, name, bot: true })),
+    variant,
   );
   logStarted(roomId, game, true);
   return { roomId, game, speed };
@@ -114,16 +138,16 @@ export class LocalRoom implements GameRoomLike {
     this.scheduleBot();
   }
 
-  /** Starts a new game against `bots` bots (1–3) and saves it, replacing any saved one. */
-  static create(nickname: string, bots: number, deps: Partial<LocalRoomDeps> = {}): LocalRoom {
+  /** Starts a new game of `variant` against `bots` bots (1–3 in Perus) and saves it, replacing any saved one. */
+  static create(nickname: string, bots: number, deps: Partial<LocalRoomDeps> = {}, variant: VariantId = "classic"): LocalRoom {
     const all = { ...defaultDeps(), ...deps };
-    return new LocalRoom(newGame(nickname, bots, all), all);
+    return new LocalRoom(newGame(nickname, bots, all, variant), all);
   }
 
-  /** Starts a game of `bots` bots (2–4) to watch at `speed`; it is never saved. */
-  static createWatch(bots: number, speed: BotSpeed = 1, deps: Partial<LocalRoomDeps> = {}): LocalRoom {
+  /** Starts a game of `variant` with `bots` bots (2–4 in Perus) to watch at `speed`; it is never saved. */
+  static createWatch(bots: number, speed: BotSpeed = 1, deps: Partial<LocalRoomDeps> = {}, variant: VariantId = "classic"): LocalRoom {
     const all = { ...defaultDeps(), ...deps };
-    return new LocalRoom(newWatchGame(bots, speed, all), all);
+    return new LocalRoom(newWatchGame(bots, speed, all, variant), all);
   }
 
   /** The saved game `roomId`, continued where it was; undefined when it is gone. */
@@ -147,15 +171,21 @@ export class LocalRoom implements GameRoomLike {
       ]),
     );
     return {
+      variant: game.variant,
       cells: position.cells,
-      colours: position.colours.map((colour) => ({
-        colour,
-        pieces: position.placed[colour] ?? [],
-        out: position.out.includes(colour),
-        left: game.left.includes(colour),
-      })),
+      colours: position.colours.map((colour) => {
+        const seat = game.control[colour] ?? colour;
+        return {
+          colour,
+          seat,
+          pieces: position.placed[colour] ?? [],
+          out: position.out.includes(colour),
+          left: seat !== 0 && game.left.includes(seat),
+        };
+      }),
       players,
-      turnSeat: position.turn,
+      turnSeat: seatOnTurn(game),
+      turnColour: position.turn,
       phase: position.ended ? "finished" : "play",
       hostSeat: 1,
       winners: game.winners,
@@ -287,6 +317,7 @@ export class LocalRoom implements GameRoomLike {
       this.game.seats.find((s) => !s.bot)!.name,
       this.game.seats.filter((s) => s.bot).length,
       this.deps,
+      this.game.variant,
     );
     // The new game is the saved one now (the session opens it by its id); this one only remembers where it went.
     this.saved = { ...this.saved, rematchRoomId: next.roomId };
@@ -316,19 +347,21 @@ export class LocalRoom implements GameRoomLike {
     this.clearBotTimer();
     const { game } = this;
     if (this.gone || game.position.ended) return;
-    const current = game.seats.find((s) => s.seat === game.position.turn);
+    const current = game.seats.find((s) => s.seat === seatOnTurn(game));
     // The bot plays its own seats, and the player's while it is handed over.
     if (!current || !(current.bot || this.saved.autoplay)) return;
     const actor = current.bot ? `bot:${current.seat}` : BOT_FOR_ME;
     const generation = this.generation;
-    const { seat } = current;
     const { position, seed } = game;
+    const colour = position.turn;
+    // The shared colour plays for the seat whose turn it is to play it.
+    const viewpoint = game.control[colour] === 0 ? coloursOf(game, current.seat)[0] : undefined;
     const speed = this.saved.speed ?? 1;
     let answer: { move: Placement | undefined } | undefined;
     let paused = false;
     const play = () => {
       if (!answer || !paused || generation !== this.generation || this.gone) return;
-      this.playBot(position, seed, seat, actor, answer.move);
+      this.playBot(position, seed, colour, actor, answer.move);
     };
     this.botTimer = this.deps.setTimeout(() => {
       this.botTimer = undefined;
@@ -336,7 +369,7 @@ export class LocalRoom implements GameRoomLike {
       play();
     }, BOT_DELAY_MS / speed);
     void this.deps
-      .askBot({ position, colour: seat, budget: botBudget(speed), seed: botSeed(seed, position.moveNumber, seat) })
+      .askBot({ position, colour, budget: botBudget(speed), seed: botSeed(seed, position.moveNumber, colour), ...(viewpoint !== undefined && { viewpoint }) })
       .catch(() => undefined)
       .then((move) => {
         answer = { move };
@@ -345,12 +378,12 @@ export class LocalRoom implements GameRoomLike {
   }
 
   /** A bot's move, the same path as the player's; the simple bot moves when it has none or a refused one. */
-  private playBot(position: Position, seed: number, seat: number, actor: string, move: Placement | undefined): void {
+  private playBot(position: Position, seed: number, colour: number, actor: string, move: Placement | undefined): void {
     const result = move ? this.handle("place", move, actor) : undefined;
     if (result?.ok) return;
     // The bot found nothing or a refused move (it should not): the simple bot moves instead.
     log.error("client.error", { kind: "bot.fallback", cmd: "place", code: result?.code ?? "NO_MOVE" });
-    const fallback = simpleBotMove(position, seat, botRng(seed, position, seat));
+    const fallback = simpleBotMove(position, colour, botRng(seed, position, colour));
     if (fallback) this.handle("place", fallback, actor);
   }
 

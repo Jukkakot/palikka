@@ -1,0 +1,55 @@
+.picker {
+  width: 100%;
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* Equal chips two by two (a phone), four in a row where the picker has room. */
+.picker {
+  container-type: inline-size;
+}
+
+.chips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+@container (min-width: 26rem) {
+  .chips {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.chip {
+  min-width: 0;
+  min-height: var(--tap-min);
+  padding: 0 var(--space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-s);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip[aria-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.about {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-s);
+}

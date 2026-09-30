@@ -123,7 +123,10 @@ export function aimOf(move: Placement, size: number): Aim {
 /** Time the hint may take on the UI thread. */
 const HINT_BUDGET = { timeMs: 100 };
 
-/** "Vihje": the bot's move for `colour` now; seeded by the turn, so it stays the same within a turn. */
-export function hintMove(position: Position, colour: number, turn: number): Placement | undefined {
-  return chooseMove(position, colour, HINT_BUDGET, turn, greedyPlayer);
+/**
+ * "Vihje": the bot's move for `colour` now; seeded by the turn, so it stays the same within a turn.
+ * For the shared colour, `viewpoint` is one of the viewer's own colours: the move is chosen for them.
+ */
+export function hintMove(position: Position, colour: number, turn: number, viewpoint?: number): Placement | undefined {
+  return chooseMove(position, colour, HINT_BUDGET, turn, greedyPlayer, viewpoint);
 }

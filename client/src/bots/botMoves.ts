@@ -10,6 +10,8 @@ export interface MoveRequest {
   readonly colour: number;
   readonly budget: Budget;
   readonly seed: number;
+  /** For a shared colour: a colour of the seat that plays it this turn (the move is chosen for that side). */
+  readonly viewpoint?: number;
 }
 
 /** Asks for a bot move; resolves undefined when the colour has no move. */
@@ -27,6 +29,6 @@ export function botBudget(speed = 1): Budget {
 }
 
 /** The bot's answer, computed right here (the worker runs this; so do tests and old browsers). */
-export function answer({ position, colour, budget, seed }: MoveRequest): Placement | undefined {
-  return chooseMove(position, colour, budget, seed);
+export function answer({ position, colour, budget, seed, viewpoint }: MoveRequest): Placement | undefined {
+  return chooseMove(position, colour, budget, seed, undefined, viewpoint);
 }

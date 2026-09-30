@@ -33,7 +33,7 @@ async function main(): Promise<void> {
   const results: unknown[] = [];
   for (const requirement of requirements) {
     const { colours } = requirement;
-    if (!isColours(colours)) throw new RangeError(`${requirement.name}: colours must be 4 or 2, got ${colours}`);
+    if (!isColours(colours)) throw new RangeError(`${requirement.name}: colours must be 4, 2 or "duo", got ${colours}`);
     console.error(`${requirement.name}: ${requirement.games} games…`);
     const result = await runTournament({
       bots: [requirement.baseline, requirement.candidate],

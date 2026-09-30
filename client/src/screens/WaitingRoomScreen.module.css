@@ -4,7 +4,12 @@
   color: var(--accent);
 }
 
-/* The four seats in seat order. */
+/* The variant picker (host) or the chosen variant (others), as wide as the seats. */
+.variant {
+  width: min(100%, 22rem);
+}
+
+/* The variant's seats in seat order. */
 .seats {
   width: min(100%, 22rem);
   margin: 0;

@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { GameView } from "../session/viewModel.ts";
 import { aimOf, hintMove, previewAt, type Preview } from "./placing.ts";
 
-type PlacementView = Pick<GameView, "position" | "mySeat" | "isMyTurn" | "turn">;
+type PlacementView = Pick<GameView, "position" | "isMyTurn" | "turn"> & Partial<Pick<GameView, "trayColour" | "mySeat" | "turnShared" | "myColours">>;
 
 interface State {
   /** The turn the choice belongs to; a new turn drops it. */
@@ -45,8 +45,12 @@ export interface Placing {
  * square, and the preview they make. Dropped when the turn changes; `clear` after an accepted move.
  */
 export function usePlacement(view: PlacementView): Placing {
-  const { position, mySeat, isMyTurn, turn } = view;
-  const active = isMyTurn && position !== undefined && mySeat !== undefined;
+  const { position, isMyTurn, turn } = view;
+  // The colour the viewer places: the one on turn when it is theirs (the tray's colour).
+  const colour = view.trayColour ?? view.mySeat;
+  // The hint for the shared colour is chosen for the viewer's own side.
+  const viewpoint = view.turnShared ? view.myColours?.find((c) => c !== colour) : undefined;
+  const active = isMyTurn && position !== undefined && colour !== undefined;
   const [stored, setState] = useState<State>({ turn, orientation: 0, snap: true });
   // A new turn (or leaving one's turn) starts with nothing chosen.
   const state: State = stored.turn === turn && active ? stored : { turn, orientation: 0, snap: true };
@@ -59,14 +63,14 @@ export function usePlacement(view: PlacementView): Placing {
     [turn],
   );
 
-  const fitting = useMemo(() => (active ? fittingPieces(position!, mySeat!) : undefined), [active, position, mySeat]);
+  const fitting = useMemo(() => (active ? fittingPieces(position!, colour!) : undefined), [active, position, colour]);
   const size = position?.config.size ?? 0;
   const preview = useMemo(
     () =>
       active && state.piece !== undefined && state.square !== undefined
-        ? previewAt(position!, mySeat!, { piece: state.piece, orientation: state.orientation, square: state.square, snap: state.snap })
+        ? previewAt(position!, colour!, { piece: state.piece, orientation: state.orientation, square: state.square, snap: state.snap })
         : undefined,
-    [active, position, mySeat, state.piece, state.orientation, state.square, state.snap],
+    [active, position, colour, state.piece, state.orientation, state.square, state.snap],
   );
 
   const choose = useCallback(
@@ -103,21 +107,21 @@ export function usePlacement(view: PlacementView): Placing {
       if (!active) return;
       update((s) => {
         if (s.piece === undefined) return s;
-        const start = position!.config.starts[mySeat!]!;
+        const start = position!.config.starts[colour!]!;
         const from = s.square ?? start.row * size + start.col;
         const row = Math.min(Math.max(Math.floor(from / size) + (s.square === undefined ? 0 : rows), 0), size - 1);
         const col = Math.min(Math.max((from % size) + (s.square === undefined ? 0 : cols), 0), size - 1);
         return { ...s, square: row * size + col, snap: false };
       });
     },
-    [active, update, position, mySeat, size],
+    [active, update, position, colour, size],
   );
   const hint = useCallback(() => {
     if (!active) return;
-    const move = hintMove(position!, mySeat!, turn);
+    const move = hintMove(position!, colour!, turn, viewpoint);
     if (!move) return;
     update(() => ({ turn, ...aimOf(move, size) }));
-  }, [active, position, mySeat, turn, size, update]);
+  }, [active, position, colour, turn, size, update, viewpoint]);
 
   return {
     active,

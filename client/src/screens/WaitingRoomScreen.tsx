@@ -1,8 +1,10 @@
 import { IconRobot, IconWifiOff, IconX } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
+import { VARIANTS } from "@palikka/rules";
 import { useTranslation } from "react-i18next";
 import { GameIdBadge } from "../game/GameIdBadge.tsx";
 import { SeatMark } from "../game/SeatMark.tsx";
+import { VariantPicker } from "../game/VariantPicker.tsx";
 import { inviteUrl } from "../session/inviteLink.ts";
 import { NOTICE_MS, type GameSession } from "../session/useGameSession.ts";
 import type { GameView } from "../session/viewModel.ts";
@@ -13,27 +15,33 @@ import { Screen } from "../ui/Screen.tsx";
 import { browserSharer, shareOrCopy, type Sharer } from "../ui/share.ts";
 import styles from "./WaitingRoomScreen.module.css";
 
-const SEATS = [1, 2, 3, 4] as const;
-
 export interface WaitingRoomScreenProps {
-  view: Pick<GameView, "roomId" | "seats" | "hostSeat" | "mySeat">;
-  session: Pick<GameSession, "start" | "addBot" | "removeBot" | "leave" | "pending" | "notice">;
+  view: Pick<GameView, "roomId" | "seats" | "hostSeat" | "mySeat"> & Partial<Pick<GameView, "variant" | "maxSeats">>;
+  session: Pick<GameSession, "start" | "addBot" | "removeBot" | "leave" | "pending" | "notice"> & Partial<Pick<GameSession, "setVariant">>;
   sharer?: Sharer;
 }
 
 /**
- * Before the start: who is seated (colour, nickname, host, "you" and bot marks), inviting others, and
- * the host's start. The host fills free seats with bots and removes them again. Guests wait for the host. Leaving is confirmed only for a host with others seated,
- * because it closes the game for them.
+ * Before the start: the variant (the host chooses it, others see it), who is seated (colour, nickname,
+ * host, "you" and bot marks) in the variant's seats, inviting others, and the host's start. The host
+ * fills free seats with bots and removes them again. Guests wait for the host. Leaving is confirmed
+ * only for a host with others seated, because it closes the game for them.
  */
 export function WaitingRoomScreen({ view, session, sharer = browserSharer() }: WaitingRoomScreenProps) {
   const { t } = useTranslation();
-  const { start, addBot, removeBot, leave, pending, notice } = session;
+  const { start, addBot, removeBot, leave, pending, notice, setVariant } = session;
+  const variant = view.variant ?? "classic";
+  const seatNumbers = Array.from({ length: view.maxSeats ?? 4 }, (_, i) => i + 1);
+  const needed = VARIANTS[variant].minPlayers;
+  // The colours each seat will play (Tuplaväri: two).
+  const groups = VARIANTS[variant].colourGroups(seatNumbers);
+  const marks = (seat: number, isMe = false) =>
+    (groups[seat - 1] ?? [seat]).map((colour) => <SeatMark key={colour} seat={colour} isMe={isMe} size={24} />);
   const [confirming, setConfirming] = useState(false);
   const [shareNote, setShareNote] = useState<string>();
   const isHost = view.mySeat !== undefined && view.mySeat === view.hostSeat;
   const host = view.seats.find((s) => s.seat === view.hostSeat);
-  const enough = view.seats.length >= 2;
+  const enough = view.seats.length >= needed;
 
   useEffect(() => {
     if (!shareNote) return;
@@ -56,14 +64,21 @@ export function WaitingRoomScreen({ view, session, sharer = browserSharer() }: W
   return (
     <Screen start={<GameIdBadge roomId={view.roomId} invite="join" />} end={<LanguageSwitcher />}>
       <h1 className={styles.title}>{t("waiting.title")}</h1>
+      <div className={styles.variant} data-variant={variant}>
+        {isHost && setVariant ? (
+          <VariantPicker value={variant} onChange={(v) => void setVariant(v)} disabled={pending} />
+        ) : (
+          <p className={styles.hint}>{t("variant.chosen", { name: t(`variant.${variant}`) })}</p>
+        )}
+      </div>
       <ul className={styles.seats} aria-label={t("waiting.seats")}>
-        {SEATS.map((seat) => {
+        {seatNumbers.map((seat) => {
           const s = view.seats.find((p) => p.seat === seat);
           if (!s) {
             return (
               <li key={seat} className={`${styles.seat} ${styles.free}`} data-seat={seat} data-free="">
                 <span className={styles.freeMark} aria-hidden="true">
-                  <SeatMark seat={seat} size={24} />
+                  {marks(seat)}
                 </span>
                 <span>{t("waiting.freeSeat")}</span>
                 {isHost && (
@@ -81,13 +96,13 @@ export function WaitingRoomScreen({ view, session, sharer = browserSharer() }: W
               </li>
             );
           }
-          const marks = [s.isMe && t("waiting.you"), s.seat === view.hostSeat && t("waiting.host"), s.isBot && t("waiting.bot")].filter(Boolean);
+          const badges = [s.isMe && t("waiting.you"), s.seat === view.hostSeat && t("waiting.host"), s.isBot && t("waiting.bot")].filter(Boolean);
           return (
             <li key={seat} className={[styles.seat, !s.connected && styles.offline].filter(Boolean).join(" ")} data-seat={seat}>
-              <SeatMark seat={seat} isMe={s.isMe} size={24} />
+              {marks(seat, s.isMe)}
               {s.isBot && <IconRobot size={18} stroke={2} aria-hidden="true" className={styles.botIcon} />}
               <span className={styles.name}>{s.name}</span>
-              {marks.map((m) => (
+              {badges.map((m) => (
                 <span key={m as string} className={styles.badge}>
                   {m}
                 </span>
@@ -141,7 +156,7 @@ export function WaitingRoomScreen({ view, session, sharer = browserSharer() }: W
                 </Button>
                 {!enough && (
                   <p id="start-hint" className={styles.hint}>
-                    {t("waiting.needTwo")}
+                    {needed === 2 ? t("waiting.needTwo") : t("waiting.needPlayers", { count: needed })}
                   </p>
                 )}
               </>

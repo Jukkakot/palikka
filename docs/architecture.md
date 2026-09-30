@@ -83,68 +83,88 @@ delivered by that roadmap change.
  (nickname)     host = 1st joiner   └─ 120 s turn clock ─┘  end: no colour can move, or last player standing
 ```
 
-- **Joining:** join options `{ nickname, pool?, watch?, botSeats? }` (strict) are validated in
-  `onCreate` and `onAuth`; refusals are a `ServerError` whose message is the code
-  (`INVALID_NICKNAME`, `INVALID_OPTIONS`, `SERVER_FULL`). Seats: lowest free 1–4, taken only in the
-  waiting room; the seat is also the player's colour. `MAX_OPEN_GAMES` caps the rooms.
+- **Joining:** join options `{ nickname, pool?, watch?, botSeats?, variant? }` (strict) are
+  validated in `onCreate` and `onAuth`; refusals are a `ServerError` whose message is the code
+  (`INVALID_NICKNAME`, `INVALID_OPTIONS`, `SERVER_FULL`). `variant` is only set by a rematch (a new
+  room is Perus). Seats: lowest free 1 up to the variant's player count (Perus 4, Duo and Tuplaväri
+  2, Kolmikko 3), taken only in the waiting room; in Perus the seat is also the player's colour.
+  `MAX_OPEN_GAMES` caps the rooms.
 - **Waiting room:** the first joiner hosts. A guest leaving frees the seat; the host leaving closes
   the room (`HOST_LEFT` 4101). Every room is public; friends come in by the invite link. Metadata
-  `{ host, open, pool, seated, watchable }` feeds the start screen lists.
+  `{ host, open, pool, seated, watchable, variant }` feeds the start screen lists.
+- **Variant:** the host's `setVariant { variant }` in the waiting room (`NOT_HOST`, `WRONG_PHASE`;
+  `TOO_MANY_PLAYERS` when more people, or a person in a higher seat, than the variant takes). It
+  removes bots on seats above the variant's count (`bot.removed` with `reason: "variant"`), resizes
+  `cells` to the variant's board, sets `maxClients` to the variant's seats minus bots and the
+  listing's `variant`, and logs `variant.changed`. `start` needs the variant's minimum
+  (`NOT_ENOUGH_PLAYERS`; Kolmikko 3). A rematch keeps the variant.
 - **Game engine:** the room holds the game as the rules' match layer `Game`
-  (`packages/rules/src/game.ts`: seats, colours that left, the engine's `Position`, winners; the
-  same as the device's games) and every rule goes through it: `startGame` (lowest seat first),
-  `playMove` (`place { piece, orientation, row, col }`; refusals `PIECE_USED`, `OFF_BOARD`,
+  (`packages/rules/src/game.ts`: variant, seats, colour → seat `control`, seats that left, the
+  engine's `Position`, winners as seats; the same as the device's games) and every rule goes
+  through it: `startGame(seed, seats, variant)` (colour 1, in Perus the lowest seat's, first),
+  `seatOnTurn` (the seat that plays the colour on turn; the shared colour rotates), `playMove`
+  (`place { piece, orientation, row, col }` for the colour on turn by its seat; refusals
+  `NOT_YOUR_TURN`, `PIECE_USED`, `OFF_BOARD`,
   `OVERLAP`, `EDGE_CONTACT`, `NOT_ON_START`, `NO_CORNER_CONTACT` …), `removeSeat`, `endGame`.
   Stuck colours are passed by the engine. The synced schema mirrors the engine after each change;
   the room keeps only what is not a rule (seats and connections, clock, bot timers, logs).
 - **Turn clock:** 120 s per turn; expiry only sets `turnExpired`, which lets the others `kick` the
   slow player (`KICKED` 4100).
 - **Removal** (left, kicked, or a 5-minute drop hold ran out) is the single way out; the leaver's
-  squares stay and its colour is out and cannot win; the last player standing wins, or the turn
-  passes.
+  squares stay and all its colours are out and cannot win; the last player standing wins, or the
+  turn passes (also when the leaver was to play the shared colour: the next staying seat does).
+- **Logs:** `game.started` and `phase.changed` to `play` carry `variant`; `turn.changed` carries
+  the seat (`to`) and `colour`; `bot.fallback` carries `colour`.
 - **Bots:** the host's `addBot` / `removeBot { seat }` in the waiting room; a bot is a `Player`
   with `bot = true`, keyed `bot:<seat>`, named Kettu, Ilves, Pöllö, Näätä. The **bot runner**
   (`botRunnerSeat`: the host while connected, else the lowest connected person, else 0; logged as
   `bot.runner`) computes the moves of bot-played seats (bots and auto-played people) and sends
   `botPlace { seat, … }` after the 1 s pause (divided by `botSpeed`); the server accepts it only
-  from the runner (`NOT_BOT_RUNNER`), for a bot-played seat (`NOT_BOT_SEAT`) on turn, legal.
-  **Fallback:** with no runner after the pause, or with a silent runner 10 s after it, the room
-  plays the rules' `simpleBotMove` itself through `place` (audit `bot: true`, `bot.fallback`
+  from the runner (`NOT_BOT_RUNNER`), for a bot-played seat (`NOT_BOT_SEAT`) that plays the colour
+  on turn (`NOT_YOUR_TURN`), legal; the move is placed in the colour on turn. **Fallback:** with no runner after the pause, or with a silent runner 10 s after it, the room
+  plays the rules' `simpleBotMove` for the colour on turn itself through `place` (audit `bot: true`, `bot.fallback`
   with `reason` `noRunner` / `runnerSilent`).
 - **Autoplay:** `setAutoplay { on }` hands a person's seat to the bot; a dropped player is
   auto-played during the seat hold; a reconnect ends only a drop's autoplay.
 - **Nobody left:** no person seated and nobody watching → the game finishes with no winner.
 - **Spectators:** `POST /watch` reserves a seat in a running, watchable room (≤ 8 spectators);
   `setSpeed` works while only bots play.
-- **Rematch:** `rematch` (seated, finished) creates one new room with the same pool and bots; its id
+- **Rematch:** `rematch` (seated, finished) creates one new room with the same pool, variant and bots; its id
   is synced as `rematchRoomId` and clients `joinById` it.
 
 ## State sync — Implemented
 
-- Synced (`server/src/rooms/schema/GameState.ts`): players (seat, nickname, `bot`, `autoplay`,
-  connected), `cells` (owner colour per square, row-major), `colours` (per colour: placed
-  `pieces` in order, `out`, `left`), `phase`, `turnSeat`, `turn` (turns started), `hostSeat`,
+- Synced (`server/src/rooms/schema/GameState.ts`): `variant`, players (seat, nickname, `bot`,
+  `autoplay`, connected), `cells` (owner colour per square, row-major, board size², Duo 14×14),
+  `colours` (per colour: `seat` that plays it, 0 = shared; placed `pieces` in order, `out`, `left`),
+  `phase`, `turnSeat` (the seat that plays the turn), `turnColour` (the colour on turn), `turn`
+  (turns started), `hostSeat`,
   `winners`, `turnDeadline`, `turnExpired`, `botRunnerSeat`, `spectators`, `botSpeed`,
   `rematchRoomId`. No hidden information: everything a player may know is public.
-- The client rebuilds the engine's `Position` from it (`GameView.position`), so the placement
-  preview, the hint and the bot runner use the same rules as the server.
+- The client rebuilds the engine's `Position` from it (`GameView.position`: the variant's board,
+  sides from the colours' seats), so the placement preview, the hint and the bot runner use the
+  same rules as the server.
 - UI-only state (the chosen piece, its orientation, the preview, the hint) never crosses the
   network.
 
 ## Rules package — Implemented
 
 `packages/rules/src/`: `pieces` (the 21 pieces `I1 … Z5`, 91 orientations generated at load, stable
-indexes pinned by a golden snapshot; `turnOrientation` / `mirrorOrientation` tables), `config` (`BoardConfig`, `CLASSIC` 20×20), `bitboard` (one
+indexes pinned by a golden snapshot; `turnOrientation` / `mirrorOrientation` tables), `config` (`BoardConfig`, `CLASSIC` 20×20), `variants`
+(`VARIANT_IDS` `classic` / `duo` / `double` / `trio`, `VARIANTS` with board, player counts,
+colour groups per seat and the shared colour; `DUO` 14×14 with start squares (4,4) and (9,9)), `bitboard` (one
 32-bit word per row), `position` (`Position` as plain JSON, a cached bitboard view per position
-object, `checkPlacement` with one refusal code), `moves` (`Placement` ↔ integer `Move` code),
+object, `sides`: colour → the seat it scores for, 0 = shared; `checkPlacement` with one refusal code), `moves` (`Placement` ↔ integer `Move` code),
 `movegen` (corner-based `legalMoves`, `hasLegalMove`, `fittingPieces`, `freeCorners`, `forbiddenSquares`), `play`
-(`applyMove`, `pass`, `resign`, `abort`; automatic passing), `scoring` (`scores`, `winners`),
-`game` (the match layer: seats, leaving, winners among those who stayed; the room's and
-`LocalRoom`'s one engine), `bot` (`simpleBotMove`: largest piece first, seeded; the server's
+(`applyMove`, `pass`, `resign`, `abort`; automatic passing), `scoring` (`scores` per colour,
+`sideScores` per side without the shared colour, `winners` = best sides), `game` (the match layer:
+variant, seats, `control` colour → seat, `controllerOf` / `seatOnTurn` with the shared colour's
+rotation `staying[placed.length % staying.length]`, leaving resigns all of a seat's colours,
+winners are seats among those who stayed; the room's and `LocalRoom`'s one engine), `bot` (`simpleBotMove`: largest piece first, seeded; the server's
 fallback), `turns` (kick rule, clock limits), `rng` (seeded `xoroshiro128plus`).
 `@palikka/rules/testing` has `referenceMoves` (naive generator), `randomGame`, `placement` and
 `positionWith`. Property tests (fast-check) check the fast generator against the reference along
-random games.
+random games, also in every variant with random leavers. `RULES_VERSION` 1.1.0 (variants).
 
 Move generation speed (`npm run bench -w @palikka/rules`, 40 seeded random 4-colour games, a full
 list for every colour still in at every position; developer desktop, 2026-09-29): **0.034 ms per
@@ -154,7 +174,8 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
 
 - **`game-bots`** (`packages/bots`): a game plugs in as a `Game` (player to move, legal moves,
   play, game over); search needs a `MultiplayerGame` on top (players still in, a player's moves and
-  playing one out of turn, a cheap move key for ordering). A `Bot` answers
+  playing one out of turn, a cheap move key for ordering, optionally `opponents(state, player)`:
+  best-reply search lets only these answer, so partners are never searched as opponents). A `Bot` answers
   `choose(state, budget, rng)`. `Budget` is plain JSON (`timeMs`, `depth`, `iterations`; whichever
   runs out first, a bot ignores limits that do not apply to it). The rng is injected, so a seed
   fixes the choice. Players:
@@ -172,12 +193,16 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
     page (ids, lazy worker, answers in the page when no worker can run, on an error reply or after
     a crash, reported through a callback).
 - **`@palikka/bots`** (`packages/palikka-bots`): `palikkaGame` over the rules engine (off-turn
-  moves via the rules' `withTurn`, which keeps the cached bitboards), `evaluate` (own score, free
-  corners and exclusive reach against the opponents' average, won/lost end), `moveKey` (piece
+  moves via the rules' `withTurn`, which keeps the cached bitboards), `opponents` (colours of other sides; the
+  shared colour opposes everyone), `evaluate` (for the colour's side: the side's score, its free
+  corners and reach exclusive to the side against the opposing colours' average, won/lost end by
+  side), `moveKey` (piece
   size, opponents' free corners covered, new own corners; boards cached per position), the players
   `greedyPlayer`, `brsPlayer`, `mctsPlayer`, `randomPlayer`, **`devicePlayer` = `brsPlayer`** (the
   bot people play against), `playGame` and the worker entry point
-  `chooseMove(position, colour, budget, seed | rng, bot = devicePlayer) → Placement | undefined`.
+  `chooseMove(position, colour, budget, seed | rng, bot = devicePlayer, viewpoint?) → Placement | undefined`.
+  For the shared colour (side 0) with a `viewpoint` (a colour of the seat that plays it this turn)
+  it picks the legal move best for that side one ply deep, seeded (variants design D6).
 - Strength and speed (developer container, 2026-09-29, `npm run bench -w @palikka/bots -- <bot>`):
   greedy ≈ 14 ms per move; `brs@d2` 20 ms, `brs@d3` 43 ms, `brs@d4` 148 ms; in 200 ms BRS reaches
   depth 4 on average (up to 8 late in the game), in 800 ms depth 5. `mcts@i400` ≈ 380 ms. Depth
@@ -192,8 +217,8 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
     anchored at 1000). Each pairing's share gets a 95 % Wilson interval with the seed pairs as the
     independent unit. The game supplies only "play this scheduled game → seats and scores".
   - `@palikka/bots`: the bot registry (`random`, `greedy`, `brs`, `mcts`; a name may carry a
-    budget: `greedy@200ms`, `brs@d4`, `mcts@i400`), formats (4 colours: one bot on 1 and 3, the other on 2 and 4;
-    2 colours: 1 and 2), `playTournamentGame` with per-move timing; `cli/` runs games on worker
+    budget: `greedy@200ms`, `brs@d4`, `mcts@i400`), formats (`--colours 4`: one bot on 1 and 3, the other on 2 and 4;
+    `2`: colours 1 and 2; `duo`: colours 1 and 2 on the Duo board), `playTournamentGame` with per-move timing; `cli/` runs games on worker
     threads (`worker-entry.mjs` registers tsx's loader in each worker), prints the Markdown report
     and writes JSON.
   - **Strength requirements** live in `packages/palikka-bots/strength.json` ("candidate beats
@@ -206,8 +231,9 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
   answers in the page where no worker can run. Budget 800 ms (divided by the watching speed). The
   bot is asked as soon as its turn begins and thinks during the 1 s pause: its move lands when the
   pause is over and the answer is there, whichever is later. That holds in `LocalRoom` and in the
-  online bot runner (`session/useBotRunner.ts`, which sends the move as `botPlace`). The hint uses
-  greedy (100 ms, UI thread).
+  online bot runner (`session/useBotRunner.ts`, which sends the move as `botPlace`). Both ask for
+  the colour on turn, with the seat's own colour as `viewpoint` for the shared colour. The hint uses
+  greedy (100 ms, UI thread), with the viewer's colour as viewpoint on a shared turn.
 
 ## Client — Implemented
 
@@ -229,7 +255,10 @@ client/src/
 ```
 
 - **Server state is the truth.** `toGameView()` turns synced state into an immutable `GameView`;
-  components render it.
+  components render it. Variants: `variant`, `boardSize`, `maxSeats`, `turnColour`, `turnShared`,
+  per seat `colours` (scores summed), `myColours`, and `trayColour` (the colour on turn when the
+  viewer plays it, else their own next colour in turn order that is not out); the tray, the
+  placement, the free-corner dots and the preview use `trayColour`.
 - **UI foundation:** every colour, spacing and radius is a token in `ui/tokens.css` (theme Kuura:
   flat squares, seat colours Järvi / Lakka / Puolukka / Kuusi; light and dark, following the
   device unless forced in the settings); CSS Modules; anything shown twice is a shared component
@@ -242,9 +271,12 @@ client/src/
   Colyseus room over the rules' match layer: same synced-state shape, same `CommandResult`s, bots
   from the worker, which thinks during the server's pause (a refused or missing answer falls back to
   `simpleBotMove`), no turn clock. `undo` ("Peru") restores the game before the player's last own
-  move (history of games, stale bot answers dropped). Ids `local-…` / tokens `local:…` route to the
-  device. Saved in localStorage (`palikka.localGame`) after every step; a save of an older format
-  is dropped. Watched bot games (`local-watch-…`) are never saved.
+  move (any colour the player played, the shared colour too; history of games, stale bot answers
+  dropped). Any variant: Perus takes 1–3 bots (2–4 to watch), the others their own count
+  (`botCount`); the bot on turn is the seat that plays the colour on turn. Ids `local-…` / tokens
+  `local:…` route to the device; the variant lives in the saved `Game`. Saved in localStorage
+  (`palikka.localGame`) after every step; a save of an older format (before the variants: no
+  `variant`, `control` or `sides`) is dropped. Watched bot games (`local-watch-…`) are never saved.
 - **Piece controls:** the viewer's 21 pieces sit in the tray (`PieceTray`; placed = empty slot,
   pieces that fit nowhere dimmed, from the rules' `fittingPieces`). `usePlacement` holds the choice
   (piece, orientation, aimed square) for the current turn; `turnOrientation` / `mirrorOrientation`
@@ -257,11 +289,18 @@ client/src/
   bot's move (100 ms, seeded by the turn) into the preview.
 - **Layout:** phone portrait stacks turn line, players, board, control bar and tray; from 900 px
   landscape the board sits left and the rest in a column beside it (`GameScreen.module.css`).
-- **Result:** a finished game shows `ResultTable` from `GameView.results` (every colour ranked by
-  score with shared ranks, squares, pieces left, winners, colours that left).
-- **Start screen:** two equal ways in: "Pelaa botteja vastaan" (1–3 bots or 2–4 to watch, on the
-  device) and "Luo peli kavereille" (`create`: always a new online game, waits for the wake-up);
-  the open and running games of the pool show under "Liity peliin" only when there are any.
+- **Result:** a finished game shows `ResultTable` from `GameView.results` (every player ranked by
+  score with shared ranks, their colour marks, squares, pieces left summed over their colours,
+  winners, players that left; a shared colour row last, "ei lasketa", no rank).
+- **Turn line:** in Tuplaväri and Kolmikko the colour's name comes first ("Puolukka · …",
+  "Kuusi (yhteinen) · …"); Perus and Duo keep the plain text.
+- **Variant picker:** `game/VariantPicker` (four chips as a radio group, a line about the chosen
+  one) in the start screen's bot way and the host's waiting room (others see "Pelimuoto: …"; the
+  waiting room shows the variant's seats with each seat's colours).
+- **Start screen:** two equal ways in: "Pelaa botteja vastaan" (a variant; in Perus 1–3 bots or 2–4
+  to watch, in the others the variant's count, on the device) and "Luo peli kavereille" (`create`:
+  always a new online game, waits for the wake-up); the open and running games of the pool show
+  under "Liity peliin" only when there are any, each with its variant and seats (`seated/maxSeats`).
 - **Daily puzzle:** removed with the placeholder game. **Planned (`daily-puzzle`):** the real
   puzzle (fill a shape with pieces).
 - **PWA:** `vite-plugin-pwa` (auto-update service worker, off in `vite dev`); icons generated from

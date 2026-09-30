@@ -1,7 +1,7 @@
 /**
  * Plays a round-robin tournament between named bots and prints the Markdown report.
  *
- *   npm run tournament -w @palikka/bots -- random greedy [--games 100] [--colours 4|2] [--seed 1]
+ *   npm run tournament -w @palikka/bots -- random greedy [--games 100] [--colours 4|2|duo] [--seed 1]
  *     [--jobs <cores>] [--out file.json] [--summary file.md]
  *
  * Bots: a name from the registry with an optional budget: greedy, greedy@200ms, greedy@d2.
@@ -10,7 +10,7 @@ import { appendFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { parseArgs } from "node:util";
 import { markdownReport } from "game-bots";
-import { isColours } from "../src/index.js";
+import { parseColours } from "../src/index.js";
 import { defaultOut, runTournament, toJson, writeJson } from "./run.js";
 
 async function main(): Promise<void> {
@@ -25,8 +25,7 @@ async function main(): Promise<void> {
       summary: { type: "string" },
     },
   });
-  const colours = Number(values.colours);
-  if (!isColours(colours)) throw new RangeError(`--colours must be 4 or 2, got ${values.colours}`);
+  const colours = parseColours(values.colours);
   const started = performance.now();
   const result = await runTournament({
     bots: positionals,

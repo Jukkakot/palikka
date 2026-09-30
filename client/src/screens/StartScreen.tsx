@@ -1,5 +1,5 @@
 import { IconDice5 } from "@tabler/icons-react";
-import { RULES_VERSION } from "@palikka/rules";
+import { RULES_VERSION, VARIANTS, type VariantId } from "@palikka/rules";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { isLocalToken } from "../session/localGameStore.ts";
@@ -11,6 +11,7 @@ import { SettingsButton, SettingsScreen } from "../settings/SettingsScreen.tsx";
 import { TipsReset } from "../tips/TipsReset.tsx";
 import { Button } from "../ui/Button.tsx";
 import { HowToPlay } from "../howto/HowToPlay.tsx";
+import { VariantPicker } from "../game/VariantPicker.tsx";
 import { LanguageSwitcher } from "../ui/LanguageSwitcher.tsx";
 import { LinkButton } from "../ui/LinkButton.tsx";
 import { Message } from "../ui/Message.tsx";
@@ -62,8 +63,9 @@ function minutesSeconds(total: number): string {
 }
 
 /**
- * Before a game: the nickname field and two equal ways in, "Pelaa botteja vastaan" (a game against
- * 1–3 bots, or 2–4 bots to watch, on the device at once) and "Luo peli kavereille" (a new online game,
+ * Before a game: the nickname field and two equal ways in, "Pelaa botteja vastaan" (a variant, then in
+ * Perus a game against 1–3 bots or 2–4 bots to watch, in the other variants the variant's own count,
+ * on the device at once) and "Luo peli kavereille" (a new online game,
  * waiting for the server to wake), then the open and running games when there are any; in invite
  * mode the invite instead. Then the connecting and join-error states.
  */
@@ -79,6 +81,10 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
   const [howToOpen, setHowToOpen] = useState(false);
   // "Pelaan itse": on whenever the screen opens; off offers a game of bots only to watch.
   const [playMyself, setPlayMyself] = useState(true);
+  const [variant, setVariant] = useState<VariantId>("classic");
+  // Perus offers a choice of bots; the other variants have a fixed player count.
+  const botCounts = variant === "classic" ? BOT_COUNTS : [VARIANTS[variant].maxPlayers - 1];
+  const watchCounts = variant === "classic" ? WATCH_COUNTS : [VARIANTS[variant].maxPlayers];
   if (settingsOpen) return <SettingsScreen onClose={() => setSettingsOpen(false)} />;
   if (howToOpen) return <HowToPlay onClose={() => setHowToOpen(false)} />;
 
@@ -201,29 +207,30 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
                 {t("start.botsTitle")}
               </h2>
               <p className={styles.wayBody}>{t("start.botsBody")}</p>
+              <VariantPicker value={variant} onChange={setVariant} />
               <label className={styles.playMyself}>
                 {t("start.playMyself")}
                 <Switch checked={playMyself} onChange={(e) => setPlayMyself(e.target.checked)} />
               </label>
               <div className={styles.counts}>
                 {playMyself
-                  ? BOT_COUNTS.map((bots) => (
+                  ? botCounts.map((bots) => (
                       <Button
                         key={bots}
                         variant={offerResume ? "secondary" : undefined}
                         disabled={!nickname.ok}
-                        onClick={() => playBots(name, bots)}
+                        onClick={() => playBots(name, bots, variant)}
                         aria-label={t("start.botGameLabel", { count: bots })}
                       >
                         1v{bots}
                       </Button>
                     ))
-                  : WATCH_COUNTS.map((bots) => (
+                  : watchCounts.map((bots) => (
                       <Button
                         key={bots}
                         variant="secondary"
                         disabled={!nickname.ok}
-                        onClick={() => watchBots(name, bots)}
+                        onClick={() => watchBots(name, bots, 1, variant)}
                         aria-label={t("start.watchBotsLabel", { count: bots })}
                       >
                         {t("start.watchBotCount", { count: bots })}
@@ -275,11 +282,14 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
                         className={styles.game}
                         disabled={disabled}
                         onClick={() => joinById(g.roomId, name)}
-                        aria-label={t("start.gameEntryLabel", { host: g.host, count: g.seated })}
+                        aria-label={t("start.gameEntryLabel", { host: g.host, variant: t(`variant.${g.variant}`), count: g.seated, max: g.maxSeats })}
                         data-room={g.roomId}
+                        data-variant={g.variant}
                       >
                         <span className={styles.gameHost}>{g.host}</span>
-                        <span className={styles.gameCount}>· {g.seated}/4</span>
+                        <span className={styles.gameCount}>
+                          · {t(`variant.${g.variant}`)} · {g.seated}/{g.maxSeats}
+                        </span>
                       </button>
                     </li>
                   ))}
@@ -297,11 +307,14 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
                         className={styles.game}
                         disabled={disabled}
                         onClick={() => watch(g.roomId, name)}
-                        aria-label={t("start.runningEntryLabel", { host: g.host, count: g.seated })}
+                        aria-label={t("start.runningEntryLabel", { host: g.host, variant: t(`variant.${g.variant}`), count: g.seated })}
                         data-room={g.roomId}
+                        data-variant={g.variant}
                       >
                         <span className={styles.gameHost}>{g.host}</span>
-                        <span className={styles.gameCount}>· {t("start.runningCount", { count: g.seated })}</span>
+                        <span className={styles.gameCount}>
+                          · {t(`variant.${g.variant}`)} · {t("start.runningCount", { count: g.seated })}
+                        </span>
                       </button>
                     </li>
                   ))}

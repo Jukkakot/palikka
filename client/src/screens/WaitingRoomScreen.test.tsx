@@ -10,22 +10,25 @@ import { seatView } from "../test/views.ts";
 
 const seat = (n: number, name: string, extra: Partial<SeatView> = {}): SeatView => seatView(n, name, { isMe: false, ...extra });
 
-function setup(seats: SeatView[], mySeat: number, session: Partial<GameSession> = {}, sharer?: Sharer) {
+function setup(seats: SeatView[], mySeat: number, session: Partial<GameSession> = {}, sharer?: Sharer, variant: WaitingRoomScreenProps["view"]["variant"] = "classic") {
   const start = vi.fn<GameSession["start"]>(async () => ({ ok: true }));
   const leave = vi.fn<GameSession["leave"]>();
   const addBot = vi.fn<GameSession["addBot"]>(async () => ({ ok: true }));
   const removeBot = vi.fn<GameSession["removeBot"]>(async () => ({ ok: true }));
+  const setVariant = vi.fn<GameSession["setVariant"]>(async () => ({ ok: true }));
   const view: WaitingRoomScreenProps["view"] = {
     roomId: "brave-otters-sing",
+    variant,
+    maxSeats: { classic: 4, duo: 2, double: 2, trio: 3 }[variant!],
     hostSeat: 1,
     mySeat,
     seats: seats.map((s) => ({ ...s, isMe: s.seat === mySeat })),
   };
   const copy = vi.fn(async (_text: string) => {});
   const utils = render(
-    <WaitingRoomScreen view={view} session={{ start, addBot, removeBot, leave, pending: false, ...session }} sharer={sharer ?? { copy }} />,
+    <WaitingRoomScreen view={view} session={{ start, addBot, removeBot, setVariant, leave, pending: false, ...session }} sharer={sharer ?? { copy }} />,
   );
-  return { start, addBot, removeBot, leave, copy, ...utils };
+  return { start, addBot, removeBot, setVariant, leave, copy, ...utils };
 }
 
 const button = (name: string) => screen.getByRole("button", { name }) as HTMLButtonElement;
@@ -114,7 +117,7 @@ describe("lobby › Waiting room", () => {
 
   it("a rejected start shows its message", () => {
     setup([seat(1, "Maija")], 1, { notice: "errors.NOT_ENOUGH_PLAYERS" });
-    expect(screen.getAllByText("Tarvitaan vähintään 2 pelaajaa").length).toBeGreaterThan(1);
+    expect(screen.getByText("Pelaajia ei ole vielä tarpeeksi")).toBeTruthy();
   });
 });
 
@@ -145,3 +148,36 @@ describe("lobby › Leaving the waiting room", () => {
   });
 });
 
+
+describe("game-room › Choosing the variant (waiting room)", () => {
+  it("Host picks a variant: four chips, Perus chosen, tapping Duo asks for it", () => {
+    const { setVariant } = setup([seat(1, "Maija")], 1);
+    const chips = screen.getAllByRole("radio");
+    expect(chips.map((c) => c.textContent)).toEqual(["Perus", "Duo", "Tuplaväri", "Kolmikko"]);
+    expect(screen.getByRole("radio", { name: "Perus" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("2–4 pelaajaa, jokaisella oma väri")).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: "Duo" }));
+    expect(setVariant).toHaveBeenCalledExactlyOnceWith("duo");
+  });
+
+  it("Duo shows two seats; a guest sees the variant without the picker", () => {
+    const { container } = setup([seat(1, "Maija"), seat(2, "Pekka")], 2, {}, undefined, "duo");
+    expect(container.querySelectorAll("ul[aria-label='Pelaajat'] > li")).toHaveLength(2);
+    expect(screen.queryAllByRole("radio")).toHaveLength(0);
+    expect(screen.getByText("Pelimuoto: Duo")).toBeTruthy();
+  });
+
+  it("Tuplaväri: each seat shows its two colours; Kolmikko needs three to start", () => {
+    const { container, unmount } = setup([seat(1, "Maija")], 1, {}, undefined, "double");
+    expect([...container.querySelectorAll("[data-seat='1'] [data-seat]")].map((m) => m.getAttribute("data-seat"))).toEqual(["1", "3"]);
+    unmount();
+    setup([seat(1, "Maija"), seat(2, "Kettu", { isBot: true })], 1, {}, undefined, "trio");
+    expect(button("Aloita peli").disabled).toBe(true);
+    expect(screen.getByText("Tarvitaan 3 pelaajaa")).toBeTruthy();
+  });
+
+  it("TOO_MANY_PLAYERS is explained", () => {
+    setup([seat(1, "Maija")], 1, { notice: "errors.TOO_MANY_PLAYERS" });
+    expect(screen.getByText("Tähän pelimuotoon eivät mahdu kaikki pelaajat")).toBeTruthy();
+  });
+});

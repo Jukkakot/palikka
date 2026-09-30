@@ -88,10 +88,18 @@ describe("lobby › Open games list", () => {
       listing("started", { metadata: { host: "Olli", open: false } }),
     ]);
     expect(games).toEqual([
-      { roomId: "old", host: "Maija", seated: 1 },
-      { roomId: "new", host: "Pekka", seated: 1 },
-      { roomId: "oneBot", host: "Liisa", seated: 2 },
+      { roomId: "old", host: "Maija", seated: 1, variant: "classic", maxSeats: 4 },
+      { roomId: "new", host: "Pekka", seated: 1, variant: "classic", maxSeats: 4 },
+      { roomId: "oneBot", host: "Liisa", seated: 2, variant: "classic", maxSeats: 4 },
     ]);
+  });
+
+  it("a Duo game is full with two seated and shows its variant", () => {
+    const games = toOpenGames([
+      listing("duo-open", { metadata: { host: "Maija", open: true, seated: 1, variant: "duo" } }),
+      listing("duo-full", { metadata: { host: "Pekka", open: true, seated: 2, variant: "duo" } }),
+    ]);
+    expect(games).toEqual([{ roomId: "duo-open", host: "Maija", seated: 1, variant: "duo", maxSeats: 2 }]);
   });
 
   it("A game appears, updates to full and disappears; the lobby is left on unmount", async () => {
@@ -105,7 +113,7 @@ describe("lobby › Open games list", () => {
     push("rooms", []);
     expect(result.current).toEqual({ status: "ready", games: [], running: [] });
     push("+", ["brave-otters-sing", listing("brave-otters-sing")]);
-    expect(result.current.games).toEqual([{ roomId: "brave-otters-sing", host: "Maija", seated: 1 }]);
+    expect(result.current.games).toEqual([{ roomId: "brave-otters-sing", host: "Maija", seated: 1, variant: "classic", maxSeats: 4 }]);
     push("+", ["brave-otters-sing", listing("brave-otters-sing", { clients: 4, locked: true })]);
     expect(result.current.games).toEqual([]);
     push("+", ["calm-foxes-jump", listing("calm-foxes-jump")]);
@@ -146,7 +154,7 @@ describe("spectators › running games", () => {
       listing("rematch-no-host", { metadata: { host: "", open: true, pool: "", seated: 1 } }),
     ];
     expect(toOpenGames(rooms).map((g) => g.roomId)).toEqual(["open-game"]);
-    expect(toRunningGames(rooms)).toEqual([{ roomId: "running-game", host: "Pekka", seated: 3 }]);
+    expect(toRunningGames(rooms)).toEqual([{ roomId: "running-game", host: "Pekka", seated: 3, variant: "classic", maxSeats: 4 }]);
   });
 });
 

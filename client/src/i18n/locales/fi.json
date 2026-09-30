@@ -45,7 +45,7 @@
     "nicknameLength": "Nimimerkissä pitää olla 2–16 merkkiä",
     "nicknameCharacters": "Nimimerkissä on merkkejä, joita ei voi käyttää",
     "openGames": "Avoimet pelit",
-    "gameEntryLabel": "Liity peliin: {{host}}, {{count}}/4 pelaajaa",
+    "gameEntryLabel": "Liity peliin: {{host}}, {{variant}}, {{count}}/{{max}} pelaajaa",
     "hostLeft": "Pelin luoja poistui, joten peli suljettiin",
     "notOpen": "Peli ei ole enää avoinna",
     "serverFull": "Palvelin on täynnä – yritä hetken päästä uudelleen",
@@ -62,7 +62,7 @@
     "botGameLabel_other": "Pikapeli: sinä ja {{count}} bottia",
     "randomName": "Arvo uusi nimi",
     "runningGames": "Käynnissä olevat pelit",
-    "runningEntryLabel": "Katso peliä: {{host}}, {{count}} pelaajaa",
+    "runningEntryLabel": "Katso peliä: {{host}}, {{variant}}, {{count}} pelaajaa",
     "runningCount": "{{count}} pelaajaa",
     "watchBotsLabel": "Katso {{count}} botin peliä",
     "watchBotCount_one": "{{count}} botti",
@@ -91,7 +91,9 @@
     "disconnected": "{{name}} – yhteys katkennut",
     "timeLeft": "Aikaa jäljellä {{time}}",
     "autoplayMine": "Botti pelaa puolestasi",
-    "autoplay": "Botti pelaa: {{name}}"
+    "autoplay": "Botti pelaa: {{name}}",
+    "colour": "{{colour}} · {{text}}",
+    "shared": "{{colour}} (yhteinen)"
   },
   "place": {
     "wait": "Odota vuoroasi",
@@ -119,7 +121,7 @@
     "NOT_KICKABLE": "Tätä pelaajaa ei voi poistaa nyt",
     "TURN_NOT_EXPIRED": "Pelaajan aika ei ole vielä loppunut",
     "NOT_HOST": "Vain pelin luoja voi aloittaa pelin",
-    "NOT_ENOUGH_PLAYERS": "Tarvitaan vähintään 2 pelaajaa",
+    "NOT_ENOUGH_PLAYERS": "Pelaajia ei ole vielä tarpeeksi",
     "SEAT_TAKEN": "Paikka on jo varattu",
     "NOT_A_BOT": "Paikalla ei ole bottia",
     "NOT_SPECTATOR": "Vain katsoja voi muuttaa nopeutta",
@@ -134,7 +136,8 @@
     "NO_CORNER_CONTACT": "Palikan pitää koskettaa omaa palikkaa kulmasta",
     "NOT_BOT_RUNNER": "Bottien siirrot laskee nyt toinen pelaaja",
     "NOT_BOT_SEAT": "Tällä paikalla ei pelaa botti",
-    "INVALID_MOVE": "Palikkaa ei voi asettaa siihen"
+    "INVALID_MOVE": "Palikkaa ei voi asettaa siihen",
+    "TOO_MANY_PLAYERS": "Tähän pelimuotoon eivät mahdu kaikki pelaajat"
   },
   "hint": {
     "button": "Vihje",
@@ -167,7 +170,9 @@
     "squares": "Ruudut",
     "piecesLeft": "Palikoita jäljellä",
     "winner": "Voittaja",
-    "departed": "Lähti metsään"
+    "departed": "Lähti metsään",
+    "sharedColour": "Yhteinen väri",
+    "notCounted": "ei lasketa"
   },
   "kick": {
     "timeUp": "{{name}} – aika loppui",
@@ -196,7 +201,8 @@
     "bot": "botti",
     "addBot": "Lisää botti",
     "addBotLabel": "Lisää botti paikalle {{seat}}",
-    "removeBot": "Poista botti {{name}}"
+    "removeBot": "Poista botti {{name}}",
+    "needPlayers": "Tarvitaan {{count}} pelaajaa"
   },
   "leave": {
     "button": "Poistu pelistä",
@@ -272,9 +278,36 @@
       "start": "Ensimmäinen palikka aloituskulmaan",
       "corner": "Kulmakosketus omaan väriin: sallittu",
       "edge": "Sivukosketus omaan väriin: ei sallittu"
+    },
+    "variants": {
+      "title": "Pelimuodot",
+      "classic": "Perus: 2–4 pelaajaa 20×20-laudalla, jokainen pelaa omaa väriään kulmastaan.",
+      "duo": "Duo: kaksi pelaajaa pienellä 14×14-laudalla. Aloitusruudut ovat laudan sisällä, ei kulmissa.",
+      "double": "Tuplaväri: kaksi pelaajaa, kummallakin kaksi väriä. Värien pisteet lasketaan yhteen.",
+      "trio": "Kolmikko: kolme pelaajaa. Neljättä väriä, Kuusta, pelataan vuorotellen, eikä sen pisteitä lasketa kenellekään."
     }
   },
   "undo": {
     "label": "Peru siirto"
+  },
+  "variant": {
+    "label": "Pelimuoto",
+    "classic": "Perus",
+    "duo": "Duo",
+    "double": "Tuplaväri",
+    "trio": "Kolmikko",
+    "about": {
+      "classic": "2–4 pelaajaa, jokaisella oma väri",
+      "duo": "2 pelaajaa pienellä 14×14-laudalla",
+      "double": "2 pelaajaa, kummallakin kaksi väriä",
+      "trio": "3 pelaajaa, neljäs väri pelataan vuorotellen"
+    },
+    "chosen": "Pelimuoto: {{name}}"
+  },
+  "colour": {
+    "1": "Järvi",
+    "2": "Lakka",
+    "3": "Puolukka",
+    "4": "Kuusi"
   }
 }

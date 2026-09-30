@@ -30,7 +30,7 @@ function timedGame(bots = 1, askBot: AskBot = simpleBot) {
 
 const viewOf = (room: LocalRoom) => toGameView(room.state, room.roomId, room.sessionId)!;
 /** The first legal move of `colour` in the room's game. */
-const firstMove = (room: LocalRoom, colour = 1): Placement => decodeMove(legalMoves(room.game.position, colour)[0]!, 20);
+const firstMove = (room: LocalRoom, colour = 1): Placement => decodeMove(legalMoves(room.game.position, colour)[0]!, room.game.position.config.size);
 /** Maija makes a legal move. */
 const placeFree = (room: LocalRoom) => room.request("place", firstMove(room));
 /** Lets bot pauses run out (and their answers arrive) until `done`, at most `max` pauses. */
@@ -151,6 +151,78 @@ describe("device-games › Game against bots on the device", () => {
     const next = LocalRoom.restore(room.state.rematchRoomId!, quiet)!;
     expect(next.game.seats.map((s) => s.name)).toEqual(["Maija", "Kettu", "Ilves"]);
     expect(next.game.position.moveNumber).toBe(0);
+  });
+});
+
+describe("device-games › Variants on the device", () => {
+  it("Tuplaväri on the device: Maija plays colours 1 and 3, Kettu 2 and 4, colour 1 on turn", () => {
+    const room = LocalRoom.create("Maija", 1, { seed: () => 7, ...quiet }, "double");
+    const view = viewOf(room);
+    expect(view.seats.map((s) => [s.name, s.colours])).toEqual([
+      ["Maija", [1, 3]],
+      ["Kettu", [2, 4]],
+    ]);
+    expect(view).toMatchObject({ variant: "double", turnColour: 1, isMyTurn: true, trayColour: 1 });
+    expect(loadLocalGame(room.roomId)?.game.variant).toBe("double");
+  });
+
+  it("Undo in Tuplaväri: back to before the colour-3 move, colour 3 on turn again", async () => {
+    vi.useFakeTimers();
+    const room = LocalRoom.create("Maija", 1, { seed: () => 7, askBot: simpleBot }, "double");
+    await placeFree(room);
+    await runBots(() => room.game.position.turn === 3);
+    expect(viewOf(room)).toMatchObject({ turnColour: 3, isMyTurn: true, trayColour: 3 });
+    expect(await room.request("place", firstMove(room, 3))).toEqual({ ok: true });
+    await runBots(() => room.game.position.turn === 1);
+    expect(room.game.position.placed[4]).toHaveLength(1);
+    expect(await room.request("undo", {})).toEqual({ ok: true });
+    expect(room.game.position.turn).toBe(3);
+    expect(room.game.position.placed[3]).toHaveLength(0);
+    expect(room.game.position.placed[4]).toHaveLength(0);
+  });
+
+  it("Kolmikko with two bots runs to the end; the shared colour is asked for its player's side", async () => {
+    vi.useFakeTimers();
+    const asked: MoveRequest[] = [];
+    const askBot: AskBot = async (request) => {
+      asked.push(request);
+      return simpleBot(request);
+    };
+    const room = LocalRoom.create("Maija", 2, { seed: () => 7, askBot }, "trio");
+    expect(viewOf(room).seats.map((s) => s.name)).toEqual(["Maija", "Kettu", "Ilves"]);
+    await room.request("setAutoplay", { on: true });
+    await runBots(() => room.game.position.ended, 400);
+    expect(room.game.position.ended).toBe(true);
+    expect(room.game.position.placed[4]!.length).toBeGreaterThan(0);
+    const shared = asked.filter((r) => r.colour === 4);
+    expect(shared.map((r) => r.viewpoint)).toEqual(shared.map((_, i) => [1, 2, 3][i % 3]));
+    const view = viewOf(room);
+    expect(view.results.at(-1)).toMatchObject({ shared: true, colours: [4], rank: 0 });
+    expect(view.winners.length).toBeGreaterThan(0);
+  });
+
+  it("Duo bots: two bots play on the 14×14 board; a rematch keeps the variant", async () => {
+    vi.useFakeTimers();
+    const watch = LocalRoom.createWatch(4, 1, { seed: () => 7, askBot: simpleBot }, "duo");
+    expect(viewOf(watch)).toMatchObject({ variant: "duo", boardSize: 14 });
+    expect(viewOf(watch).seats).toHaveLength(2);
+    await runBots(() => watch.game.position.ended, 200);
+    expect(watch.game.position.ended).toBe(true);
+    const room = LocalRoom.create("Maija", 3, { seed: () => 7, askBot: simpleBot }, "duo");
+    expect(room.game.seats).toHaveLength(2);
+    await room.request("setAutoplay", { on: true });
+    await runBots(() => room.game.position.ended, 200);
+    expect(await room.request("rematch", {})).toEqual({ ok: true });
+    expect(LocalRoom.restore(room.state.rematchRoomId!, quiet)!.game.variant).toBe("duo");
+  });
+
+  it("Old save: a game saved before the variants is dropped", () => {
+    const room = quietGame();
+    const saved = JSON.parse(localStorage.getItem("palikka.localGame")!);
+    delete saved.game.variant;
+    delete saved.game.control;
+    localStorage.setItem("palikka.localGame", JSON.stringify(saved));
+    expect(LocalRoom.restore(room.roomId, quiet)).toBeUndefined();
   });
 });
 

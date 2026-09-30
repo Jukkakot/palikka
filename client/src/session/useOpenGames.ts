@@ -1,3 +1,4 @@
+import { variantOf, type VariantId } from "@palikka/rules";
 import { useEffect, useState } from "react";
 import { log } from "../logging/logger.ts";
 import { sdkClient } from "./useGameSession.ts";
@@ -9,6 +10,10 @@ export interface OpenGame {
   host: string;
   /** Seats taken, by people and bots. */
   seated: number;
+  /** The game's variant (Perus from an older server). */
+  variant: VariantId;
+  /** Seats the variant has. */
+  maxSeats: number;
 }
 
 export interface OpenGames {
@@ -26,7 +31,7 @@ export interface RoomListing {
   maxClients: number;
   locked?: boolean;
   createdAt?: string | number | Date;
-  metadata?: { host?: unknown; open?: unknown; pool?: unknown; seated?: unknown; watchable?: unknown };
+  metadata?: { host?: unknown; open?: unknown; pool?: unknown; seated?: unknown; watchable?: unknown; variant?: unknown };
 }
 
 /** The parts of the SDK's lobby room this hook uses. */
@@ -49,7 +54,11 @@ const time = (r: RoomListing) => (r.createdAt === undefined ? 0 : new Date(r.cre
 const seatedOf = (r: RoomListing) => (typeof r.metadata?.seated === "number" ? r.metadata.seated : r.clients);
 
 const hostOf = (r: RoomListing) => (typeof r.metadata?.host === "string" ? r.metadata.host : "");
-const toEntry = (r: RoomListing): OpenGame => ({ roomId: r.roomId, host: hostOf(r), seated: seatedOf(r) });
+const variantOfListing = (r: RoomListing) => variantOf(typeof r.metadata?.variant === "string" ? r.metadata.variant : undefined);
+const toEntry = (r: RoomListing): OpenGame => {
+  const variant = variantOfListing(r);
+  return { roomId: r.roomId, host: hostOf(r), seated: seatedOf(r), variant: variant.id, maxSeats: variant.maxPlayers };
+};
 
 /**
  * Joinable entries, oldest first: the server lists locked and full rooms too. A game whose host has
@@ -57,7 +66,7 @@ const toEntry = (r: RoomListing): OpenGame => ({ roomId: r.roomId, host: hostOf(
  */
 export function toOpenGames(rooms: Iterable<RoomListing>): OpenGame[] {
   return [...rooms]
-    .filter((r) => !r.locked && r.clients < r.maxClients && seatedOf(r) < 4 && r.metadata?.open === true && hostOf(r) !== "")
+    .filter((r) => !r.locked && r.clients < r.maxClients && seatedOf(r) < variantOfListing(r).maxPlayers && r.metadata?.open === true && hostOf(r) !== "")
     .sort((a, b) => time(a) - time(b))
     .map(toEntry);
 }

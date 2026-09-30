@@ -15,6 +15,8 @@ import {
   type SpeedPayload,
   type WatchRequest,
   type StartPayload,
+  VARIANT_IDS,
+  type VariantPayload,
 } from "./game-codes.js";
 
 const boardIndex = z.int().min(0).max(BOARD_CELLS_PER_SIDE - 1);
@@ -49,6 +51,10 @@ export const autoplayPayloadSchema = z.strictObject({
   on: z.boolean(),
 }) satisfies z.ZodType<AutoplayPayload>;
 
+export const variantPayloadSchema = z.strictObject({
+  variant: z.enum(VARIANT_IDS),
+}) satisfies z.ZodType<VariantPayload>;
+
 export const rematchPayloadSchema = z.strictObject({}) satisfies z.ZodType<RematchPayload>;
 
 export const startPayloadSchema = z.strictObject({}) satisfies z.ZodType<StartPayload>;
@@ -75,6 +81,7 @@ export const joinOptionsSchema = z
     pool: z.string().max(64).optional(),
     watch: z.boolean().optional(),
     botSeats: z.array(seat).max(3).optional(),
+    variant: z.enum(VARIANT_IDS).optional(),
   })
   .superRefine((o, ctx) => {
     if (o.botSeats && new Set(o.botSeats).size !== o.botSeats.length) ctx.addIssue({ code: "custom", path: ["botSeats"], message: "seats repeat" });

@@ -186,10 +186,10 @@ describe("lobby › Nickname", () => {
   });
 
   it("Too short: every join and create action is disabled and a hint says 2–16 characters", () => {
-    render(<StartScreen session={sessionOf()} wake={ready} openGames={{ status: "ready", games: [{ roomId: "a-b-c", host: "Liisa", seated: 1 }], running: [] }} />);
+    render(<StartScreen session={sessionOf()} wake={ready} openGames={{ status: "ready", games: [{ roomId: "a-b-c", host: "Liisa", seated: 1, variant: "classic", maxSeats: 4 }], running: [] }} />);
     fireEvent.change(field(), { target: { value: "M" } });
     expect(button("Luo peli").disabled).toBe(true);
-    expect(button("Liity peliin: Liisa, 1/4 pelaajaa").disabled).toBe(true);
+    expect(button("Liity peliin: Liisa, Perus, 1/4 pelaajaa").disabled).toBe(true);
     expect(screen.getByText("Nimimerkissä pitää olla 2–16 merkkiä")).toBeTruthy();
     expect(field().getAttribute("aria-invalid")).toBe("true");
   });
@@ -201,7 +201,32 @@ describe("lobby › Nickname", () => {
     for (const n of [1, 2, 3]) expect(screen.getByRole("button", { name: new RegExp(`sinä ja ${n} bott`) }).hasAttribute("disabled")).toBe(true);
     fireEvent.change(field(), { target: { value: "Maija" } });
     fireEvent.click(button("Pikapeli: sinä ja 2 bottia"));
-    expect(session.playBots).toHaveBeenCalledWith("Maija", 2);
+    expect(session.playBots).toHaveBeenCalledWith("Maija", 2, "classic");
+  });
+
+  it("start-screen › Duo against a bot: no bot count, starting opens a Duo game against one bot", () => {
+    const session = sessionOf();
+    render(<StartScreen session={session} wake={ready} />);
+    expect(screen.getByRole("radio", { name: "Perus" }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: "Duo" }));
+    expect(screen.queryByRole("button", { name: /sinä ja 2 bott/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /sinä ja 3 bott/ })).toBeNull();
+    fireEvent.change(field(), { target: { value: "Maija" } });
+    fireEvent.click(button("Pikapeli: sinä ja 1 botti"));
+    expect(session.playBots).toHaveBeenCalledExactlyOnceWith("Maija", 1, "duo");
+  });
+
+  it("start-screen › Kolmikko against two bots, and watching Tuplaväri takes two bots", () => {
+    const session = sessionOf();
+    render(<StartScreen session={session} wake={ready} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Kolmikko" }));
+    fireEvent.change(field(), { target: { value: "Maija" } });
+    fireEvent.click(button("Pikapeli: sinä ja 2 bottia"));
+    expect(session.playBots).toHaveBeenCalledExactlyOnceWith("Maija", 2, "trio");
+    fireEvent.click(screen.getByRole("radio", { name: "Tuplaväri" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Pelaan itse" }));
+    fireEvent.click(button("Katso 2 botin peliä"));
+    expect(session.watchBots).toHaveBeenCalledExactlyOnceWith("Maija", 2, 1, "double");
   });
 
   it("No waiting for the server: 1v1–1v3 and a device game's Jatka peliä stay enabled while waking", () => {
@@ -220,15 +245,21 @@ describe("lobby › Nickname", () => {
 });
 
 describe("lobby › Open games list and private game", () => {
-  const games = { status: "ready" as const, games: [{ roomId: "brave-otters-sing", host: "Liisa", seated: 2 }], running: [] };
+  const games = { status: "ready" as const, games: [{ roomId: "brave-otters-sing", host: "Liisa", seated: 2, variant: "classic" as const, maxSeats: 4 }], running: [] };
 
   it("start-screen › A waiting game: listed under Liity peliin; an entry shows the host and seats, and tapping it joins that game", () => {
     const joinById = vi.fn();
     render(<StartScreen session={sessionOf({ joinById })} wake={ready} openGames={games} />);
-    const entry = screen.getByRole("button", { name: "Liity peliin: Liisa, 2/4 pelaajaa" });
-    expect(entry.textContent).toBe("Liisa· 2/4");
+    const entry = screen.getByRole("button", { name: "Liity peliin: Liisa, Perus, 2/4 pelaajaa" });
+    expect(entry.textContent).toBe("Liisa· Perus · 2/4");
     fireEvent.click(entry);
     expect(joinById).toHaveBeenCalledExactlyOnceWith("brave-otters-sing", "Maija");
+  });
+
+  it("start-screen › A waiting Duo game shows its variant and seats of two", () => {
+    const duo = { status: "ready" as const, games: [{ roomId: "a-b-c", host: "Liisa", seated: 1, variant: "duo" as const, maxSeats: 2 }], running: [] };
+    render(<StartScreen session={sessionOf()} wake={ready} openGames={duo} />);
+    expect(screen.getByRole("button", { name: "Liity peliin: Liisa, Duo, 1/2 pelaajaa" }).textContent).toBe("Liisa· Duo · 1/2");
   });
 
   it("start-screen › Nothing to show: no games section when both lists are empty", () => {
@@ -260,10 +291,10 @@ describe("lobby › Open games list and private game", () => {
 describe("spectators › start screen", () => {
   it("Watch from the list: a running game shows host and players, and tapping it watches that game", () => {
     const watch = vi.fn();
-    const openGames = { status: "ready" as const, games: [], running: [{ roomId: "calm-foxes-jump", host: "Maija", seated: 3 }] };
+    const openGames = { status: "ready" as const, games: [], running: [{ roomId: "calm-foxes-jump", host: "Maija", seated: 3, variant: "classic" as const, maxSeats: 4 }] };
     render(<StartScreen session={sessionOf({ watch })} wake={ready} openGames={openGames} />);
     expect(screen.getByText("Käynnissä olevat pelit")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Katso peliä: Maija, 3 pelaajaa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Katso peliä: Maija, Perus, 3 pelaajaa" }));
     expect(watch).toHaveBeenCalledExactlyOnceWith("calm-foxes-jump", "Maija");
   });
 
@@ -282,7 +313,7 @@ describe("spectators › start screen", () => {
     expect(screen.queryByRole("button", { name: "Pikapeli: sinä ja 1 botti" })).toBeNull();
     expect(screen.getAllByRole("button", { name: /^Katso \d botin peliä$/ }).map((b) => b.textContent)).toEqual(["2 bottia", "3 bottia", "4 bottia"]);
     fireEvent.click(screen.getByRole("button", { name: "Katso 3 botin peliä" }));
-    expect(watchBots).toHaveBeenCalledExactlyOnceWith("Maija", 3);
+    expect(watchBots).toHaveBeenCalledExactlyOnceWith("Maija", 3, 1, "classic");
   });
 });
 

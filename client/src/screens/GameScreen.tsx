@@ -65,14 +65,16 @@ export function GameScreen({ view, session }: GameScreenProps) {
 
   const placing = usePlacement(view);
   const { position, isMyTurn, mySeat } = view;
+  // The colour the viewer places and sees in the tray (the one on turn when it is theirs).
+  const colour = view.trayColour ?? mySeat;
   const corners = useMemo(
-    () => (isMyTurn && position && mySeat !== undefined ? squaresOfBits(freeCorners(position, mySeat), position.config.size) : undefined),
-    [isMyTurn, position, mySeat],
+    () => (isMyTurn && position && colour !== undefined ? squaresOfBits(freeCorners(position, colour), position.config.size) : undefined),
+    [isMyTurn, position, colour],
   );
   const preview = placing.preview;
   const boardPreview = useMemo(
-    () => (preview && mySeat !== undefined ? { squares: new Set(preview.squares), legal: preview.legal, seat: mySeat } : undefined),
-    [preview, mySeat],
+    () => (preview && colour !== undefined ? { squares: new Set(preview.squares), legal: preview.legal, seat: colour } : undefined),
+    [preview, colour],
   );
 
   const send = async (move: Parameters<typeof place>[0] | undefined) => {
@@ -171,7 +173,9 @@ export function GameScreen({ view, session }: GameScreenProps) {
               <GameOverControls
                 onHome={leave}
                 onNewBotGame={
-                  view.botOnly && view.seats.length >= 2 ? () => watchBots(nickname(), view.seats.length, view.botSpeed as BotSpeed) : undefined
+                  view.botOnly && view.seats.length >= 2
+                    ? () => watchBots(nickname(), view.seats.length, view.botSpeed as BotSpeed, view.variant)
+                    : undefined
                 }
               />
             ) : (
@@ -207,10 +211,10 @@ export function GameScreen({ view, session }: GameScreenProps) {
               canUndo={view.undoable}
             />
           )}
-          {!view.finished && !view.spectating && mySeat !== undefined && position && (
+          {!view.finished && !view.spectating && colour !== undefined && position && (
             <PieceTray
-              seat={mySeat}
-              placed={position.placed[mySeat] ?? []}
+              seat={colour}
+              placed={position.placed[colour] ?? []}
               fitting={placing.fitting}
               chosen={chosen}
               onChoose={placing.choose}

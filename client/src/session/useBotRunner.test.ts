@@ -15,6 +15,7 @@ const botTurn = (extra: Partial<GameView> = {}) =>
   gameView({
     seats: [seatView(1, "Maija"), seatView(2, "Kettu", { isBot: true, isMe: false })],
     turnSeat: 2,
+    turnColour: 2,
     isMyTurn: false,
     turnBotPlayed: true,
     botRunnerSeat: 1,
@@ -55,6 +56,18 @@ describe("bot-seats › Bot moves are validated (client side)", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10);
     });
+    expect(request).toHaveBeenCalledExactlyOnceWith("botPlace", { seat: 2, ...MOVE });
+  });
+
+  it("Bot plays the shared colour: asks for colour 4 from the bot seat's side, sends it for the seat", async () => {
+    vi.useFakeTimers();
+    const { room, request } = fakeRoom();
+    const askBot = vi.fn<AskBot>(async () => MOVE);
+    renderHook(() => useBotRunner(room, botTurn({ variant: "trio", turnColour: 4, turnShared: true }), askBot));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
+    });
+    expect(askBot).toHaveBeenCalledWith(expect.objectContaining({ colour: 4, viewpoint: 2 }));
     expect(request).toHaveBeenCalledExactlyOnceWith("botPlace", { seat: 2, ...MOVE });
   });
 

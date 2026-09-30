@@ -180,7 +180,7 @@ describe("lobby in a room", () => {
   describe("Open games list", () => {
     it("the listing shows the host's nickname while open, and open: false and locked after the start", async () => {
       const { room, clients } = await waitingRoom(colyseus, 2);
-      await vi.waitFor(async () => expect((await listing(room.roomId))?.metadata).toEqual({ host: NAMES[0], open: true, pool: "", seated: 2, watchable: false }));
+      await vi.waitFor(async () => expect((await listing(room.roomId))?.metadata).toEqual({ host: NAMES[0], open: true, pool: "", seated: 2, watchable: false, variant: "classic" }));
       forceStartSeat(room, 1);
       await clients[0]!.request("start", {});
       await vi.waitFor(async () => {
