@@ -276,5 +276,33 @@
   },
   "undo": {
     "label": "Peru siirto"
+  },
+  "puzzle": {
+    "title": "Päivän pulma",
+    "entryBody": "Täytä päivän kuvio paloilla. Sama pulma kaikille, uusi joka aamu.",
+    "open": "Avaa pulma",
+    "entrySolved": "Ratkaistu ajassa {{time}} · putki {{streak}}",
+    "view": "Katso",
+    "intro": "Täytä kuvio kaikilla {{count}} palalla. Kulmasääntöä ei ole.",
+    "time": "Aika {{time}}",
+    "choose": "Valitse pala alta",
+    "aim": "Napauta kuviosta kohtaa – pala hakeutuu lähimpään sopivaan paikkaan",
+    "ready": "Napauta palaa uudelleen tai paina Aseta",
+    "lift": "Napauta asetettua palaa, niin se palaa käteen",
+    "clear": "Tyhjennä",
+    "OFF_SHAPE": "Pala lipsahtaa kuvion ulkopuolelle",
+    "OVERLAP": "Ruutu on jo peitetty",
+    "PIECE_USED": "Pala on jo käytetty",
+    "solvedTitle": "Kuvio kuurassa!",
+    "solvedTime": "Aikasi {{time}}",
+    "record": "Uusi ennätys!",
+    "best": "Paras {{count}} palan pulmassa: {{time}}",
+    "streak_one": "Putki: {{count}} päivä",
+    "streak_other": "Putki: {{count}} päivää",
+    "tomorrow": "Huomenna uusi kuvio jäätyy esiin.",
+    "share": "Jaa",
+    "shareText": "Palikka · Päivän pulma {{date}} · {{count}} palaa · {{time}} · putki {{streak}} ❄️",
+    "copied": "Kopioitu leikepöydälle",
+    "shareFailed": "Jakaminen ei onnistunut"
   }
 }

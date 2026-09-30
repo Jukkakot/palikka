@@ -13,6 +13,8 @@ export interface PieceTrayProps {
   chosen?: { piece: number; orientation: number };
   onChoose(piece: number): void;
   disabled?: boolean;
+  /** Only these pieces have slots (the daily puzzle's set); default all 21. */
+  pieces?: readonly number[];
 }
 
 const ALL = Array.from({ length: PIECE_COUNT }, (_, piece) => piece);
@@ -22,12 +24,12 @@ const ALL = Array.from({ length: PIECE_COUNT }, (_, piece) => piece);
  * the same place. A placed piece leaves its slot empty; on the viewer's turn the pieces that fit
  * nowhere are dimmed and cannot be chosen; the chosen one shows its current orientation.
  */
-export function PieceTray({ seat, placed, fitting, chosen, onChoose, disabled = false }: PieceTrayProps) {
+export function PieceTray({ seat, placed, fitting, chosen, onChoose, disabled = false, pieces = ALL }: PieceTrayProps) {
   const { t } = useTranslation();
   const used = new Set(placed);
   return (
     <ul className={styles.tray} aria-label={t("tray.label")}>
-      {ALL.map((piece) => {
+      {pieces.map((piece) => {
         if (used.has(piece)) return <li key={piece} className={styles.slot} data-piece={PIECE_IDS[piece]} data-placed="" />;
         const fits = fitting?.has(piece) ?? false;
         const isChosen = chosen?.piece === piece;

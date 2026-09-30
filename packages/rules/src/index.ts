@@ -16,6 +16,7 @@ export * from "./play.js";
 export * from "./scoring.js";
 export * from "./game.js";
 export * from "./bot.js";
+export * from "./puzzle.js";
 
 // Bitboard helpers for bot evaluations (`bot-greedy`).
 export { bitsToSquares, diagonalNeighbours, edgeNeighbours, emptyBits, rowMask } from "./bitboard.js";

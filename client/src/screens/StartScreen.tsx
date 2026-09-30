@@ -1,7 +1,8 @@
 import { IconDice5 } from "@tabler/icons-react";
 import { RULES_VERSION } from "@palikka/rules";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { formatTime, loadPuzzleSave, localDate, resultFor } from "../puzzle/puzzleStore.ts";
 import { isLocalToken } from "../session/localGameStore.ts";
 import { checkNickname, loadNickname, randomNickname } from "../session/nickname.ts";
 import type { ServerWake } from "../session/serverWake.ts";
@@ -34,6 +35,9 @@ export interface StartScreenProps {
   onInviteDone?(): void;
 }
 
+/** Loaded on first open, so the start screen stays small. */
+const PuzzleScreen = lazy(() => import("../puzzle/PuzzleScreen.tsx"));
+
 const NO_GAMES: OpenGames = { status: "off", games: [], running: [] };
 
 /** Quick games against bots: the player against 1, 2 or 3 bots. */
@@ -54,6 +58,27 @@ function useSecondsWaited(active: boolean): number {
     };
   }, [active]);
   return active ? seconds : 0;
+}
+
+/** "Päivän pulma" below the two ways in: needs no nickname or server; says so when today's is solved. */
+function PuzzleEntry({ onOpen }: { onOpen(): void }) {
+  const { t } = useTranslation();
+  const solved = resultFor(loadPuzzleSave(), localDate());
+  return (
+    <section className={styles.puzzle} aria-labelledby="puzzle-title">
+      <div className={styles.puzzleText}>
+        <h2 id="puzzle-title" className={styles.wayTitle}>
+          {t("puzzle.title")}
+        </h2>
+        <p className={styles.wayBody}>
+          {solved ? t("puzzle.entrySolved", { time: formatTime(solved.ms), streak: solved.streak }) : t("puzzle.entryBody")}
+        </p>
+      </div>
+      <Button variant="secondary" onClick={onOpen}>
+        {t(solved ? "puzzle.view" : "puzzle.open")}
+      </Button>
+    </section>
+  );
 }
 
 /** Seconds as m:ss. */
@@ -79,8 +104,15 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
   const [howToOpen, setHowToOpen] = useState(false);
   // "Pelaan itse": on whenever the screen opens; off offers a game of bots only to watch.
   const [playMyself, setPlayMyself] = useState(true);
+  const [puzzleOpen, setPuzzleOpen] = useState(false);
   if (settingsOpen) return <SettingsScreen onClose={() => setSettingsOpen(false)} />;
   if (howToOpen) return <HowToPlay onClose={() => setHowToOpen(false)} />;
+  if (puzzleOpen)
+    return (
+      <Suspense fallback={<Message role="status" title={t("puzzle.title")} />}>
+        <PuzzleScreen onClose={() => setPuzzleOpen(false)} />
+      </Suspense>
+    );
 
   let content;
   if (status === "connecting") {
@@ -258,6 +290,8 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
             </section>
           </div>
         )}
+
+        {!invite && <PuzzleEntry onOpen={() => setPuzzleOpen(true)} />}
 
         {!invite && (openGames.games.length > 0 || openGames.running.length > 0) && (
           <section className={styles.games} aria-labelledby="join-games">

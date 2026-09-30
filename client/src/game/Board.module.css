@@ -51,6 +51,20 @@
   outline-offset: -2px;
 }
 
+/* A shaped board (daily puzzle): no frame; squares outside the shape are bare ground. */
+.shaped {
+  background: transparent;
+}
+
+/* The shape's empty squares stand out from the ground with the board's frame colour as an outline. */
+.shaped .cell:not(.outside) {
+  box-shadow: inset 0 0 0 2px var(--board);
+}
+
+.outside {
+  background: transparent;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

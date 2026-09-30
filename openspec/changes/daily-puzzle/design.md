@@ -145,3 +145,10 @@ bundle within the size limit.
   the weekday ladder adds pieces. Tuning later changes `PUZZLE_VERSION`.
 - Merge with `variants`: Board, PieceTray, StartScreen, i18n files, protocol log events and the
   rules index are touched by both; the edits here are additive, conflicts are resolved at merge.
+
+## Decisions made during implementation
+
+- The start-screen entry's button is always secondary ("Avaa pulma" / "Katso"), so the two ways in
+  keep the primary weight (UI check).
+- The shape's empty squares get an inset outline in the board's frame colour; squares outside the
+  shape are bare ground. Without the outline the shape vanished into the light ground (UI check).

@@ -28,6 +28,8 @@ export interface BoardProps {
   announce?: string;
   /** A command is on its way: input does nothing. */
   busy?: boolean;
+  /** Squares that are not part of the board (the daily puzzle's shape): drawn as bare ground. */
+  outside?: ReadonlySet<number>;
 }
 
 const ARROWS: Record<string, readonly [number, number]> = {
@@ -50,7 +52,7 @@ function squareOf(target: EventTarget | null): number | undefined {
  * keys and Enter, and shows the chosen piece as a preview: in the seat colour when legal, dashed in
  * the warning colour when not. Free corners of the viewer's colour carry a dot.
  */
-export function Board({ board, corners, preview, onPoint, onSquare, onMove, onConfirm, announce, busy = false }: BoardProps) {
+export function Board({ board, corners, preview, onPoint, onSquare, onMove, onConfirm, announce, busy = false, outside }: BoardProps) {
   const { t } = useTranslation();
   const size = Math.round(Math.sqrt(board.length));
   const placing = onSquare !== undefined && !busy;
@@ -75,7 +77,7 @@ export function Board({ board, corners, preview, onPoint, onSquare, onMove, onCo
   return (
     <div className={styles.frame}>
       <div
-        className={[styles.board, placing && styles.placing].filter(Boolean).join(" ")}
+        className={[styles.board, placing && styles.placing, outside && styles.shaped].filter(Boolean).join(" ")}
         style={{ gridTemplateColumns: `repeat(${size}, 1fr)`, gridTemplateRows: `repeat(${size}, 1fr)` }}
         role="grid"
         aria-label={t("board.label")}
@@ -98,6 +100,7 @@ export function Board({ board, corners, preview, onPoint, onSquare, onMove, onCo
             styles.cell,
             corners?.has(i) && owner === 0 && styles.corner,
             inPreview && (preview!.legal ? styles.previewOk : styles.previewBad),
+            outside?.has(i) && styles.outside,
           ]
             .filter(Boolean)
             .join(" ");

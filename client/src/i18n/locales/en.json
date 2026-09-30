@@ -276,5 +276,33 @@
   },
   "undo": {
     "label": "Undo move"
+  },
+  "puzzle": {
+    "title": "Daily puzzle",
+    "entryBody": "Fill today's shape with pieces. The same puzzle for everyone, a new one every morning.",
+    "open": "Open the puzzle",
+    "entrySolved": "Solved in {{time}} · streak {{streak}}",
+    "view": "View",
+    "intro": "Fill the shape with all {{count}} pieces. No corner rule here.",
+    "time": "Time {{time}}",
+    "choose": "Pick a piece below",
+    "aim": "Tap a spot in the shape – the piece slides to the nearest place it fits",
+    "ready": "Tap the piece again or press Place",
+    "lift": "Tap a placed piece to pick it back up",
+    "clear": "Clear",
+    "OFF_SHAPE": "The piece slips outside the shape",
+    "OVERLAP": "That square is already covered",
+    "PIECE_USED": "That piece is already used",
+    "solvedTitle": "Frosted over!",
+    "solvedTime": "Your time {{time}}",
+    "record": "New record!",
+    "best": "Best {{count}}-piece puzzle: {{time}}",
+    "streak_one": "Streak: {{count}} day",
+    "streak_other": "Streak: {{count}} days",
+    "tomorrow": "Tomorrow a new shape freezes into view.",
+    "share": "Share",
+    "shareText": "Palikka · Daily puzzle {{date}} · {{count}} pieces · {{time}} · streak {{streak}} ❄️",
+    "copied": "Copied to the clipboard",
+    "shareFailed": "Sharing did not work"
   }
 }

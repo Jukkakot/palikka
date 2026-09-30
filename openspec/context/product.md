@@ -36,7 +36,9 @@ corner-touching game. Never use the original's trademarked name, logos or look (
   depends on the host's device (accepted).
 - **Spectators:** running online games can be watched.
 - **Daily puzzle ("Päivän pulma"):** a given shape to fill with pieces; the same for everyone on a
-  day; score and personal best on the device (roadmap `daily-puzzle`).
+  day; score and personal best on the device. Built (`daily-puzzle`, spec `daily-puzzle`): the
+  shape is filled with a given set of 5 pieces (Monday) up to 8 (Sunday) with no corner rule, and
+  the score is the solving time plus a streak of days solved.
 
 ## Start screen and lobby
 

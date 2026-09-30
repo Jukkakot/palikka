@@ -1,0 +1,98 @@
+/* Like the game screen: stacked on a phone, board beside the rest on a wide landscape screen. */
+.layout {
+  width: min(100%, 60dvh, 640px);
+  display: grid;
+  grid-template-areas:
+    "head"
+    "board"
+    "side";
+  gap: var(--space-3);
+  justify-items: center;
+}
+
+.head {
+  grid-area: head;
+  width: 100%;
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-l);
+}
+
+.intro {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+}
+
+.board {
+  grid-area: board;
+  width: 100%;
+}
+
+.side {
+  grid-area: side;
+  width: 100%;
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-l);
+  font-weight: 600;
+  padding: 0 var(--space-2);
+}
+
+.solved {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  text-align: center;
+}
+
+.solved p {
+  margin: 0;
+}
+
+.solvedTitle {
+  margin: 0;
+  font-size: var(--text-l);
+}
+
+.solvedTime {
+  font-size: var(--text-l);
+  font-variant-numeric: tabular-nums;
+}
+
+.record {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--muted);
+  min-height: 1.5em;
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .layout {
+    width: 100%;
+    max-width: 1100px;
+    grid-template-columns: min(calc(100dvh - 96px), 640px) minmax(320px, 420px);
+    grid-template-areas:
+      "board head"
+      "board side";
+    grid-template-rows: auto 1fr;
+    justify-content: center;
+    align-items: start;
+    column-gap: var(--space-6);
+  }
+}

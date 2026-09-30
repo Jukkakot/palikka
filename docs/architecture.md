@@ -6,7 +6,7 @@ only points to them. Status markers: **Implemented** = on `main`; **Planned (`ch
 delivered by that roadmap change.
 
 > Server and device games run the **real rules** (`packages/rules`) with the piece tray and the
-> placement preview (`basic-ui`); the daily puzzle is out until `daily-puzzle`.
+> placement preview (`basic-ui`); the daily puzzle runs on the device only (`daily-puzzle`).
 
 ## Overview — Implemented
 
@@ -141,7 +141,10 @@ object, `checkPlacement` with one refusal code), `moves` (`Placement` ↔ intege
 (`applyMove`, `pass`, `resign`, `abort`; automatic passing), `scoring` (`scores`, `winners`),
 `game` (the match layer: seats, leaving, winners among those who stayed; the room's and
 `LocalRoom`'s one engine), `bot` (`simpleBotMove`: largest piece first, seeded; the server's
-fallback), `turns` (kick rule, clock limits), `rng` (seeded `xoroshiro128plus`).
+fallback), `turns` (kick rule, clock limits), `rng` (seeded `xoroshiro128plus`), `puzzle` (the daily
+puzzle: `dailyPuzzle(date)` packs the day's pieces into a compact, hole-free shape from a date seed,
+so it is solvable by construction; `puzzleFits`, `puzzleSolved`; `PUZZLE_VERSION` is part of the
+seed and changes every day's puzzle when bumped).
 `@palikka/rules/testing` has `referenceMoves` (naive generator), `randomGame`, `placement` and
 `positionWith`. Property tests (fast-check) check the fast generator against the reference along
 random games.
@@ -224,6 +227,7 @@ client/src/
   tips/         first-game tips (pure pick + localStorage) and the start screen's reset link
   settings/     device settings store, settings screen, theme, generated sounds, turn alert
   howto/        the rules screen ("Näin pelaat")
+  puzzle/       the daily puzzle: screen, state hook, fit-rule placing, device store
   ui/           tokens.css (theme "Kuura", light + dark) and shared components
   logging/ i18n/ config.ts CrashBoundary.tsx
 ```
@@ -262,8 +266,14 @@ client/src/
 - **Start screen:** two equal ways in: "Pelaa botteja vastaan" (1–3 bots or 2–4 to watch, on the
   device) and "Luo peli kavereille" (`create`: always a new online game, waits for the wake-up);
   the open and running games of the pool show under "Liity peliin" only when there are any.
-- **Daily puzzle:** removed with the placeholder game. **Planned (`daily-puzzle`):** the real
-  puzzle (fill a shape with pieces).
+- **Daily puzzle ("Päivän pulma"):** `puzzle/`, device only, no server. The start screen's
+  secondary entry opens `PuzzleScreen` (lazy-loaded chunk). The puzzle of the device's local date
+  comes from the rules' `dailyPuzzle`. Placing reuses `Board` (with `outside` squares), `PieceTray`
+  (only the puzzle's `pieces`) and the reference-square aiming of `placing.ts` under the puzzle's
+  fit rule (`puzzlePlacing.ts`). A tap on a placed piece lifts it. `usePuzzle` holds the state and
+  a clock that runs only while the screen is open and visible. `puzzleStore.ts` keeps today's
+  progress, today's result and the records (streaks, best time per piece count) in localStorage
+  (`palikka.puzzle`). A solve ships `client.puzzle.solved`.
 - **PWA:** `vite-plugin-pwa` (auto-update service worker, off in `vite dev`); icons generated from
   `public/favicon.svg`.
 - **Early wake-up:** the start screen fetches `/health` once per load so a sleeping server wakes

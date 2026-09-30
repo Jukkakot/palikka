@@ -248,3 +248,23 @@
   font-size: var(--text-s);
   color: var(--muted);
 }
+
+/* "Päivän pulma": a secondary entry below the two ways in, text beside its button. */
+.puzzle {
+  width: min(100%, 44rem);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-m);
+  text-align: left;
+}
+
+.puzzleText {
+  display: grid;
+  gap: var(--space-1);
+  flex: 1 1 14rem;
+}
