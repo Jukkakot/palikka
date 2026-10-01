@@ -18,7 +18,7 @@ Palikka is a browser game in the spirit of the classic corner-touching polyomino
 | What has been decided but not built yet? | [`openspec/context/`](../openspec/context/): [product](../openspec/context/product.md), [nfr](../openspec/context/nfr.md), [roadmap](../openspec/context/roadmap.md) |
 | What is being worked on now? | [`openspec/changes/`](../openspec/changes/) (active changes) |
 | Why was something done this way? | [`openspec/changes/archive/`](../openspec/changes/archive/): proposal and design of every finished change |
-| Which files are generic and could move to a shared template repo? | [template.md](template.md) |
+| How do generic improvements reach the game template (new games)? | [template.md](template.md) |
 
 ## Sources of truth
 

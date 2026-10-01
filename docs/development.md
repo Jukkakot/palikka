@@ -68,6 +68,9 @@ The `@game-kit/*` packages live in [`Jukkakot/game-kit`](https://github.com/Jukk
 - `kit:use` swaps `node_modules/@game-kit` under a running `npm run dev`: restart it afterwards.
 - A kit change that breaks the contract is fixed in Palikka in the same piece of work. Kit changes
   are specced in Palikka's OpenSpec for now.
+- **New games:** the kit's `npm run create-game -- <name> --port <port>` makes a new game project
+  from its `template/` (README → Start a new game). A generic improvement made here goes to the
+  template too ([template.md](template.md)).
 
 ## Testing approach
 

@@ -173,3 +173,20 @@ files. Existing games are never re-generated.
 
 Kit: add `template/` and `create-game`, CI job, README and CLAUDE.md sections; push; CI green.
 Palikka: wiki and roadmap. Rollback: revert the kit commits; nothing else depends on them yet.
+
+## Implementation notes (decisions made while building)
+
+- Ristinolla's first turn is drawn from the game's seed (exercises `rng.ts`); the generic specs say
+  "who starts follows the rules" instead of Palikka's "seat 1 moves first".
+- `create-game` also replaces the preview port (client + 1) and runs the leftover check itself, so a
+  bad template fails at generation, not only in CI. Kit helpers live in `tools/template-names.mjs`.
+- `template:check` lints the generated game with plain `npx oxlint` (D6: `tools/kit/check.mjs`
+  refuses the local kit on purpose).
+- The placeholder move: first tap chooses a cell, a second tap or "Merkitse" confirms; "Vihje"
+  chooses the search bot's cell. Marks are ✕/◯ in the seat colour, so the board does not rely on
+  colour alone.
+- Strength requirement: "search beats random ≥ 80 % over 100 games" (measured 91.5 %; depth budgets
+  make it deterministic). Search vs greedy is only 58 % in tic-tac-toe (mostly draws), too thin.
+- The neutral theme: paper/graphite surfaces, indigo accent, seat colours indigo, coral, teal, amber,
+  with a designed dark variant; token names kept so the copied components work unchanged.
+- The template's docs link to `openspec/changes/` only as plain text: a new game has no such folder.

@@ -4,7 +4,7 @@
 
 The project wiki is [docs/README.md](../docs/README.md): architecture, operations (environments,
 deploy, logs, bug runbook), development (run, test, debug, conventions), and
-[docs/template.md](../docs/template.md) (generic files shared with Labyrinth). Start any planning
+[docs/template.md](../docs/template.md) (the game template and how improvements reach it). Start any planning
 or investigation there, then verify against the code. Keep it current: every change updates the
 wiki pages it affects (enforced by `openspec/config.yaml` rules and archive guidance).
 
