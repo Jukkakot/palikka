@@ -25,6 +25,9 @@ delivered by that roadmap change.
                               shared contract: codes, schemas, log events
 ```
 
+- **Game kit:** the generic room, lobby, bot runner, session and device-game logic live in the
+  `packages/kit-*` workspaces (`@game-kit/*`), driven by the [game contract](#game-contract--implemented);
+  Palikka implements the contract. The kit moves to its own repository in `game-kit`.
 - **Monorepo**, npm workspaces, TypeScript everywhere. Hosting: client on GitHub Pages, server on
   Render ([operations.md](operations.md)).
 - **No database.** Server games live in memory and are lost on restart, deploy or sleep.
@@ -38,12 +41,19 @@ delivered by that roadmap change.
 
 | Workspace | Responsibility | Must not |
 |---|---|---|
-| `packages/rules` | Game rules as pure functions on plain data. Randomness only from an injected seed. | Depend on React, Colyseus or any I/O. |
-| `packages/protocol` | What client and server agree on: command codes, payload and join-option schemas, close codes, log event catalogue. zod schemas sit in `*-schema.ts` modules; rules the client needs are plain functions, so the client bundle has no zod. | Contain game logic. |
+| `packages/kit-protocol` (`@game-kit/protocol`) | The game contract (`GameRules`), generic codes, payloads, join options and their schemas, close codes, turn rules (clock, hold, kick), client log events; the Connect Four test game in `@game-kit/protocol/testing`. | Import a Palikka package or a file outside itself. |
+| `packages/kit-server` (`@game-kit/server`) | `LoggedRoom`, the command wrapper, room ids, server logging, the watch route, `LobbyState` and `KitGameRoom` (seats, host, bots, runner and fallback, clock, kick, autoplay, spectators, rematch, options). | Same; know any game's rules or synced data. |
+| `packages/kit-client` (`@game-kit/client`) | `useKitSession`, the connector, `LocalRoom` (device games, undo, the versioned save), `toLobbyView`, the bot runner, the stores, server wake-up, the open-games list, client logging; configured by the game (`configureKit`). | Same; pull zod or Colyseus schema into the bundle. |
+| `packages/rules` | Game rules as pure functions on plain data. Randomness only from an injected seed. `palikkaRules` (`contract.ts`) is the contract's rules part over the match layer. | Depend on React, Colyseus or any I/O. |
+| `packages/protocol` | Palikka's part of the wire, re-exporting the kit's: placement codes, board constants, the move and options schemas, the event catalogues under their old names. zod schemas sit in `*-schema.ts` modules; rules the client needs are plain functions, so the client bundle has no zod. | Contain game logic. |
 | `packages/bots` (`game-bots`) | Game-independent bot brains: a game interface, budgets, players (greedy, best-reply search, MCTS), the Web Worker harness (`game-bots/worker`), and the tournament core (schedule, pairwise results, Elo, report). | Know any game; carry Palikka names. |
 | `packages/palikka-bots` (`@palikka/bots`) | Palikka's adapter to `game-bots`, its evaluation, the worker entry point `chooseMove`, the tournament bot registry and formats; Node-only tournament CLI in `cli/`. | Do I/O or hold state in `src/` (the client bundles it); Node code stays in `cli/`. |
-| `server` | Rooms, matchmaking, command validation (via rules), state sync, bot runner and fallback. Source of truth. | Trust the client; compute bots (beyond the fallback). |
-| `client` | Rendering, input, games on the device, i18n, settings. | Hold authoritative state of server games. |
+| `server` | Palikka's room (its server definition on `KitGameRoom`), the app and its HTTP routes. Source of truth. | Trust the client; compute bots (beyond the fallback). |
+| `client` | Rendering, input, Palikka's view model and client definition, i18n, settings. | Hold authoritative state of server games. |
+
+The kit's boundary is enforced: `.oxlintrc.json` forbids `@palikka/*`, `game-bots` and relative
+paths three or more levels up in `packages/kit-*`, and `packages/kit-protocol/test/boundary.test.ts`
+checks that every relative import of a kit package stays inside it.
 
 **No build step between packages:** the `packages/*` workspaces export a `source` condition pointing at
 `src/index.ts`; Vite, Vitest and `tsx` resolve it. The server production build uses `dist/`.
@@ -53,7 +63,8 @@ delivered by that roadmap change.
 - Entry `server/src/index.ts` (port `PORT`, default 2577); rooms and routes in `app.config.ts`.
 - Every room extends `LoggedRoom`: readable room id (`brave-otters-sing`, also the `room` field of
   every log line), lifecycle logging, `this.command()` for commands, `holdSeat()` for drops.
-- Rooms: `game` → `GameRoom` (one game; `filterBy(["pool"])`, realtime listing on) and `lobby` →
+- Rooms: `game` → `GameRoom` (Palikka's `palikkaServer` definition on the kit's `KitGameRoom`;
+  `filterBy(["pool"])`, realtime listing on) and `lobby` →
   Colyseus' built-in `LobbyRoom` (pushes the game listing to start screens).
 - HTTP: `POST /watch` (a seat reservation for a spectator), `GET /health` (`{ status,
   rulesVersion, version, builtAt }`; Render's health check and the client's wake-up request),
@@ -71,10 +82,15 @@ delivered by that roadmap change.
   facts (phase, turn, host …) come from `commandStateFacts()`.
 - Handlers take an `Actor { sessionId, bot? }`. A bot calls the same wrapped handler, so its
   commands get the same checks and audit line, marked `bot: true`.
-- **Adding a command:** (1) codes/types in `protocol/src/game-codes.ts`, payload schema in
-  `game-schema.ts`; (2) `GameRoom.messages` entry: phase and turn checks, then the rules engine,
-  then write state; (3) a `useGameSession` method and `errors.<CODE>` strings in fi/en; (4) the
-  same command in `LocalRoom` when games on the device need it.
+- **Adding a kit command** (every game has it): (1) payload type in `kit-protocol/src/codes.ts`,
+  schema in `schema.ts`, error codes in `KIT_ERROR_CODES`; (2) a `KitGameRoom.kitMessages()` entry;
+  (3) a `useKitSession` method; (4) the command in `LocalRoom` if device games need it; tests over
+  Connect Four in the kit; `errors.<CODE>` strings in each game.
+- **Adding a game command** (Palikka only): (1) codes in `protocol/src/game-codes.ts`, schema in
+  `game-schema.ts`; (2) `GameRoom` adds it to `messages` (spread `kitMessages()`), using the
+  protected helpers (`requireSeated`, `requireHostInWaitingRoom`, `options()`, `game()`); (3) a
+  method in Palikka's `useGameSession` over `command(name, payload)`; (4) `errors.<CODE>` in fi/en.
+  The move and the options need no command of their own: they ride on `move` / `setOptions`.
 
 ## Game flow — Implemented
 
@@ -83,27 +99,28 @@ delivered by that roadmap change.
  (nickname)     host = 1st joiner   └─ 120 s turn clock ─┘  end: no colour can move, or last player standing
 ```
 
-- **Joining:** join options `{ nickname, pool?, watch?, botSeats?, variant? }` (strict) are
+- **Joining:** join options `{ nickname, pool?, watch?, botSeats?, options? }` (strict; Palikka's
+  `options` are `{ variant }`) are
   validated in `onCreate` and `onAuth`; refusals are a `ServerError` whose message is the code
-  (`INVALID_NICKNAME`, `INVALID_OPTIONS`, `SERVER_FULL`). `variant` is only set by a rematch (a new
+  (`INVALID_NICKNAME`, `INVALID_OPTIONS`, `SERVER_FULL`). `options` are only set by a rematch (a new
   room is Perus). Seats: lowest free 1 up to the variant's player count (Perus 4, Duo and Tuplaväri
   2, Kolmikko 3), taken only in the waiting room; in Perus the seat is also the player's colour.
   `MAX_OPEN_GAMES` caps the rooms.
 - **Waiting room:** the first joiner hosts. A guest leaving frees the seat; the host leaving closes
   the room (`HOST_LEFT` 4101). Every room is public; friends come in by the invite link. Metadata
-  `{ host, open, pool, seated, watchable, variant }` feeds the start screen lists.
-- **Variant:** the host's `setVariant { variant }` in the waiting room (`NOT_HOST`, `WRONG_PHASE`;
-  `TOO_MANY_PLAYERS` when more people, or a person in a higher seat, than the variant takes). It
-  removes bots on seats above the variant's count (`bot.removed` with `reason: "variant"`), resizes
-  `cells` to the variant's board, sets `maxClients` to the variant's seats minus bots and the
-  listing's `variant`, and logs `variant.changed`. `start` needs the variant's minimum
+  `{ host, open, pool, seated, watchable, options }` feeds the start screen lists.
+- **Variant:** the host's generic `setOptions { options: { variant } }` in the waiting room
+  (`NOT_HOST`, `WRONG_PHASE`; `TOO_MANY_PLAYERS` when more people, or a person in a higher seat,
+  than the options' seat range takes). The kit removes bots on seats above the range (`bot.removed`
+  with `reason: "options"`), resets the game child (Palikka resizes `cells` to the variant's
+  board), sets `maxClients` and the listing's `options`, and logs `options.changed { from, to }`. `start` needs the variant's minimum
   (`NOT_ENOUGH_PLAYERS`; Kolmikko 3). A rematch keeps the variant.
-- **Game engine:** the room holds the game as the rules' match layer `Game`
+- **Game engine:** the kit room calls the rules only through the contract (`palikkaRules`); it holds the game as the rules' match layer `Game`
   (`packages/rules/src/game.ts`: variant, seats, colour → seat `control`, seats that left, the
   engine's `Position`, winners as seats; the same as the device's games) and every rule goes
   through it: `startGame(seed, seats, variant)` (colour 1, in Perus the lowest seat's, first),
   `seatOnTurn` (the seat that plays the colour on turn; the shared colour rotates), `playMove`
-  (`place { piece, orientation, row, col }` for the colour on turn by its seat; refusals
+  (`move { move: { piece, orientation, row, col } }` for the colour on turn by its seat; refusals
   `NOT_YOUR_TURN`, `PIECE_USED`, `OFF_BOARD`,
   `OVERLAP`, `EDGE_CONTACT`, `NOT_ON_START`, `NO_CORNER_CONTACT` …), `removeSeat`, `endGame`.
   Stuck colours are passed by the engine. The synced schema mirrors the engine after each change;
@@ -113,16 +130,17 @@ delivered by that roadmap change.
 - **Removal** (left, kicked, or a 5-minute drop hold ran out) is the single way out; the leaver's
   squares stay and all its colours are out and cannot win; the last player standing wins, or the
   turn passes (also when the leaver was to play the shared colour: the next staying seat does).
-- **Logs:** `game.started` and `phase.changed` to `play` carry `variant`; `turn.changed` carries
-  the seat (`to`) and `colour`; `bot.fallback` carries `colour`.
+- **Logs:** `game.started` and `phase.changed` to `play` carry the options (`variant`); the turn
+  facts (`colour`) come from `turnFacts`, `turn.changed` adds `out` (`turnLogFacts`), `game.finished`
+  adds `scores` (`finishFacts`), a refused move's audit line `move` (`moveText`).
 - **Bots:** the host's `addBot` / `removeBot { seat }` in the waiting room; a bot is a `Player`
   with `bot = true`, keyed `bot:<seat>`, named Kettu, Ilves, Pöllö, Näätä. The **bot runner**
   (`botRunnerSeat`: the host while connected, else the lowest connected person, else 0; logged as
   `bot.runner`) computes the moves of bot-played seats (bots and auto-played people) and sends
-  `botPlace { seat, … }` after the 1 s pause (divided by `botSpeed`); the server accepts it only
+  `botMove { seat, move }` after the 1 s pause (divided by `botSpeed`); the server accepts it only
   from the runner (`NOT_BOT_RUNNER`), for a bot-played seat (`NOT_BOT_SEAT`) that plays the colour
   on turn (`NOT_YOUR_TURN`), legal; the move is placed in the colour on turn. **Fallback:** with no runner after the pause, or with a silent runner 10 s after it, the room
-  plays the rules' `simpleBotMove` for the colour on turn itself through `place` (audit `bot: true`, `bot.fallback`
+  plays the rules' `fallbackMove` (Palikka: `simpleBotMove` for the colour on turn) itself through `move` (audit `bot: true`, `bot.fallback`
   with `reason` `noRunner` / `runnerSilent`).
 - **Autoplay:** `setAutoplay { on }` hands a person's seat to the bot; a dropped player is
   auto-played during the seat hold; a reconnect ends only a drop's autoplay.
@@ -132,15 +150,30 @@ delivered by that roadmap change.
 - **Rematch:** `rematch` (seated, finished) creates one new room with the same pool, variant and bots; its id
   is synced as `rematchRoomId` and clients `joinById` it.
 
+## Game contract — Implemented
+
+- **Rules part** (`GameRules<G, M, O>` in `@game-kit/protocol`, pure, shared by server and device
+  games): `seatRange`, `start`, `seatOnTurn`, `turnFacts`, `play`, `removeSeat`, `isOver`,
+  `winners`, `end`, `fallbackMove`, `finishFacts`, `moveText`. Palikka: `palikkaRules`.
+- **Server part** (`GameServerDefinition` in `@game-kit/server`): the move and options schemas,
+  default options, the synced child schema with `reset(options, child)` / `sync(game, child)`, and
+  optional `optionsChange`, `turnLogFacts`, `stateFacts`. Palikka: `palikkaServer` in `GameRoom.ts`.
+- **Client part** (`GameClientDefinition` in `@game-kit/client`): `toView(state, lobby)`,
+  `askBot(view, speed, seed)` for the online runner, and `local` for device games (save key and
+  check, seats, `parseMove`, `askBot(game, speed)`, `child`, `turn`, `logFacts`). Palikka:
+  `client/src/session/palikkaClient.ts`.
+- The kit's own test game is a minimal Connect Four (`@game-kit/protocol/testing`, 2–4 seats);
+  every kit suite runs over it.
+
 ## State sync — Implemented
 
-- Synced (`server/src/rooms/schema/GameState.ts`): `variant`, players (seat, nickname, `bot`,
-  `autoplay`, connected), `cells` (owner colour per square, row-major, board size², Duo 14×14),
-  `colours` (per colour: `seat` that plays it, 0 = shared; placed `pieces` in order, `out`, `left`),
-  `phase`, `turnSeat` (the seat that plays the turn), `turnColour` (the colour on turn), `turn`
-  (turns started), `hostSeat`,
-  `winners`, `turnDeadline`, `turnExpired`, `botRunnerSeat`, `spectators`, `botSpeed`,
-  `rematchRoomId`. No hidden information: everything a player may know is public.
+- Synced: the kit's `LobbyState` (`packages/kit-server/src/rooms/LobbyState.ts`): players (seat,
+  nickname, `bot`, `autoplay`, connected), `phase`, `turnSeat` (the seat that plays the turn),
+  `turn` (turns started), `hostSeat`, `winners`, `turnDeadline`, `turnExpired`, `botRunnerSeat`,
+  `spectators`, `botSpeed`, `rematchRoomId`, and `game`, Palikka's child
+  (`server/src/rooms/schema/GameState.ts`): `variant`, `cells` (owner colour per square, row-major,
+  board size², Duo 14×14), `colours` (per colour: `seat` that plays it, 0 = shared; placed `pieces`
+  in order, `out`, `left`), `turnColour` (the colour on turn). No hidden information: everything a player may know is public.
 - The client rebuilds the engine's `Position` from it (`GameView.position`: the variant's board,
   sides from the colours' seats), so the placement preview, the hint and the bot runner use the
   same rules as the server.
@@ -237,7 +270,7 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
   answers in the page where no worker can run. Budget 800 ms (divided by the watching speed). The
   bot is asked as soon as its turn begins and thinks during the 1 s pause: its move lands when the
   pause is over and the answer is there, whichever is later. That holds in `LocalRoom` and in the
-  online bot runner (`session/useBotRunner.ts`, which sends the move as `botPlace`). Both ask for
+  online bot runner (the kit's `useBotRunner`, which sends the move as `botMove`). Both ask for
   the colour on turn, with the seat's own colour as `viewpoint` for the shared colour. The hint uses
   `topMoves` (`rankMoves` over `evaluate`, top 3, seeded by the turn, UI thread, computed once per
   turn on the first press; about 5–30 ms on a desktop), with the viewer's colour as viewpoint on a
@@ -249,9 +282,10 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
 client/src/
   App.tsx       StartScreen → WaitingRoomScreen (phase waiting) → GameScreen
   screens/      the three screens
-  session/      useGameSession (join, rejoin, commands, local-first leave), viewModel
-                (state → GameView), LocalRoom (games on the device), useBotRunner, stores,
-                serverWake, nickname
+  kit.ts        configureKit: storage prefix "palikka", server URL, version, key log events
+  session/      useGameSession (the kit's useKitSession + place/setVariant), viewModel
+                (toView: state.game + lobby view → GameView), palikkaClient (the client
+                definition: bot asks, device-game seats, save check, listing reader), devShortcut
   bots/         the bot worker and its client
   game/         board, piece tray, placement model (placing, usePlacement), turn line, player
                 strip, result table, controls (place/undo/kick/leave/autoplay/spectate)
@@ -265,7 +299,8 @@ client/src/
   logging/ i18n/ config.ts CrashBoundary.tsx
 ```
 
-- **Server state is the truth.** `toGameView()` turns synced state into an immutable `GameView`;
+- **Server state is the truth.** The kit's `toLobbyView()` and Palikka's `toView()` turn synced
+  state into an immutable `GameView` (`LobbyView<SeatView> & PalikkaView`; `toGameView()` does both);
   components render it. Variants: `variant`, `boardSize`, `maxSeats`, `turnColour`, `turnShared`,
   per seat `colours` (scores summed), `myColours`, and `trayColour` (the colour on turn when the
   viewer plays it, else their own next colour in turn order that is not out); the tray, the
@@ -278,15 +313,16 @@ client/src/
   player's unfinished game is remembered in localStorage, so a newly opened app offers "Jatka
   peliä". `leave()` is local-first. Close codes 4100/4101 and join failures become start-screen
   notices.
-- **Local play:** a game against bots is a `LocalRoom` implementing the same `GameRoomLike` as a
+- **Local play:** a game against bots is the kit's `LocalRoom` with Palikka's definition, implementing the same `GameRoomLike` as a
   Colyseus room over the rules' match layer: same synced-state shape, same `CommandResult`s, bots
   from the worker, which thinks during the server's pause (a refused or missing answer falls back to
   `simpleBotMove`), no turn clock. `undo` ("Peru") restores the game before the player's last own
-  move (any colour the player played, the shared colour too; history of games, stale bot answers
-  dropped). Any variant: Perus takes 1–3 bots (2–4 to watch), the others their own count
+  move (any colour the player played, the shared colour too; history of `{ seat, game }`, stale bot
+  answers dropped). Any variant: Perus takes 1–3 bots (2–4 to watch), the others their own count
   (`botCount`); the bot on turn is the seat that plays the colour on turn. Ids `local-…` / tokens
   `local:…` route to the device; the variant lives in the saved `Game`. Saved in localStorage
-  (`palikka.localGame`) after every step; a save of an older format (before the variants: no
+  (`palikka.localGame`, the kit's envelope version 2 with seats and options) after every step; a
+  save without that version (before the kit) or of an older game format (before the variants: no
   `variant`, `control` or `sides`) is dropped. Watched bot games (`local-watch-…`) are never saved.
 - **Piece controls:** the viewer's 21 pieces sit in the tray (`PieceTray`; placed = empty slot,
   pieces that fit nowhere frozen on and off turn, from the rules' `fittingPieces` via

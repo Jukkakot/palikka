@@ -1,9 +1,10 @@
 # Generic parts (template candidates)
 
-Palikka was bootstrapped from Labyrinth (`Jukkakot/labyrinth@726698c`). The files below are
-game-independent and could later move to a shared template repository or packages. Nothing is
-extracted yet; keep these free of Palikka-specific names where it costs nothing, and add new
-generic files here.
+Palikka was bootstrapped from Labyrinth (`Jukkakot/labyrinth@726698c`). The generic room,
+session and device-game logic is now in the game kit (`packages/kit-protocol`, `kit-server`,
+`kit-client`, see [architecture.md](architecture.md#game-contract--implemented)); `game-kit` moves
+it to its own repository. The files below are the remaining copy candidates; keep them free of
+Palikka-specific names where it costs nothing, and add new generic files here.
 
 "As is" = copied unchanged apart from the project name. "Adapted" = copied, then changed in
 Palikka-specific places (listed).
@@ -27,24 +28,24 @@ Palikka-specific places (listed).
 
 | Path | Status | Notes |
 |---|---|---|
-| `src/index.ts`, `app.config.ts`, `buildInfo.ts`, `cors.ts`, `watch.ts` | as is | port default, room registration |
-| `src/logging/*` (pino + Axiom, client log intake, HTTP audit, framework logger, process handlers) | as is | event catalogue in `events.ts` |
-| `src/rooms/LoggedRoom.ts`, `command.ts`, `roomId.ts` | as is | the room base, command wrapper and audit, readable room ids |
-| `src/rooms/GameRoom.ts` | adapted | lobby/seats/host/bots/autoplay/kick/spectators/rematch are generic; the game engine calls (`startGame`, `applyPlace`, the bot turn) and the synced board are game-specific |
-| `test/support/*`, `test/{lifecycle,lobby,rematch,spectators,errors,cors,logger,httpAudit,clientLogs,buildInfo,command}.test.ts` | as is | generic room and infra tests |
+| `src/index.ts`, `app.config.ts`, `buildInfo.ts`, `cors.ts` | as is | port default, room registration |
+| `src/rooms/GameRoom.ts`, `schema/GameState.ts` | game-specific | the game's server definition and synced child on the kit's room |
+| `test/support/*`, `test/{errors,cors,httpAudit,clientLogs,buildInfo}.test.ts` | as is | infra tests; the room suites run in `packages/kit-server/test` |
+| In the kit now | — | `LoggedRoom`, `command.ts`, `roomId.ts`, `logging/*`, `watch.ts`, the generic room (`@game-kit/server`) |
 
 ## Protocol (`packages/protocol/`)
 
 | Path | Status | Notes |
 |---|---|---|
-| `log-events.ts`, `log-schema.ts`, `command.ts` | as is | |
-| `game-codes.ts`, `game-schema.ts` | adapted | join options, nickname rule, close codes, lobby/bot/kick/speed/rematch payloads are generic; `PlacePayload`, `BOARD_CELLS_PER_SIDE`, `CELL_TAKEN`, `TURN_PHASES` are game-specific |
+| `log-events.ts`, `log-schema.ts`, `game-codes.ts`, `game-schema.ts` | game-specific | re-export `@game-kit/protocol` and add the game's codes, move and options schemas and client events |
 
 ## Rules (`packages/rules/`)
 
 | Path | Status | Notes |
 |---|---|---|
-| `rng.ts`, `turns.ts` | as is | seeded rng, next seat, kick rule, clock limits |
+| `rng.ts` | as is | seeded rng |
+| `turns.ts` | game-specific | re-exports the kit's turn rules (`@game-kit/protocol`) |
+| `contract.ts` | adapted | the contract's rules part: the pattern to copy, the calls are game-specific |
 | everything else | game-specific | |
 
 ## Bots (`packages/bots`, `packages/palikka-bots`)
@@ -61,8 +62,9 @@ Palikka-specific places (listed).
 | Path | Status | Notes |
 |---|---|---|
 | `vite.config.ts`, `pwa-assets.config.ts`, `index.html` | adapted | name, colours, ports |
-| `src/logging/*`, `src/i18n/index.ts`, `src/config.ts`, `src/CrashBoundary.tsx`, `src/main.tsx` | as is | |
-| `src/session/*` (useGameSession, LocalRoom pattern, stores, serverWake, nickname, inviteLink, resume, useOpenGames, devShortcut) | adapted | the session, connector and resume logic are generic; `LocalRoom` command handling and `viewModel` are game-specific |
+| `src/i18n/index.ts`, `src/config.ts`, `src/CrashBoundary.tsx`, `src/main.tsx`, `src/kit.ts` | as is | `kit.ts`: storage prefix and key events |
+| `src/session/useGameSession.ts`, `palikkaClient.ts`, `viewModel.ts` | game-specific | the game's hook over `useKitSession`, client definition and view; `devShortcut.ts` as is |
+| In the kit now | — | client logging, the stores, serverWake, nickname, inviteLink, resume, useOpenGames, `LocalRoom`, the bot runner, the session (`@game-kit/client`) |
 | `src/settings/*`, `src/tips/*` (mechanism), `src/ui/*` | as is | `ui/tokens.css` holds the game's theme |
 | `src/screens/StartScreen.tsx`, `WaitingRoomScreen.tsx` | as is | |
 | `src/game/{AutoplayControls,GameIdBadge,GameOverControls,KickControl,LeaveControls,SpectatorControls,TurnTimer,HintButton,UndoButton}.tsx`, `copyLine.ts`, `turnClock.ts` | as is | |

@@ -30,7 +30,8 @@ test("two players meet in the waiting room, the host starts, and a placed piece 
     // board-view › Board fits a phone screen (360×780, no horizontal scroll).
     expect(page.viewportSize()).toEqual({ width: 360, height: 780 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    const boardBox = (await board(page).boundingBox())!;
+    // The frame around the grid: on a phone the grid is zoomed inside it, and the frame clips it.
+    const boardBox = (await board(page).locator("..").boundingBox())!;
     expect(boardBox.x + boardBox.width).toBeLessThanOrEqual(360);
     expect(boardBox.y + boardBox.height).toBeLessThanOrEqual(780);
   }

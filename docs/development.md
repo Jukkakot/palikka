@@ -44,7 +44,10 @@ npm run lint && npm run typecheck && npm test && npm run build && npm run size -
 npm run e2e   # smoke test, when UI or connection code changed
 ```
 
-- Lint: oxlint (root `.oxlintrc.json`). No formatter.
+- Lint: oxlint (root `.oxlintrc.json`). No formatter. An override keeps `packages/kit-*` free of
+  `@palikka/*`, `game-bots` and paths leaving the package (the kit's boundary).
+- Workspace order matters for the build: the kit packages first, then `rules`, `protocol`, the
+  bots, `server`, `client` (root `package.json`).
 - Bundle budget: client JavaScript ≤ 200 kB gzip (size-limit, fails CI).
 - Tests: Vitest in every workspace. Server test files run one at a time because each boots a
   real Colyseus server (`fileParallelism: false`).
@@ -55,7 +58,8 @@ npm run e2e   # smoke test, when UI or connection code changed
 |---|---|---|
 | Rules | Vitest; fast-check property tests for invariants; test names follow spec scenarios (`game › Placing › …`) | Implemented |
 | Bot strength | Tournaments and strength requirements (below), outside `npm test`; heavy runs in GitHub Actions. The unit tests keep one fast greedy-vs-random check | Implemented |
-| Server | Vitest + @colyseus/testing (real rooms, SDK clients in-process); `captureLogs()` asserts log lines; `test/support/game.ts`: `waitingRoom(n)`, `startedGame(n, { startSeat })` (nicknamed players, host starts, start seat forced via the `chooseStartSeat` hook), `placeFree(client, room)` plays a turn | Implemented |
+| Server | Vitest + @colyseus/testing (real rooms, SDK clients in-process); `captureLogs()` asserts log lines; `test/support/game.ts`: `waitingRoom(n)`, `startedGame(n, { startSeat })` (nicknamed players, host starts, start seat forced via the `adjustStart` hook), `placeFree(client, room)` plays a turn. The generic room suites run in `packages/kit-server/test` over a Connect Four room (same helpers); `server/test` keeps Palikka's wiring, game, variant and turn tests | Implemented |
+| Game kit | `packages/kit-*`: every suite runs over the Connect Four test game (`@game-kit/protocol/testing`); the client suites use `test/support/connectFour.ts` (a client definition). A kit test never imports a Palikka package (lint and `kit-protocol/test/boundary.test.ts`) | Implemented |
 | Client | Vitest; jsdom + Testing Library for components (`// @vitest-environment jsdom`) | Implemented |
 | E2E | Playwright, Galaxy S24 profile — **one smoke test** for now (two browser contexts: the host creates a game ("Luo peli"), the guest joins by the invite link, the host starts, both see the whole board, fits 360×780, the host's piece placed from the tray with taps reaches the guest) | Implemented |
 
