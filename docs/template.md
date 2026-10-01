@@ -1,9 +1,9 @@
 # Generic parts (template candidates)
 
 Palikka was bootstrapped from Labyrinth (`Jukkakot/labyrinth@726698c`). The generic room,
-session and device-game logic is now in the game kit (`packages/kit-protocol`, `kit-server`,
-`kit-client`, see [architecture.md](architecture.md#game-contract--implemented)); `game-kit` moves
-it to its own repository. The files below are the remaining copy candidates; keep them free of
+session, device-game and bot logic is now the game kit in its own repository
+(`Jukkakot/game-kit`, see [development.md](development.md#game-kit--implemented)); `game-template`
+adds the copy template there. The files below are the remaining copy candidates; keep them free of
 Palikka-specific names where it costs nothing, and add new generic files here.
 
 "As is" = copied unchanged apart from the project name. "Adapted" = copied, then changed in
@@ -30,7 +30,7 @@ Palikka-specific places (listed).
 |---|---|---|
 | `src/index.ts`, `app.config.ts`, `buildInfo.ts`, `cors.ts` | as is | port default, room registration |
 | `src/rooms/GameRoom.ts`, `schema/GameState.ts` | game-specific | the game's server definition and synced child on the kit's room |
-| `test/support/*`, `test/{errors,cors,httpAudit,clientLogs,buildInfo}.test.ts` | as is | infra tests; the room suites run in `packages/kit-server/test` |
+| `test/support/*`, `test/{errors,cors,httpAudit,clientLogs,buildInfo}.test.ts` | as is | infra tests; the room suites run in the kit repo |
 | In the kit now | — | `LoggedRoom`, `command.ts`, `roomId.ts`, `logging/*`, `watch.ts`, the generic room (`@game-kit/server`) |
 
 ## Protocol (`packages/protocol/`)
@@ -48,11 +48,11 @@ Palikka-specific places (listed).
 | `contract.ts` | adapted | the contract's rules part: the pattern to copy, the calls are game-specific |
 | everything else | game-specific | |
 
-## Bots (`packages/bots`, `packages/palikka-bots`)
+## Bots (`packages/palikka-bots`)
 
 | Path | Status | Notes |
 |---|---|---|
-| `packages/bots/` (`game-bots`) | generic (new) | game interface, budget, greedy, random, best-reply search and MCTS players, the Web Worker harness (`game-bots/worker`: ids, in-page fallback), tournament core (schedule, pairwise results, Elo, Markdown report, requirement check); no game names, no dependencies; meant to become a shared package for all the browser games |
+| In the kit now | — | `@game-kit/bots`: game interface, budget, players, the Web Worker harness, tournament core |
 | `packages/palikka-bots/` | game-specific | the adapter pattern (`Game` over the rules, evaluation, `chooseMove`, `playGame`) is the part to copy |
 | `packages/palikka-bots/cli/`, `strength.json` | adapted | tournament CLI (worker pool, tsx worker entry, report, JSON) and strength requirements: generic apart from the bot registry and formats they import |
 | `.github/workflows/tournament.yml` | adapted | strength check on bot changes, tournament by hand; package name and paths are game-specific |

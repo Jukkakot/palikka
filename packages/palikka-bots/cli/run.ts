@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { schedule, tournamentResult, type TournamentResult } from "game-bots";
+import { schedule, tournamentResult, type TournamentResult } from "@game-kit/bots";
 import { FORMATS, isTimeLimited, parseBot, type Colours } from "../src/index.js";
 import { playGames } from "./pool.js";
 

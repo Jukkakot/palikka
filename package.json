@@ -6,12 +6,8 @@
     "node": ">=22"
   },
   "workspaces": [
-    "packages/kit-protocol",
-    "packages/kit-server",
-    "packages/kit-client",
     "packages/rules",
     "packages/protocol",
-    "packages/bots",
     "packages/palikka-bots",
     "server",
     "client",
@@ -22,8 +18,9 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "oxlint",
-    "e2e": "npm run e2e -w @palikka/e2e"
+    "lint": "oxlint && node tools/kit/check.mjs",
+    "e2e": "npm run e2e -w @palikka/e2e",
+    "kit:use": "node tools/kit/use.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

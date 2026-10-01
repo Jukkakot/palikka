@@ -5,7 +5,7 @@ import { brsPlayer, chooseMove, devicePlayer, greedyPlayer, mctsPlayer, palikkaG
 import { playGame } from "./match.js";
 import { moveKey } from "./moveKey.js";
 import { parseBot, playTournamentGame, type TournamentBot } from "./tournament.js";
-import { schedule } from "game-bots";
+import { schedule } from "@game-kit/bots";
 
 const opening = newPosition(CLASSIC, [1, 2, 3, 4], 1);
 /** A mid-opening position: a few random moves in. */

@@ -9,7 +9,7 @@
 import { appendFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { parseArgs } from "node:util";
-import { markdownReport } from "game-bots";
+import { markdownReport } from "@game-kit/bots";
 import { parseColours } from "../src/index.js";
 import { defaultOut, runTournament, toJson, writeJson } from "./run.js";
 

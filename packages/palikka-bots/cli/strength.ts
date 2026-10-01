@@ -7,7 +7,7 @@
 import { appendFileSync, readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { parseArgs } from "node:util";
-import { checkRequirement, markdownReport, type StrengthRequirement } from "game-bots";
+import { checkRequirement, markdownReport, type StrengthRequirement } from "@game-kit/bots";
 import { isColours } from "../src/index.js";
 import { defaultOut, runTournament, toJson, writeJson } from "./run.js";
 

@@ -7,6 +7,9 @@
 | Client | https://jukkakot.github.io/palikka/ | GitHub Pages | push to `main` touching `client/`, `packages/rules/`, lockfile ("Deploy client" workflow) |
 | Server | https://palikka-server-p4qm.onrender.com (also the repository variable `VITE_SERVER_URL`) | Render free web service `palikka-server` (Frankfurt) | green CI on `main` when the server code (`server/`, `packages/rules/`, `packages/protocol/`, lockfile, `render.yaml`) differs from the live server's commit: the `deploy-server` job in CI calls Render's deploy hook (secret `RENDER_DEPLOY_HOOK_URL`); Render auto-deploy is off |
 
+- Game kit: Render, Pages and CI download the `@game-kit/*` release tarballs from public GitHub
+  Releases of `Jukkakot/game-kit` during `npm ci` (no token). A kit bump changes the lockfile, which
+  deploys both sides.
 - Render ids: service `srv-dau14mbncjis73abtnk0`, workspace `tea-d7vbs7l7vvec73dbddt0` (shared with Labyrinth).
 - **Free tier:** the server sleeps after ~15 min without traffic; the next request wakes it in
   about a minute. Sleeping, restarting or deploying loses all games in memory (accepted, budget
@@ -31,7 +34,7 @@ stale client when checking a deploy, compare the footer's "Client …" build tim
 
 `.github/workflows/tournament.yml`, separate from CI so a weaker bot never blocks a deploy:
 
-- **strength** job: on pushes to `main` and pull requests that touch `packages/bots`,
+- **strength** job: on pushes to `main` and pull requests that touch
   `packages/palikka-bots`, `packages/rules`, the lock file or the workflow. Runs
   `npm run strength`; red when a requirement is missed. Report on the run's summary page, JSON as
   the `strength-results` artifact (30 days). "search beats greedy" (200 games of `brs@d4`) makes it

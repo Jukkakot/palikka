@@ -1,4 +1,4 @@
-import { schedule } from "game-bots";
+import { schedule } from "@game-kit/bots";
 import { describe, expect, it } from "vitest";
 import { isColours, parseBot, parseColours, playTournamentGame, type TournamentBot } from "./tournament.js";
 

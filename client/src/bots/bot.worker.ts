@@ -1,4 +1,4 @@
-import { serveBotWorker, type WorkerScopeLike } from "game-bots/worker";
+import { serveBotWorker, type WorkerScopeLike } from "@game-kit/bots/worker";
 import type { Placement } from "@palikka/rules";
 import { answer, type MoveRequest } from "./botMoves.ts";
 

@@ -25,9 +25,10 @@ delivered by that roadmap change.
                               shared contract: codes, schemas, log events
 ```
 
-- **Game kit:** the generic room, lobby, bot runner, session and device-game logic live in the
-  `packages/kit-*` workspaces (`@game-kit/*`), driven by the [game contract](#game-contract--implemented);
-  Palikka implements the contract. The kit moves to its own repository in `game-kit`.
+- **Game kit:** the generic room, lobby, bot runner, session, device-game logic and the bot
+  library are the `@game-kit/*` packages from their own repository [`Jukkakot/game-kit`](https://github.com/Jukkakot/game-kit), installed as release
+  tarballs of one version ([development.md](development.md#game-kit--implemented)) and driven by the
+  [game contract](#game-contract--implemented); Palikka implements the contract.
 - **Monorepo**, npm workspaces, TypeScript everywhere. Hosting: client on GitHub Pages, server on
   Render ([operations.md](operations.md)).
 - **No database.** Server games live in memory and are lost on restart, deploy or sleep.
@@ -41,22 +42,23 @@ delivered by that roadmap change.
 
 | Workspace | Responsibility | Must not |
 |---|---|---|
-| `packages/kit-protocol` (`@game-kit/protocol`) | The game contract (`GameRules`), generic codes, payloads, join options and their schemas, close codes, turn rules (clock, hold, kick), client log events; the Connect Four test game in `@game-kit/protocol/testing`. | Import a Palikka package or a file outside itself. |
-| `packages/kit-server` (`@game-kit/server`) | `LoggedRoom`, the command wrapper, room ids, server logging, the watch route, `LobbyState` and `KitGameRoom` (seats, host, bots, runner and fallback, clock, kick, autoplay, spectators, rematch, options). | Same; know any game's rules or synced data. |
-| `packages/kit-client` (`@game-kit/client`) | `useKitSession`, the connector, `LocalRoom` (device games, undo, the versioned save), `toLobbyView`, the bot runner, the stores, server wake-up, the open-games list, client logging; configured by the game (`configureKit`). | Same; pull zod or Colyseus schema into the bundle. |
+| `@game-kit/protocol` (kit) | The game contract (`GameRules`), generic codes, payloads, join options and their schemas, close codes, turn rules (clock, hold, kick), client log events; the Connect Four test game in `@game-kit/protocol/testing`. | Know any game. |
+| `@game-kit/server` (kit) | `LoggedRoom`, the command wrapper, room ids, server logging, the watch route, `LobbyState` and `KitGameRoom` (seats, host, bots, runner and fallback, clock, kick, autoplay, spectators, rematch, options). | Same; know any game's rules or synced data. |
+| `@game-kit/client` (kit) | `useKitSession`, the connector, `LocalRoom` (device games, undo, the versioned save), `toLobbyView`, the bot runner, the stores, server wake-up, the open-games list, client logging; configured by the game (`configureKit`). | Same; pull zod or Colyseus schema into the bundle. |
+| `@game-kit/bots` (kit) | Game-independent bot brains: a game interface, budgets, players (greedy, best-reply search, MCTS), the Web Worker harness (`@game-kit/bots/worker`), and the tournament core (schedule, pairwise results, Elo, report). | Know any game; import another kit package. |
 | `packages/rules` | Game rules as pure functions on plain data. Randomness only from an injected seed. `palikkaRules` (`contract.ts`) is the contract's rules part over the match layer. | Depend on React, Colyseus or any I/O. |
 | `packages/protocol` | Palikka's part of the wire, re-exporting the kit's: placement codes, board constants, the move and options schemas, the event catalogues under their old names. zod schemas sit in `*-schema.ts` modules; rules the client needs are plain functions, so the client bundle has no zod. | Contain game logic. |
-| `packages/bots` (`game-bots`) | Game-independent bot brains: a game interface, budgets, players (greedy, best-reply search, MCTS), the Web Worker harness (`game-bots/worker`), and the tournament core (schedule, pairwise results, Elo, report). | Know any game; carry Palikka names. |
-| `packages/palikka-bots` (`@palikka/bots`) | Palikka's adapter to `game-bots`, its evaluation, the worker entry point `chooseMove`, the tournament bot registry and formats; Node-only tournament CLI in `cli/`. | Do I/O or hold state in `src/` (the client bundles it); Node code stays in `cli/`. |
+| `packages/palikka-bots` (`@palikka/bots`) | Palikka's adapter to `@game-kit/bots`, its evaluation, the worker entry point `chooseMove`, the tournament bot registry and formats; Node-only tournament CLI in `cli/`. | Do I/O or hold state in `src/` (the client bundles it); Node code stays in `cli/`. |
 | `server` | Palikka's room (its server definition on `KitGameRoom`), the app and its HTTP routes. Source of truth. | Trust the client; compute bots (beyond the fallback). |
 | `client` | Rendering, input, Palikka's view model and client definition, i18n, settings. | Hold authoritative state of server games. |
 
-The kit's boundary is enforced: `.oxlintrc.json` forbids `@palikka/*`, `game-bots` and relative
-paths three or more levels up in `packages/kit-*`, and `packages/kit-protocol/test/boundary.test.ts`
-checks that every relative import of a kit package stays inside it.
+The kit's boundary is enforced in the kit repository (its lint and `boundary.test.ts`): no
+package imports a game or a file outside itself; React, Colyseus (server, schema, SDK) and zod are
+its peer dependencies, so Palikka and the kit share one copy of each.
 
 **No build step between packages:** the `packages/*` workspaces export a `source` condition pointing at
-`src/index.ts`; Vite, Vitest and `tsx` resolve it. The server production build uses `dist/`.
+`src/index.ts`; Vite, Vitest and `tsx` resolve it. The server production build uses `dist/`. The kit
+packages come built (`dist/` only).
 
 ## Server — Implemented
 
@@ -82,7 +84,7 @@ checks that every relative import of a kit package stays inside it.
   facts (phase, turn, host …) come from `commandStateFacts()`.
 - Handlers take an `Actor { sessionId, bot? }`. A bot calls the same wrapped handler, so its
   commands get the same checks and audit line, marked `bot: true`.
-- **Adding a kit command** (every game has it): (1) payload type in `kit-protocol/src/codes.ts`,
+- **Adding a kit command** (every game has it): in the kit repo, then a release: (1) payload type in `protocol/src/codes.ts`,
   schema in `schema.ts`, error codes in `KIT_ERROR_CODES`; (2) a `KitGameRoom.kitMessages()` entry;
   (3) a `useKitSession` method; (4) the command in `LocalRoom` if device games need it; tests over
   Connect Four in the kit; `errors.<CODE>` strings in each game.
@@ -167,7 +169,7 @@ checks that every relative import of a kit package stays inside it.
 
 ## State sync — Implemented
 
-- Synced: the kit's `LobbyState` (`packages/kit-server/src/rooms/LobbyState.ts`): players (seat,
+- Synced: the kit's `LobbyState` (`@game-kit/server`, `rooms/LobbyState.ts`): players (seat,
   nickname, `bot`, `autoplay`, connected), `phase`, `turnSeat` (the seat that plays the turn),
   `turn` (turns started), `hostSeat`, `winners`, `turnDeadline`, `turnExpired`, `botRunnerSeat`,
   `spectators`, `botSpeed`, `rematchRoomId`, and `game`, Palikka's child
@@ -208,7 +210,7 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
 
 ## Bots — Implemented
 
-- **`game-bots`** (`packages/bots`): a game plugs in as a `Game` (player to move, legal moves,
+- **`@game-kit/bots`** (kit): a game plugs in as a `Game` (player to move, legal moves,
   play, game over); search needs a `MultiplayerGame` on top (players still in, a player's moves and
   playing one out of turn, a cheap move key for ordering, optionally `opponents(state, player)`:
   best-reply search lets only these answer, so partners are never searched as opponents). A `Bot` answers
@@ -228,7 +230,7 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
     iteration keeps the previous depth's answer.
   - `mctsBot` (`search/mcts.ts`): max^n UCT with progressive widening in key order, short keyed
     playouts rated by the evaluation (logistic against the players' mean); budget in iterations.
-  - Worker harness (`game-bots/worker`): `serveBotWorker` in the worker, `botWorkerClient` in the
+  - Worker harness (`@game-kit/bots/worker`): `serveBotWorker` in the worker, `botWorkerClient` in the
     page (ids, lazy worker, answers in the page when no worker can run, on an error reply or after
     a crash, reported through a callback).
 - **`@palikka/bots`** (`packages/palikka-bots`): `palikkaGame` over the rules engine (off-turn
@@ -249,7 +251,7 @@ move list, about 5.5 million moves/s** (target was under 0.5 ms).
   phone's work at the real 800 ms), BRS beats greedy 61 % and MCTS 66 % (bot-search design).
   A unit test keeps greedy ≥ 90 % against three random players.
 - **Tournaments and Elo** (strength is measured, not guessed):
-  - `game-bots` `tournament/`: a round robin of named bots; each pairing's games come in seed
+  - `@game-kit/bots` `tournament/`: a round robin of named bots; each pairing's games come in seed
     pairs with the seats swapped. A finished game becomes **pairwise results** (every two colours
     of different bots, by final score: 1 / ½ / 0). Ratings are Bradley–Terry maximum likelihood on
     the Elo scale (order-independent, one virtual draw per pairing, `random` or the first bot

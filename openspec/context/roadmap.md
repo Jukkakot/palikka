@@ -18,7 +18,7 @@ specs and tasks written), **planned**.
 | 9 | `mobile-ui` | done | The mobile ideas in product.md (corner-first picking, drag with snap, board turned to the player, zoom, hint top 3, Duo on phone; TV mode dropped); after `variants` |
 | 10 | `game-motion` | done | Motion and feedback: last move marked, placing/turn/out animations, frozen tray pieces at all times, playful end (count-up, square snowfall) |
 | 11 | `game-contract` | done | Game contract: the generic room, lobby, bot runner, session and device games in `@game-kit/*` workspaces, and Palikka implements the contract. Gameplay unchanged; wire renamed (`move`, `setOptions`, `state.game`) |
-| 12 | `game-kit` | specced | Move the kit packages (and `game-bots` and the generic infra) to their own GitHub repo. Palikka depends on a git tag, and the kit gets its own CI. Creating the repo needs the user's go-ahead |
+| 12 | `game-kit` | done | Move the kit packages (and `game-bots` and the generic infra) to their own GitHub repo. Palikka depends on a git tag, and the kit gets its own CI. Creating the repo needs the user's go-ahead |
 | 13 | `game-template` | planned | `template/` in the kit repo with the full infra (docs wiki, OpenSpec, `.claude`, CI/deploy, E2E, tournament) and `create-game` (names, ports, theme, Render/Axiom/Pages checklist). Labyrinth stays as it is |
 | 14 | `connect-four` | planned | Neljän suora as a real project of its own (own repo, theme and roadmap), made with `create-game`: the kit's first outside user |
 

@@ -44,13 +44,30 @@ npm run lint && npm run typecheck && npm test && npm run build && npm run size -
 npm run e2e   # smoke test, when UI or connection code changed
 ```
 
-- Lint: oxlint (root `.oxlintrc.json`). No formatter. An override keeps `packages/kit-*` free of
-  `@palikka/*`, `game-bots` and paths leaving the package (the kit's boundary).
-- Workspace order matters for the build: the kit packages first, then `rules`, `protocol`, the
-  bots, `server`, `client` (root `package.json`).
+- Lint: oxlint (root `.oxlintrc.json`), then `tools/kit/check.mjs` (game-kit must come from a
+  release, see below). No formatter.
+- Workspace order matters for the build: `rules`, `protocol`, the bots, `server`, `client` (root
+  `package.json`).
 - Bundle budget: client JavaScript ≤ 200 kB gzip (size-limit, fails CI).
 - Tests: Vitest in every workspace. Server test files run one at a time because each boots a
   real Colyseus server (`fileParallelism: false`).
+
+## Game kit — Implemented
+
+The `@game-kit/*` packages live in [`Jukkakot/game-kit`](https://github.com/Jukkakot/game-kit) (sibling checkout `../game-kit`, its own `README.md` and
+`npm run check`). Palikka's workspaces depend on the tarballs of one release
+(`https://github.com/Jukkakot/game-kit/releases/download/v<version>/…`), pinned by the lockfile.
+
+- **Switch version:** `npm run kit:use -- 0.2.0` rewrites every `@game-kit/*` dependency and runs
+  `npm install`.
+- **Kit and game together:** edit in `../game-kit`, then `npm run kit:use -- local` here (packs
+  the kit there and installs those tarballs: exactly what a release ships); repeat after each kit
+  edit. Lint refuses to commit a local setup. When done: `npm run release -- <version>` in the kit
+  (one command: version, checks, tag, push; the tag's workflow attaches the tarballs), wait for the
+  Release workflow (`gh run watch`), then `npm run kit:use -- <version>` here.
+- `kit:use` swaps `node_modules/@game-kit` under a running `npm run dev`: restart it afterwards.
+- A kit change that breaks the contract is fixed in Palikka in the same piece of work. Kit changes
+  are specced in Palikka's OpenSpec for now.
 
 ## Testing approach
 
@@ -58,8 +75,8 @@ npm run e2e   # smoke test, when UI or connection code changed
 |---|---|---|
 | Rules | Vitest; fast-check property tests for invariants; test names follow spec scenarios (`game › Placing › …`) | Implemented |
 | Bot strength | Tournaments and strength requirements (below), outside `npm test`; heavy runs in GitHub Actions. The unit tests keep one fast greedy-vs-random check | Implemented |
-| Server | Vitest + @colyseus/testing (real rooms, SDK clients in-process); `captureLogs()` asserts log lines; `test/support/game.ts`: `waitingRoom(n)`, `startedGame(n, { startSeat })` (nicknamed players, host starts, start seat forced via the `adjustStart` hook), `placeFree(client, room)` plays a turn. The generic room suites run in `packages/kit-server/test` over a Connect Four room (same helpers); `server/test` keeps Palikka's wiring, game, variant and turn tests | Implemented |
-| Game kit | `packages/kit-*`: every suite runs over the Connect Four test game (`@game-kit/protocol/testing`); the client suites use `test/support/connectFour.ts` (a client definition). A kit test never imports a Palikka package (lint and `kit-protocol/test/boundary.test.ts`) | Implemented |
+| Server | Vitest + @colyseus/testing (real rooms, SDK clients in-process); `captureLogs()` asserts log lines; `test/support/game.ts`: `waitingRoom(n)`, `startedGame(n, { startSeat })` (nicknamed players, host starts, start seat forced via the `adjustStart` hook), `placeFree(client, room)` plays a turn. The generic room suites run in the kit repo over a Connect Four room; `server/test` keeps Palikka's wiring, game, variant and turn tests | Implemented |
+| Game kit | In the kit repo and its CI: every suite runs over the Connect Four test game (`@game-kit/protocol/testing`). Palikka's E2E smoke covers the installed release end to end | Implemented |
 | Client | Vitest; jsdom + Testing Library for components (`// @vitest-environment jsdom`) | Implemented |
 | E2E | Playwright, Galaxy S24 profile — **one smoke test** for now (two browser contexts: the host creates a game ("Luo peli"), the guest joins by the invite link, the host starts, both see the whole board, fits 360×780, the host's piece placed from the tray with taps reaches the guest) | Implemented |
 

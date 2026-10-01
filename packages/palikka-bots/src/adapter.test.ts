@@ -16,7 +16,7 @@ import {
 } from "@palikka/rules";
 import { placement, positionWith } from "@palikka/rules/testing";
 import { describe, expect, it } from "vitest";
-import { bestReplyBot, type MultiplayerGame } from "game-bots";
+import { bestReplyBot, type MultiplayerGame } from "@game-kit/bots";
 import { brsPlayer, chooseMove, devicePlayer, greedyPlayer, palikkaGame, randomPlayer, topMoves } from "./adapter.js";
 import { evaluate } from "./evaluation.js";
 import { playGame } from "./match.js";

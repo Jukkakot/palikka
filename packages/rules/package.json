@@ -32,7 +32,7 @@
     "vitest": "^5.0.2"
   },
   "dependencies": {
-    "@game-kit/protocol": "*",
+    "@game-kit/protocol": "https://github.com/Jukkakot/game-kit/releases/download/v0.1.0/game-kit-protocol-0.1.0.tgz",
     "pure-rand": "^8.4.2"
   }
 }

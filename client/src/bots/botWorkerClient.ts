@@ -1,4 +1,4 @@
-import { botWorkerClient, type WorkerLike } from "game-bots/worker";
+import { botWorkerClient, type WorkerLike } from "@game-kit/bots/worker";
 import type { Placement } from "@palikka/rules";
 import { log } from "@game-kit/client";
 import { answer, type AskBot, type MoveRequest } from "./botMoves.ts";

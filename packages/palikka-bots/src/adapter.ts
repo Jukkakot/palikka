@@ -11,7 +11,7 @@ import {
   type Position,
   type Rng,
 } from "@palikka/rules";
-import { bestReplyBot, greedyBot, mctsBot, randomBot, rankMoves, type Bot, type Budget, type MultiplayerGame } from "game-bots";
+import { bestReplyBot, greedyBot, mctsBot, randomBot, rankMoves, type Bot, type Budget, type MultiplayerGame } from "@game-kit/bots";
 import { evaluate, teamKey } from "./evaluation.js";
 import { moveKey } from "./moveKey.js";
 

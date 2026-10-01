@@ -1,5 +1,5 @@
 import { parentPort, workerData } from "node:worker_threads";
-import type { ScheduledGame } from "game-bots";
+import type { ScheduledGame } from "@game-kit/bots";
 import { parseBot, playTournamentGame, type Colours } from "../src/index.js";
 
 /** Plays each game the pool sends and answers with the played game. */

@@ -21,7 +21,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@game-kit/protocol": "*",
+    "@game-kit/protocol": "https://github.com/Jukkakot/game-kit/releases/download/v0.1.0/game-kit-protocol-0.1.0.tgz",
     "zod": "^4.6.5"
   },
   "devDependencies": {

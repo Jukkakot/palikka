@@ -7,7 +7,7 @@
  *   npm run bench -w @palikka/bots [-- bot [games]]      e.g. greedy, brs@d2, brs@800ms, mcts@i400
  */
 import { CLASSIC, newPosition, type Move, type Position } from "@palikka/rules";
-import { bestReplyBot, mctsBot, type Bot } from "game-bots";
+import { bestReplyBot, mctsBot, type Bot } from "@game-kit/bots";
 import { greedyPlayer, palikkaGame } from "../src/adapter.js";
 import { evaluate } from "../src/evaluation.js";
 import { playGame } from "../src/match.js";

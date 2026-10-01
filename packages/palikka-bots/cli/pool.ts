@@ -1,5 +1,5 @@
 import { Worker } from "node:worker_threads";
-import type { GameResult, MoveTiming, ScheduledGame } from "game-bots";
+import type { GameResult, MoveTiming, ScheduledGame } from "@game-kit/bots";
 import { addTiming, parseBot, playTournamentGame, type Colours, type PlayedGame } from "../src/index.js";
 
 export interface Played {

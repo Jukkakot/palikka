@@ -1,5 +1,5 @@
 import { applyMove, CLASSIC, createRng, DUO, newPosition, scores, type BoardConfig, type Move, type Position } from "@palikka/rules";
-import { systemClock, type Bot, type Budget, type GameResult, type MoveTiming, type ScheduledGame } from "game-bots";
+import { systemClock, type Bot, type Budget, type GameResult, type MoveTiming, type ScheduledGame } from "@game-kit/bots";
 import { brsPlayer, greedyPlayer, mctsPlayer, randomPlayer } from "./adapter.js";
 
 /** A bot a tournament can use, with the budget it gets when its name carries none. */

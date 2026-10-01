@@ -2,7 +2,7 @@ export { brsPlayer, chooseMove, devicePlayer, greedyPlayer, mctsPlayer, palikkaG
 export { KEY_WEIGHTS, moveKey } from "./moveKey.js";
 export { countBits, evaluate, popcount, reachOf, teamKey, WEIGHTS } from "./evaluation.js";
 export { playGame } from "./match.js";
-export type { Bot, Budget } from "game-bots";
+export type { Bot, Budget } from "@game-kit/bots";
 export {
   addTiming,
   BOTS,

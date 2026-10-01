@@ -1,5 +1,5 @@
 import { applyMove, createRng, type Move, type Position } from "@palikka/rules";
-import type { Bot, Budget } from "game-bots";
+import type { Bot, Budget } from "@game-kit/bots";
 
 /**
  * Plays a whole game from `start` with one bot per colour and one seeded rng for the game. Returns

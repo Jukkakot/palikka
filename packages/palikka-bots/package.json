@@ -2,7 +2,7 @@
   "name": "@palikka/bots",
   "version": "0.1.0",
   "private": true,
-  "description": "Palikka's bots: the rules adapter for the game-bots library and the evaluation",
+  "description": "Palikka's bots: the rules adapter for the @game-kit/bots library and the evaluation",
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -24,8 +24,8 @@
     "strength": "tsx --conditions=source cli/strength.ts"
   },
   "dependencies": {
-    "@palikka/rules": "*",
-    "game-bots": "*"
+    "@game-kit/bots": "https://github.com/Jukkakot/game-kit/releases/download/v0.1.0/game-kit-bots-0.1.0.tgz",
+    "@palikka/rules": "*"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

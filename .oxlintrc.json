@@ -17,33 +17,5 @@
         "allowConstantExport": true
       }
     ]
-  },
-  "overrides": [
-    {
-      "files": [
-        "packages/kit-*/**"
-      ],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "group": [
-                  "@palikka/*",
-                  "game-bots",
-                  "game-bots/*"
-                ],
-                "message": "The game kit must not depend on a game: take it through the game contract."
-              },
-              {
-                "regex": "^(\\.\\./){3,}",
-                "message": "The game kit must not import files outside its own package."
-              }
-            ]
-          }
-        ]
-      }
-    }
-  ]
+  }
 }
