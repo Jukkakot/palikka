@@ -20,7 +20,7 @@
 - [x] 3.2 Split `toGameView` into the kit's `toLobbyView` and Palikka's `toView`. `GameView` is the intersection (D7). `toView` reads `state.game`. The existing `viewModel` tests pass, changed only in the state fixtures.
 - [x] 3.3 Make `LocalRoom` generic in the kit, with seat-based undo history (D8). Palikka's definition supplies the seats per variant, the save format check and `askBot` (the worker's `chooseMove` with the viewpoint for the shared colour). The existing `localRoom` tests pass, changed only in construction and command names. A test shows that a save from before the change is dropped.
 - [x] 3.4 Move `useBotRunner` and `useGameSession` to the kit as `useKitSession` (D7). `client/src/session/useGameSession.ts` is Palikka's hook and returns today's `GameSession` (`place` sends `move`, `setVariant` sends `setOptions`). The start screen's open-games list reads the variant from the listing's `options`. The screen tests and `session.test.ts` pass, changed only in import paths and fixtures.
-- [ ] 3.5 Kit client tests over Connect Four: move the generic cases of `session`, `lobby`, `localRoom` (undo and saving) and `useBotRunner` to `@game-kit/client`. Palikka keeps the shared colour, the variant bot counts and the save-format cases. Both suites pass, and no case is tested in both.
+- [x] 3.5 Kit client tests over Connect Four: move the generic cases of `session`, `lobby`, `localRoom` (undo and saving) and `useBotRunner` to `@game-kit/client`. Palikka keeps the shared colour, the variant bot counts and the save-format cases. Both suites pass, and no case is tested in both.
 
 ## 4. Check, docs and roadmap
 

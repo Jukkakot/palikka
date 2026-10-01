@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createServerWake, WAKE_DEADLINE_MS, type WakeDeps } from "@game-kit/client";
-import { SLOW_CONNECT_MS } from "./useGameSession.ts";
+import { createServerWake, SLOW_CONNECT_MS, WAKE_DEADLINE_MS, type WakeDeps } from "../src/index.ts";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 

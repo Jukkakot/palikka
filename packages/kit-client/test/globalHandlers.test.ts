@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { installGlobalErrorHandlers } from "@game-kit/client";
+import { installGlobalErrorHandlers } from "../src/index.ts";
 
 describe("observability › Client log shipping › uncaught client errors", () => {
   it("an uncaught ErrorEvent is logged as client.error with its stack", () => {

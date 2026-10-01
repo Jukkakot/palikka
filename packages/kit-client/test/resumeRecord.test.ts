@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
-import { clearResume, loadResume, RESUME_HOLD_MS, saveResume } from "@game-kit/client";
+import { clearResume, loadResume, RESUME_HOLD_MS, saveResume } from "../src/index.ts";
 
 beforeEach(() => localStorage.clear());
 
@@ -15,15 +15,15 @@ describe("game-session › Resume after closing the app (record)", () => {
   it("Too late: a record older than the hold is dropped", () => {
     saveResume("tok", "r", 0);
     expect(loadResume(RESUME_HOLD_MS)).toBeUndefined();
-    expect(localStorage.getItem("palikka.resume")).toBeNull();
+    expect(localStorage.getItem("game.resume")).toBeNull();
   });
 
   it("a broken record is dropped", () => {
-    localStorage.setItem("palikka.resume", "{not json");
+    localStorage.setItem("game.resume", "{not json");
     expect(loadResume()).toBeUndefined();
-    localStorage.setItem("palikka.resume", JSON.stringify({ token: 1 }));
+    localStorage.setItem("game.resume", JSON.stringify({ token: 1 }));
     expect(loadResume()).toBeUndefined();
-    expect(localStorage.getItem("palikka.resume")).toBeNull();
+    expect(localStorage.getItem("game.resume")).toBeNull();
   });
 
   it("blocked storage: nothing offered, nothing thrown", () => {

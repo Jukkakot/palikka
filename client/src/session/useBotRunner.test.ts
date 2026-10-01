@@ -4,7 +4,7 @@ import type { Placement } from "@palikka/rules";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BOT_DELAY_MS, type AskBot } from "../bots/botMoves.ts";
 import { gameView, seatView } from "../test/views.ts";
-import { botTurnKey, useBotRunner, type GameRoomLike } from "@game-kit/client";
+import { useBotRunner, type GameRoomLike } from "@game-kit/client";
 import { createPalikkaClient, palikkaClient } from "./palikkaClient.ts";
 import type { GameView } from "./viewModel.ts";
 
@@ -32,18 +32,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("bot-seats › Who computes bot moves (client)", () => {
-  it("only the runner's browser plays, only on a running bot turn", () => {
-    expect(botTurnKey(botTurn())).toBe("2:2");
-    expect(botTurnKey(botTurn({ botRunnerSeat: 3 }))).toBeUndefined();
-    expect(botTurnKey(botTurn({ turnBotPlayed: false }))).toBeUndefined();
-    expect(botTurnKey(botTurn({ phase: "finished", finished: true }))).toBeUndefined();
-    expect(botTurnKey(botTurn({ mySeat: undefined, spectating: true }))).toBeUndefined();
-  });
-});
-
 describe("bot-seats › Bot moves are validated (client side)", () => {
-  it("Runner moves for a bot: asks the bot, then sends botMove for the seat after the pause", async () => {
+  it("asks Palikka's bot for the colour on turn within the budget, and sends its placement as the move", async () => {
     vi.useFakeTimers();
     const { room, request } = fakeRoom();
     const askBot = vi.fn<AskBot>(async () => MOVE);
@@ -71,21 +61,6 @@ describe("bot-seats › Bot moves are validated (client side)", () => {
     });
     expect(askBot).toHaveBeenCalledWith(expect.objectContaining({ colour: 4, viewpoint: 2 }));
     expect(request).toHaveBeenCalledExactlyOnceWith("botMove", { seat: 2, move: MOVE });
-  });
-
-  it("a turn that moves on first drops the answer", async () => {
-    vi.useFakeTimers();
-    const { room, request } = fakeRoom();
-    let answer!: (move: Placement) => void;
-    const askBot: AskBot = () => new Promise((resolve) => (answer = resolve));
-    const ask = createPalikkaClient(askBot).askBot;
-    const { rerender } = renderHook((view: GameView) => useBotRunner(room, view, ask), { initialProps: botTurn() });
-    rerender(botTurn({ turn: 3, turnSeat: 1, turnBotPlayed: false, isMyTurn: true }));
-    await act(async () => {
-      answer(MOVE);
-      await vi.advanceTimersByTimeAsync(2 * BOT_DELAY_MS);
-    });
-    expect(request).not.toHaveBeenCalled();
   });
 
   it("the real bot answers here where no worker runs", async () => {
