@@ -1,7 +1,7 @@
 import { dailyPuzzle, mirrorOrientation, puzzleSolved, turnOrientation, type Placement, type Puzzle } from "@palikka/rules";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { aimOf } from "../game/placing.ts";
-import { log } from "../logging/logger.ts";
+import { log } from "@game-kit/client";
 import { placementAt, puzzleColours, puzzlePreviewAt, type PuzzlePreview } from "./puzzlePlacing.ts";
 import { loadPuzzleSave, progressFor, recordSolve, resultFor, savePuzzle, type PuzzleResult } from "./puzzleStore.ts";
 

@@ -1,4 +1,4 @@
-import { CLIENT_LOG_LIMITS, type ClientLogEntry } from "@palikka/protocol";
+import { CLIENT_LOG_LIMITS, type ClientLogEntry } from "@game-kit/protocol";
 
 /** Posts a JSON body; resolves true when the server accepted it. */
 export type SendFn = (body: string, keepalive: boolean) => Promise<boolean>;
@@ -15,9 +15,10 @@ export class LogShipper {
   private buffer: ClientLogEntry[] = [];
   private inFlight = false;
   private readonly send: SendFn;
-  private readonly ver: string;
+  /** The client version, or how to read it when a batch is sent. */
+  private readonly ver: string | (() => string);
 
-  constructor(send: SendFn, ver: string) {
+  constructor(send: SendFn, ver: string | (() => string)) {
     this.send = send;
     this.ver = ver;
   }
@@ -35,10 +36,10 @@ export class LogShipper {
   async flush({ keepalive = false } = {}): Promise<void> {
     if (this.inFlight || this.buffer.length === 0) return;
     let batch = this.buffer.slice(0, CLIENT_LOG_LIMITS.maxEntries);
-    let body = JSON.stringify({ ver: this.ver, entries: batch });
+    let body = JSON.stringify({ ver: typeof this.ver === "function" ? this.ver() : this.ver, entries: batch });
     while (keepalive && body.length > KEEPALIVE_MAX_BYTES && batch.length > 1) {
       batch = batch.slice(0, Math.ceil(batch.length / 2));
-      body = JSON.stringify({ ver: this.ver, entries: batch });
+      body = JSON.stringify({ ver: typeof this.ver === "function" ? this.ver() : this.ver, entries: batch });
     }
 
     this.inFlight = true;

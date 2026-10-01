@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
-import { serverUrl } from "../config.ts";
+import { kitConfig } from "../config.ts";
 import { log } from "../logging/logger.ts";
-import { SLOW_CONNECT_MS } from "./useGameSession.ts";
+import { SLOW_CONNECT_MS } from "./useKitSession.ts";
 
 /** One attempt may hang while Render spins up; give up on it after this long. */
 export const WAKE_ATTEMPT_TIMEOUT_MS = 20_000;
@@ -31,7 +31,7 @@ export interface WakeDeps {
 
 const defaultDeps = (): WakeDeps => ({
   fetch: (url, init) => fetch(url, init),
-  serverUrl,
+  serverUrl: () => kitConfig().serverUrl(),
   now: () => Date.now(),
   setTimeout: (fn, ms) => setTimeout(fn, ms),
   clearTimeout: (id) => clearTimeout(id as ReturnType<typeof setTimeout>),

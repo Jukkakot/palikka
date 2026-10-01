@@ -1,3 +1,4 @@
+import "./kit.ts";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./i18n";
@@ -5,8 +6,7 @@ import "./ui/tokens.css";
 import "./index.css";
 import App from "./App.tsx";
 import { CrashBoundary } from "./CrashBoundary.tsx";
-import { installGlobalErrorHandlers } from "./logging/globalHandlers.ts";
-import { startLogShipping } from "./logging/logger.ts";
+import { installGlobalErrorHandlers, startLogShipping } from "@game-kit/client";
 import { startTheme } from "./settings/theme.ts";
 
 // Before the first render, so a forced theme does not flash the device's scheme.

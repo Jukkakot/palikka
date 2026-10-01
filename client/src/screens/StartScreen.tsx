@@ -1,12 +1,9 @@
 import { IconDice5 } from "@tabler/icons-react";
-import { RULES_VERSION, VARIANTS, type VariantId } from "@palikka/rules";
+import { RULES_VERSION, VARIANTS, type PalikkaOptions, type VariantId } from "@palikka/rules";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatTime, loadPuzzleSave, localDate, resultFor } from "../puzzle/puzzleStore.ts";
-import { isLocalToken } from "../session/localGameStore.ts";
-import { checkNickname, loadNickname, randomNickname } from "../session/nickname.ts";
-import type { ServerWake } from "../session/serverWake.ts";
-import type { OpenGames } from "../session/useOpenGames.ts";
+import { checkNickname, isLocalToken, loadNickname, randomNickname, type OpenGames, type ServerWake } from "@game-kit/client";
 import type { GameSession } from "../session/useGameSession.ts";
 import { getSettings, updateSettings } from "../settings/settings.ts";
 import { SettingsButton, SettingsScreen } from "../settings/SettingsScreen.tsx";
@@ -31,7 +28,7 @@ export interface StartScreenProps {
   /** The early server wake-up: the join actions stay disabled until it is over. */
   wake: ServerWake;
   /** The live list of open public games. */
-  openGames?: OpenGames;
+  openGames?: OpenGames<PalikkaOptions>;
   /** Invite mode: the id of the game this page's link invites to. */
   invite?: string;
   /** The invite has been used or dismissed ("Muut pelit"). */
@@ -41,7 +38,7 @@ export interface StartScreenProps {
 /** Loaded on first open, so the start screen stays small. */
 const PuzzleScreen = lazy(() => import("../puzzle/PuzzleScreen.tsx"));
 
-const NO_GAMES: OpenGames = { status: "off", games: [], running: [] };
+const NO_GAMES: OpenGames<PalikkaOptions> = { status: "off", games: [], running: [] };
 
 /** Quick games against bots: the player against 1, 2 or 3 bots. */
 const BOT_COUNTS = [1, 2, 3] as const;
@@ -324,13 +321,13 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
                         className={styles.game}
                         disabled={disabled}
                         onClick={() => joinById(g.roomId, name)}
-                        aria-label={t("start.gameEntryLabel", { host: g.host, variant: t(`variant.${g.variant}`), count: g.seated, max: g.maxSeats })}
+                        aria-label={t("start.gameEntryLabel", { host: g.host, variant: t(`variant.${g.options.variant}`), count: g.seated, max: g.maxSeats })}
                         data-room={g.roomId}
-                        data-variant={g.variant}
+                        data-variant={g.options.variant}
                       >
                         <span className={styles.gameHost}>{g.host}</span>
                         <span className={styles.gameCount}>
-                          · {t(`variant.${g.variant}`)} · {g.seated}/{g.maxSeats}
+                          · {t(`variant.${g.options.variant}`)} · {g.seated}/{g.maxSeats}
                         </span>
                       </button>
                     </li>
@@ -349,13 +346,13 @@ export function StartScreen({ session, wake, openGames = NO_GAMES, invite, onInv
                         className={styles.game}
                         disabled={disabled}
                         onClick={() => watch(g.roomId, name)}
-                        aria-label={t("start.runningEntryLabel", { host: g.host, variant: t(`variant.${g.variant}`), count: g.seated })}
+                        aria-label={t("start.runningEntryLabel", { host: g.host, variant: t(`variant.${g.options.variant}`), count: g.seated })}
                         data-room={g.roomId}
-                        data-variant={g.variant}
+                        data-variant={g.options.variant}
                       >
                         <span className={styles.gameHost}>{g.host}</span>
                         <span className={styles.gameCount}>
-                          · {t(`variant.${g.variant}`)} · {t("start.runningCount", { count: g.seated })}
+                          · {t(`variant.${g.options.variant}`)} · {t("start.runningCount", { count: g.seated })}
                         </span>
                       </button>
                     </li>

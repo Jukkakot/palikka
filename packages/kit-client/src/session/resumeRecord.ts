@@ -2,9 +2,10 @@
  * The game to offer "Jatka peliä" for after the app was closed. Unlike the per-tab token
  * (sessionStorage), it lives in localStorage, so it survives closing the tab or app.
  */
+import { storageKey } from "../config.ts";
 import { isLocalToken } from "./localGameStore.ts";
 
-const KEY = "palikka.resume";
+const key = () => storageKey("resume");
 
 /** The server holds a dropped seat this long; an older record cannot be resumed. */
 export const RESUME_HOLD_MS = 5 * 60_000;
@@ -27,7 +28,7 @@ function storage(): Storage | undefined {
 /** The remembered game if it may still be held; a stale or broken record is dropped. */
 export function loadResume(now = Date.now(), store = storage()): ResumeRecord | undefined {
   try {
-    const raw = store?.getItem(KEY);
+    const raw = store?.getItem(key());
     if (!raw) return undefined;
     const r = JSON.parse(raw) as Partial<ResumeRecord>;
     // A game on the device waits for the player as long as it is saved.
@@ -35,7 +36,7 @@ export function loadResume(now = Date.now(), store = storage()): ResumeRecord | 
     if (typeof r.token === "string" && typeof r.roomId === "string" && typeof r.seenAt === "number" && held) {
       return { token: r.token, roomId: r.roomId, seenAt: r.seenAt };
     }
-    store?.removeItem(KEY);
+    store?.removeItem(key());
   } catch {
     clearResume(store);
   }
@@ -44,7 +45,7 @@ export function loadResume(now = Date.now(), store = storage()): ResumeRecord | 
 
 export function saveResume(token: string, roomId: string, now = Date.now(), store = storage()): void {
   try {
-    store?.setItem(KEY, JSON.stringify({ token, roomId, seenAt: now } satisfies ResumeRecord));
+    store?.setItem(key(), JSON.stringify({ token, roomId, seenAt: now } satisfies ResumeRecord));
   } catch {
     // Storage blocked (private mode): no resume after closing, reload still works.
   }
@@ -52,7 +53,7 @@ export function saveResume(token: string, roomId: string, now = Date.now(), stor
 
 export function clearResume(store = storage()): void {
   try {
-    store?.removeItem(KEY);
+    store?.removeItem(key());
   } catch {
     // ignore
   }

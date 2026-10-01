@@ -3,9 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { CLASSIC, legalMoves, type Placement } from "@palikka/rules";
 import { placement, positionWith } from "@palikka/rules/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { loadNickname } from "./nickname.ts";
-import { loadResume, saveResume } from "./resumeRecord.ts";
-import { loadToken, saveToken } from "./sessionToken.ts";
+import { loadNickname, loadResume, loadToken, saveResume, saveToken } from "@game-kit/client";
 import { CLOSE_CODES } from "@palikka/protocol";
 import { useGameSession, type Connector, type GameRoomLike } from "./useGameSession.ts";
 import { toGameView, type SyncedState } from "./viewModel.ts";
@@ -30,8 +28,7 @@ function syncedState(players: Record<string, number>, turn: Partial<SyncedState>
     turnSeat: 1,
     phase: "play",
     ...turn,
-    cells: board,
-    colours,
+    game: { cells: board, colours },
     players: new Map(Object.entries(players).map(([id, seat]) => [id, { seat, connected: true }])),
   };
 }
@@ -105,7 +102,7 @@ describe("game-session › view model", () => {
     const { position } = toGameView(syncedState({ me: 1, b: 2 }), "r", "me")!;
     expect(position).toMatchObject({ config: CLASSIC, colours: [1, 2], out: [2], turn: 1, moveNumber: 3, ended: false });
     expect(legalMoves(position!, 1)).toEqual(legalMoves({ ...started, out: [2] }, 1));
-    expect(toGameView({ ...syncedState({ me: 1 }), colours: [] }, "r", "me")!.position).toBeUndefined();
+    expect(toGameView({ ...syncedState({ me: 1 }), game: { cells: board, colours: [] } }, "r", "me")!.position).toBeUndefined();
   });
 
   it("knows the bot runner and whether the turn is a bot's", () => {
@@ -132,7 +129,7 @@ describe("game-session › view model", () => {
   });
 
   it("returns undefined until the board has arrived", () => {
-    expect(toGameView({ cells: [], players: new Map() }, "r", "me")).toBeUndefined();
+    expect(toGameView({ game: { cells: [] }, players: new Map() }, "r", "me")).toBeUndefined();
     // Right after joining, before the first patch, the decoded state is still empty.
     expect(toGameView({}, "r", "me")).toBeUndefined();
   });
@@ -219,7 +216,7 @@ describe("game-session › place command", () => {
       reply = await result.current.place(MOVE);
     });
     expect(reply).toEqual({ ok: true });
-    expect(room.request).toHaveBeenCalledWith("place", MOVE);
+    expect(room.request).toHaveBeenCalledWith("move", { move: MOVE });
     expect(result.current.notice).toBeUndefined();
     expect(result.current.pending).toBe(false);
   });

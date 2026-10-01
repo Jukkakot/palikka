@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createClientLogger, isDebugMode, toEntry } from "./logger.ts";
-import { LogShipper } from "./shipper.ts";
+import { createClientLogger, isDebugMode, LogShipper, toEntry } from "@game-kit/client";
 
 const okSend = () => vi.fn(async (_body: string, _keepalive: boolean) => true);
 const shipped = (send: ReturnType<typeof okSend>) =>

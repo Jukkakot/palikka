@@ -3,7 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import { dailyPuzzle, puzzleSquares } from "@palikka/rules";
 import { describe, expect, it, vi } from "vitest";
 import { aimOf } from "../game/placing.ts";
-import { log } from "../logging/logger.ts";
+import { log } from "@game-kit/client";
 import { loadPuzzleSave } from "./puzzleStore.ts";
 import { usePuzzle } from "./usePuzzle.ts";
 

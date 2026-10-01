@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { clientBuiltAt } from "../config.ts";
 import { formatDateTime } from "../i18n/formatDateTime.ts";
-import type { ServerWake } from "../session/serverWake.ts";
+import type { ServerWake } from "@game-kit/client";
 
 /** Build times of the running client and server, so anyone can see that the newest of both are live. */
 export function BuildInfo({ wake, clientBuilt = clientBuiltAt() }: { wake: ServerWake; clientBuilt?: string | null }) {

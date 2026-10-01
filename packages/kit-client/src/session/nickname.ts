@@ -1,11 +1,12 @@
-import { nicknameIssue, type NicknameIssue } from "@palikka/protocol";
+import { storageKey } from "../config.ts";
+import { nicknameIssue, type NicknameIssue } from "@game-kit/protocol";
 
 /** The last nickname used in this browser; only prefills the field. */
-const KEY = "palikka.nickname";
+const key = () => storageKey("nickname");
 
 export function loadNickname(storage: Storage | undefined = globalThis.localStorage): string {
   try {
-    return storage?.getItem(KEY) ?? "";
+    return storage?.getItem(key()) ?? "";
   } catch {
     return "";
   }
@@ -13,7 +14,7 @@ export function loadNickname(storage: Storage | undefined = globalThis.localStor
 
 export function saveNickname(nickname: string, storage: Storage | undefined = globalThis.localStorage): void {
   try {
-    storage?.setItem(KEY, nickname);
+    storage?.setItem(key(), nickname);
   } catch {
     // Storage blocked (private mode): the field simply starts empty next time.
   }

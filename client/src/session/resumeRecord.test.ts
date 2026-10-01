@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
-import { clearResume, loadResume, RESUME_HOLD_MS, saveResume } from "./resumeRecord.ts";
+import { clearResume, loadResume, RESUME_HOLD_MS, saveResume } from "@game-kit/client";
 
 beforeEach(() => localStorage.clear());
 

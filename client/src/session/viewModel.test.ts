@@ -1,7 +1,7 @@
 import { placement, positionWith } from "@palikka/rules/testing";
 import { describe, expect, it } from "vitest";
 import { seatView } from "../test/views.ts";
-import { resultRows, toGameView, type SyncedColour, type SyncedPlayer, type SyncedState } from "./viewModel.ts";
+import { resultRows, toGameView, type SyncedColour, type SyncedGame, type SyncedPlayer, type SyncedState } from "./viewModel.ts";
 
 const colour = (c: number, left = false): SyncedColour => ({ colour: c, pieces: [], out: true, left });
 
@@ -51,11 +51,11 @@ describe("result-screen › Result table", () => {
 });
 
 /** A running game's synced state: `seats` people or bots, colours with their seats, `turn` = [seat, colour]. */
-function synced(variant: string, colours: SyncedColour[], turn: [number, number], extra: Partial<SyncedState> = {}): SyncedState {
+function synced(variant: string, colours: SyncedColour[], turn: [number, number], game: Partial<SyncedGame> = {}): SyncedState {
   const size = variant === "duo" ? 14 : 20;
   const seats = [...new Set(colours.map((c) => c.seat ?? c.colour).filter((seat) => seat !== 0))];
   const players = new Map<string, SyncedPlayer>(seats.map((seat) => [`s${seat}`, { seat, name: `P${seat}`, connected: true }]));
-  return { variant, cells: new Array<number>(size * size).fill(0), colours, players, turnSeat: turn[0], turnColour: turn[1], phase: "play", ...extra };
+  return { game: { variant, cells: new Array<number>(size * size).fill(0), colours, turnColour: turn[1], ...game }, players, turnSeat: turn[0], phase: "play" };
 }
 const playing = (c: number, seat: number, extra: Partial<SyncedColour> = {}): SyncedColour => ({ colour: c, seat, pieces: [], out: false, left: false, ...extra });
 
@@ -68,7 +68,7 @@ describe("variants › view model", () => {
     expect(view).toMatchObject({ variant: "classic", boardSize: 20, maxSeats: 4, turnColour: 2, turnShared: false, myColours: [1], trayColour: 1 });
     expect(view.seats.map((s) => s.colours)).toEqual([[1], [2]]);
     // Older state without a turn colour: the turn seat is the colour.
-    const old = toGameView({ ...synced("classic", [colour(1), colour(2)], [2, 2]), turnColour: undefined, variant: undefined }, "r", "s1")!;
+    const old = toGameView(synced("classic", [colour(1), colour(2)], [2, 2], { turnColour: undefined, variant: undefined }), "r", "s1")!;
     expect(old.turnColour).toBe(2);
   });
 

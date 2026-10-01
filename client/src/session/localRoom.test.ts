@@ -1,13 +1,25 @@
 // @vitest-environment jsdom
-import { createRng, decodeMove, legalMoves, simpleBotMove, type Placement } from "@palikka/rules";
+import { createRng, decodeMove, legalMoves, simpleBotMove, type Game, type PalikkaOptions, type Placement, type VariantId } from "@palikka/rules";
 import { placement } from "@palikka/rules/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskBot, MoveRequest } from "../bots/botMoves.ts";
-import { loadLocalGame } from "./localGameStore.ts";
-import { BOT_DELAY_MS, LocalRoom } from "./localRoom.ts";
-import { loadResume, saveResume } from "./resumeRecord.ts";
+import { BOT_DELAY_MS, LocalRoom, loadLocalGame as loadSaved, loadResume, saveResume, type LocalRoomDeps } from "@game-kit/client";
+import { createPalikkaClient, palikkaClient } from "./palikkaClient.ts";
 import { createConnector } from "./useGameSession.ts";
-import { toGameView } from "./viewModel.ts";
+import { toGameView, type GameView, type SyncedState } from "./viewModel.ts";
+
+type Room = LocalRoom<Game, Placement, PalikkaOptions, GameView>;
+type Deps = Partial<LocalRoomDeps> & { askBot?: AskBot };
+
+/** Palikka's device game, with `askBot` standing in for the bot worker. */
+const LocalGame = {
+  create: (nickname: string, bots: number, { askBot = simpleBot, ...deps }: Deps = {}, variant?: VariantId): Room =>
+    LocalRoom.create(createPalikkaClient(askBot), nickname, bots, variant && { variant }, deps),
+  createWatch: (bots: number, speed: 1 | 2 | 4 = 1, { askBot = simpleBot, ...deps }: Deps = {}, variant?: VariantId): Room =>
+    LocalRoom.createWatch(createPalikkaClient(askBot), bots, speed, variant && { variant }, deps),
+  restore: (roomId: string, { askBot = simpleBot, ...deps }: Deps = {}): Room | undefined => LocalRoom.restore(createPalikkaClient(askBot), roomId, deps),
+};
+const loadLocalGame = (roomId: string) => loadSaved<Game, PalikkaOptions>(roomId, palikkaClient.local.save);
 
 /** A quick stand-in for the bot worker: the simple bot, answered at once. */
 const simpleBot: AskBot = async ({ position, colour, seed }) => simpleBotMove(position, colour, createRng(seed));
@@ -20,19 +32,19 @@ beforeEach(() => {
 
 /** A new game with bot timers switched off (Maija in seat 1 has the first turn). */
 function quietGame(bots = 1) {
-  return LocalRoom.create("Maija", bots, { seed: () => 7, ...quiet });
+  return LocalGame.create("Maija", bots, { seed: () => 7, ...quiet });
 }
 
 /** A game with real (fake-timer) bot pauses. */
 function timedGame(bots = 1, askBot: AskBot = simpleBot) {
-  return LocalRoom.create("Maija", bots, { seed: () => 7, askBot });
+  return LocalGame.create("Maija", bots, { seed: () => 7, askBot });
 }
 
-const viewOf = (room: LocalRoom) => toGameView(room.state, room.roomId, room.sessionId)!;
+const viewOf = (room: Room) => toGameView(room.state as SyncedState, room.roomId, room.sessionId)!;
 /** The first legal move of `colour` in the room's game. */
-const firstMove = (room: LocalRoom, colour = 1): Placement => decodeMove(legalMoves(room.game.position, colour)[0]!, room.game.position.config.size);
+const firstMove = (room: Room, colour = 1): Placement => decodeMove(legalMoves(room.game.position, colour)[0]!, room.game.position.config.size);
 /** Maija makes a legal move. */
-const placeFree = (room: LocalRoom) => room.request("place", firstMove(room));
+const placeFree = (room: Room) => room.request("move", { move: firstMove(room) });
 /** Lets bot pauses run out (and their answers arrive) until `done`, at most `max` pauses. */
 async function runBots(done: () => boolean, max = 200) {
   for (let i = 0; i < max && !done(); i++) await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
@@ -53,10 +65,10 @@ describe("device-games › Game against bots on the device", () => {
 
   it("commands answer like the server, with the rules' refusals, and every step is saved", async () => {
     const room = quietGame();
-    expect(await room.request("place", placement("I1", ["#"], 5, 5))).toEqual({ ok: false, code: "NOT_ON_START" });
-    expect(await room.request("place", { row: 0, col: 0 })).toEqual({ ok: false, code: "INVALID_COMMAND" });
+    expect(await room.request("move", { move: placement("I1", ["#"], 5, 5) })).toEqual({ ok: false, code: "NOT_ON_START" });
+    expect(await room.request("move", { move: { row: 0, col: 0 } })).toEqual({ ok: false, code: "INVALID_COMMAND" });
     expect(await placeFree(room)).toEqual({ ok: true });
-    expect(await room.request("place", firstMove(room, 1))).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
+    expect(await room.request("move", { move: firstMove(room, 1) })).toEqual({ ok: false, code: "NOT_YOUR_TURN" });
     expect(await room.request("kick", { seat: 2 })).toEqual({ ok: false, code: "WRONG_PHASE" });
     expect(loadLocalGame(room.roomId)?.game.position.cells[0]).toBe(1);
   });
@@ -84,7 +96,7 @@ describe("device-games › Game against bots on the device", () => {
   it("the default bot answers here where no worker can run (tests, old browsers)", async () => {
     // The search bot's time limit reads the real clock: only the pause is faked.
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
-    const room = LocalRoom.create("Maija", 1, { seed: () => 7 });
+    const room = LocalGame.create("Maija", 1, { seed: () => 7 });
     await placeFree(room);
     await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
     expect(room.game.position.placed[2]).toHaveLength(1);
@@ -122,14 +134,14 @@ describe("device-games › Game against bots on the device", () => {
     const room = quietGame();
     await placeFree(room);
     room.removeAllListeners();
-    const restored = LocalRoom.restore(room.roomId, quiet)!;
+    const restored = LocalGame.restore(room.roomId, quiet)!;
     expect(restored.game.position.turn).toBe(2);
     expect(viewOf(restored).seats[0]!.score).toBe(1 - 89);
   });
 
   it("Old save: a saved game of the placeholder format is dropped, not offered", () => {
     localStorage.setItem("palikka.localGame", JSON.stringify({ roomId: "local-old", game: { seed: 1, board: [0, 0], seats: [], step: "play" } }));
-    expect(LocalRoom.restore("local-old", quiet)).toBeUndefined();
+    expect(LocalGame.restore("local-old", quiet)).toBeUndefined();
     expect(localStorage.getItem("palikka.localGame")).toBeNull();
   });
 
@@ -148,7 +160,7 @@ describe("device-games › Game against bots on the device", () => {
     await runBots(() => room.game.position.ended);
     expect(room.game.position.ended).toBe(true);
     expect(await room.request("rematch", {})).toEqual({ ok: true });
-    const next = LocalRoom.restore(room.state.rematchRoomId!, quiet)!;
+    const next = LocalGame.restore(room.state.rematchRoomId!, quiet)!;
     expect(next.game.seats.map((s) => s.name)).toEqual(["Maija", "Kettu", "Ilves"]);
     expect(next.game.position.moveNumber).toBe(0);
   });
@@ -156,7 +168,7 @@ describe("device-games › Game against bots on the device", () => {
 
 describe("device-games › Variants on the device", () => {
   it("Tuplaväri on the device: Maija plays colours 1 and 3, Kettu 2 and 4, colour 1 on turn", () => {
-    const room = LocalRoom.create("Maija", 1, { seed: () => 7, ...quiet }, "double");
+    const room = LocalGame.create("Maija", 1, { seed: () => 7, ...quiet }, "double");
     const view = viewOf(room);
     expect(view.seats.map((s) => [s.name, s.colours])).toEqual([
       ["Maija", [1, 3]],
@@ -168,11 +180,11 @@ describe("device-games › Variants on the device", () => {
 
   it("Undo in Tuplaväri: back to before the colour-3 move, colour 3 on turn again", async () => {
     vi.useFakeTimers();
-    const room = LocalRoom.create("Maija", 1, { seed: () => 7, askBot: simpleBot }, "double");
+    const room = LocalGame.create("Maija", 1, { seed: () => 7, askBot: simpleBot }, "double");
     await placeFree(room);
     await runBots(() => room.game.position.turn === 3);
     expect(viewOf(room)).toMatchObject({ turnColour: 3, isMyTurn: true, trayColour: 3 });
-    expect(await room.request("place", firstMove(room, 3))).toEqual({ ok: true });
+    expect(await room.request("move", { move: firstMove(room, 3) })).toEqual({ ok: true });
     await runBots(() => room.game.position.turn === 1);
     expect(room.game.position.placed[4]).toHaveLength(1);
     expect(await room.request("undo", {})).toEqual({ ok: true });
@@ -188,7 +200,7 @@ describe("device-games › Variants on the device", () => {
       asked.push(request);
       return simpleBot(request);
     };
-    const room = LocalRoom.create("Maija", 2, { seed: () => 7, askBot }, "trio");
+    const room = LocalGame.create("Maija", 2, { seed: () => 7, askBot }, "trio");
     expect(viewOf(room).seats.map((s) => s.name)).toEqual(["Maija", "Kettu", "Ilves"]);
     await room.request("setAutoplay", { on: true });
     await runBots(() => room.game.position.ended, 400);
@@ -203,17 +215,17 @@ describe("device-games › Variants on the device", () => {
 
   it("Duo bots: two bots play on the 14×14 board; a rematch keeps the variant", async () => {
     vi.useFakeTimers();
-    const watch = LocalRoom.createWatch(4, 1, { seed: () => 7, askBot: simpleBot }, "duo");
+    const watch = LocalGame.createWatch(4, 1, { seed: () => 7, askBot: simpleBot }, "duo");
     expect(viewOf(watch)).toMatchObject({ variant: "duo", boardSize: 14 });
     expect(viewOf(watch).seats).toHaveLength(2);
     await runBots(() => watch.game.position.ended, 200);
     expect(watch.game.position.ended).toBe(true);
-    const room = LocalRoom.create("Maija", 3, { seed: () => 7, askBot: simpleBot }, "duo");
+    const room = LocalGame.create("Maija", 3, { seed: () => 7, askBot: simpleBot }, "duo");
     expect(room.game.seats).toHaveLength(2);
     await room.request("setAutoplay", { on: true });
     await runBots(() => room.game.position.ended, 200);
     expect(await room.request("rematch", {})).toEqual({ ok: true });
-    expect(LocalRoom.restore(room.state.rematchRoomId!, quiet)!.game.variant).toBe("duo");
+    expect(LocalGame.restore(room.state.rematchRoomId!, quiet)!.game.variant).toBe("duo");
   });
 
   it("Old save: a game saved before the variants is dropped", () => {
@@ -222,7 +234,16 @@ describe("device-games › Variants on the device", () => {
     delete saved.game.variant;
     delete saved.game.control;
     localStorage.setItem("palikka.localGame", JSON.stringify(saved));
-    expect(LocalRoom.restore(room.roomId, quiet)).toBeUndefined();
+    expect(LocalGame.restore(room.roomId, quiet)).toBeUndefined();
+  });
+
+  it("Old save: a game saved before the game kit (no envelope version) is dropped once", () => {
+    const room = quietGame();
+    const { version, seats, options, ...before } = JSON.parse(localStorage.getItem("palikka.localGame")!);
+    expect([version, seats.length, options]).toEqual([2, 2, { variant: "classic" }]);
+    localStorage.setItem("palikka.localGame", JSON.stringify({ ...before, history: [] }));
+    expect(LocalGame.restore(room.roomId, quiet)).toBeUndefined();
+    expect(localStorage.getItem("palikka.localGame")).toBeNull();
   });
 });
 
@@ -297,7 +318,7 @@ describe("bot-seats › Bot plays a person's seat (on the device)", () => {
 describe("device-games › Watching bots on the device", () => {
   it("Four bots: the viewer is a spectator; they play until no colour can move; no undo", async () => {
     vi.useFakeTimers();
-    const room = LocalRoom.createWatch(4, 1, { seed: () => 7, askBot: simpleBot });
+    const room = LocalGame.createWatch(4, 1, { seed: () => 7, askBot: simpleBot });
     const view = viewOf(room);
     expect(view).toMatchObject({ spectating: true, botOnly: true, canUndo: false });
     expect(view.seats.map((s) => s.name)).toEqual(["Kettu", "Ilves", "Pöllö", "Näätä"]);
@@ -308,7 +329,7 @@ describe("device-games › Watching bots on the device", () => {
 
   it("Faster bots: 4× shrinks the pause; the spectator cannot play", async () => {
     vi.useFakeTimers();
-    const room = LocalRoom.createWatch(2, 1, { seed: () => 7, askBot: simpleBot });
+    const room = LocalGame.createWatch(2, 1, { seed: () => 7, askBot: simpleBot });
     expect(await room.request("setSpeed", { speed: 4 })).toEqual({ ok: true });
     expect(viewOf(room).botSpeed).toBe(4);
     // The pause already running keeps its length; the next ones are a quarter.
@@ -321,7 +342,7 @@ describe("device-games › Watching bots on the device", () => {
 
   it("never saved: the quick game slot is left alone", async () => {
     const game = quietGame();
-    LocalRoom.createWatch(2, 1, quiet);
+    LocalGame.createWatch(2, 1, quiet);
     expect(loadLocalGame(game.roomId)).toBeDefined();
   });
 });

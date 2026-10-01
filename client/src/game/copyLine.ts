@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { formatDateTime } from "../i18n/formatDateTime.ts";
-import { clientVersion } from "../logging/logger.ts";
+import { clientVersion } from "@game-kit/client";
 
 /**
  * The line a player pastes into a bug report: game id (when there is a game), local date and time,

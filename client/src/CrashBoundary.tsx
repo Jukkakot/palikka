@@ -1,7 +1,7 @@
 import type { ErrorInfo, ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useTranslation } from "react-i18next";
-import { log } from "./logging/logger.ts";
+import { log } from "@game-kit/client";
 import { Button } from "./ui/Button.tsx";
 import { Message } from "./ui/Message.tsx";
 import { Screen } from "./ui/Screen.tsx";

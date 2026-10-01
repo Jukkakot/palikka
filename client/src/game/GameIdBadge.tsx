@@ -1,7 +1,6 @@
 import { IconShare2 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { inviteUrl } from "../session/inviteLink.ts";
-import { isLocalRoomId } from "../session/localGameStore.ts";
+import { inviteUrl, isLocalRoomId } from "@game-kit/client";
 import { Badge } from "../ui/Badge.tsx";
 import { useCopyFeedback } from "../ui/copyFeedback.ts";
 import { browserSharer, shareOrCopy, type Sharer } from "../ui/share.ts";

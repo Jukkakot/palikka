@@ -2,9 +2,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { devBotCount, devWatchCount } from "./devShortcut.ts";
-import { dropInviteFromUrl, inviteFromUrl, inviteUrl } from "./inviteLink.ts";
-import { checkNickname, loadNickname, NAME_LANGUAGES, nameWords, randomNickname, saveNickname } from "./nickname.ts";
-import { toOpenGames, toRunningGames, useOpenGames, type LobbyRoomLike, type RoomListing } from "./useOpenGames.ts";
+import { palikkaListing } from "./palikkaClient.ts";
+import { checkNickname, dropInviteFromUrl, inviteFromUrl, inviteUrl, loadNickname, NAME_LANGUAGES, nameWords, randomNickname, saveNickname, toOpenGames, toRunningGames, useOpenGames, type LobbyRoomLike, type RoomListing } from "@game-kit/client";
 
 const listing = (roomId: string, extra: Partial<RoomListing> = {}): RoomListing => ({
   roomId,
@@ -86,26 +85,26 @@ describe("lobby › Open games list", () => {
       listing("oneBot", { createdAt: "2026-09-26T12:00:00.000Z", metadata: { host: "Liisa", open: true, seated: 2 } }),
       listing("locked", { locked: true }),
       listing("started", { metadata: { host: "Olli", open: false } }),
-    ]);
+    ], palikkaListing);
     expect(games).toEqual([
-      { roomId: "old", host: "Maija", seated: 1, variant: "classic", maxSeats: 4 },
-      { roomId: "new", host: "Pekka", seated: 1, variant: "classic", maxSeats: 4 },
-      { roomId: "oneBot", host: "Liisa", seated: 2, variant: "classic", maxSeats: 4 },
+      { roomId: "old", host: "Maija", seated: 1, options: { variant: "classic" }, maxSeats: 4 },
+      { roomId: "new", host: "Pekka", seated: 1, options: { variant: "classic" }, maxSeats: 4 },
+      { roomId: "oneBot", host: "Liisa", seated: 2, options: { variant: "classic" }, maxSeats: 4 },
     ]);
   });
 
   it("a Duo game is full with two seated and shows its variant", () => {
     const games = toOpenGames([
-      listing("duo-open", { metadata: { host: "Maija", open: true, seated: 1, variant: "duo" } }),
-      listing("duo-full", { metadata: { host: "Pekka", open: true, seated: 2, variant: "duo" } }),
-    ]);
-    expect(games).toEqual([{ roomId: "duo-open", host: "Maija", seated: 1, variant: "duo", maxSeats: 2 }]);
+      listing("duo-open", { metadata: { host: "Maija", open: true, seated: 1, options: { variant: "duo" } } }),
+      listing("duo-full", { metadata: { host: "Pekka", open: true, seated: 2, options: { variant: "duo" } } }),
+    ], palikkaListing);
+    expect(games).toEqual([{ roomId: "duo-open", host: "Maija", seated: 1, options: { variant: "duo" }, maxSeats: 2 }]);
   });
 
   it("A game appears, updates to full and disappears; the lobby is left on unmount", async () => {
     const { room, push } = fakeLobby();
     const connect = vi.fn(async () => room);
-    const { result, unmount } = renderHook(() => useOpenGames("", true, connect));
+    const { result, unmount } = renderHook(() => useOpenGames(palikkaListing, "", true, connect));
     expect(result.current.status).toBe("loading");
     await waitFor(() => expect(room.onMessage).toHaveBeenCalledTimes(3));
     expect(connect).toHaveBeenCalledWith("");
@@ -113,7 +112,7 @@ describe("lobby › Open games list", () => {
     push("rooms", []);
     expect(result.current).toEqual({ status: "ready", games: [], running: [] });
     push("+", ["brave-otters-sing", listing("brave-otters-sing")]);
-    expect(result.current.games).toEqual([{ roomId: "brave-otters-sing", host: "Maija", seated: 1, variant: "classic", maxSeats: 4 }]);
+    expect(result.current.games).toEqual([{ roomId: "brave-otters-sing", host: "Maija", seated: 1, options: { variant: "classic" }, maxSeats: 4 }]);
     push("+", ["brave-otters-sing", listing("brave-otters-sing", { clients: 4, locked: true })]);
     expect(result.current.games).toEqual([]);
     push("+", ["calm-foxes-jump", listing("calm-foxes-jump")]);
@@ -127,7 +126,7 @@ describe("lobby › Open games list", () => {
   it("waits while disabled (server still waking or a game open), and leaves when disabled again", async () => {
     const { room } = fakeLobby();
     const connect = vi.fn(async () => room);
-    const { result, rerender } = renderHook(({ on }) => useOpenGames("e2e-1", on, connect), { initialProps: { on: false } });
+    const { result, rerender } = renderHook(({ on }) => useOpenGames(palikkaListing, "e2e-1", on, connect), { initialProps: { on: false } });
     expect(result.current.status).toBe("off");
     expect(connect).not.toHaveBeenCalled();
     rerender({ on: true });
@@ -140,7 +139,7 @@ describe("lobby › Open games list", () => {
 
   it("a lobby that cannot be reached leaves a quiet failed state", async () => {
     const connect = vi.fn(async () => Promise.reject(new Error("offline")));
-    const { result } = renderHook(() => useOpenGames("", true, connect));
+    const { result } = renderHook(() => useOpenGames(palikkaListing, "", true, connect));
     await waitFor(() => expect(result.current.status).toBe("failed"));
   });
 });
@@ -153,8 +152,8 @@ describe("spectators › running games", () => {
       listing("full-of-spectators", { locked: true, metadata: { host: "Liisa", open: false, pool: "", seated: 2, watchable: false } }),
       listing("rematch-no-host", { metadata: { host: "", open: true, pool: "", seated: 1 } }),
     ];
-    expect(toOpenGames(rooms).map((g) => g.roomId)).toEqual(["open-game"]);
-    expect(toRunningGames(rooms)).toEqual([{ roomId: "running-game", host: "Pekka", seated: 3, variant: "classic", maxSeats: 4 }]);
+    expect(toOpenGames(rooms, palikkaListing).map((g) => g.roomId)).toEqual(["open-game"]);
+    expect(toRunningGames(rooms, palikkaListing)).toEqual([{ roomId: "running-game", host: "Pekka", seated: 3, options: { variant: "classic" }, maxSeats: 4 }]);
   });
 });
 

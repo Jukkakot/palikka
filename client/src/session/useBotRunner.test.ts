@@ -4,8 +4,8 @@ import type { Placement } from "@palikka/rules";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BOT_DELAY_MS, type AskBot } from "../bots/botMoves.ts";
 import { gameView, seatView } from "../test/views.ts";
-import { botTurnKey, useBotRunner } from "./useBotRunner.ts";
-import type { GameRoomLike } from "./useGameSession.ts";
+import { botTurnKey, useBotRunner, type GameRoomLike } from "@game-kit/client";
+import { createPalikkaClient, palikkaClient } from "./palikkaClient.ts";
 import type { GameView } from "./viewModel.ts";
 
 const MOVE: Placement = { piece: 10, orientation: 0, row: 0, col: 15 };
@@ -43,11 +43,12 @@ describe("bot-seats › Who computes bot moves (client)", () => {
 });
 
 describe("bot-seats › Bot moves are validated (client side)", () => {
-  it("Runner moves for a bot: asks the bot, then sends botPlace for the seat after the pause", async () => {
+  it("Runner moves for a bot: asks the bot, then sends botMove for the seat after the pause", async () => {
     vi.useFakeTimers();
     const { room, request } = fakeRoom();
     const askBot = vi.fn<AskBot>(async () => MOVE);
-    renderHook(() => useBotRunner(room, botTurn(), askBot));
+    const ask = createPalikkaClient(askBot).askBot;
+    renderHook(() => useBotRunner(room, botTurn(), ask));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(BOT_DELAY_MS - 10);
     });
@@ -56,19 +57,20 @@ describe("bot-seats › Bot moves are validated (client side)", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10);
     });
-    expect(request).toHaveBeenCalledExactlyOnceWith("botPlace", { seat: 2, ...MOVE });
+    expect(request).toHaveBeenCalledExactlyOnceWith("botMove", { seat: 2, move: MOVE });
   });
 
   it("Bot plays the shared colour: asks for colour 4 from the bot seat's side, sends it for the seat", async () => {
     vi.useFakeTimers();
     const { room, request } = fakeRoom();
     const askBot = vi.fn<AskBot>(async () => MOVE);
-    renderHook(() => useBotRunner(room, botTurn({ variant: "trio", turnColour: 4, turnShared: true }), askBot));
+    const ask = createPalikkaClient(askBot).askBot;
+    renderHook(() => useBotRunner(room, botTurn({ variant: "trio", turnColour: 4, turnShared: true }), ask));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
     });
     expect(askBot).toHaveBeenCalledWith(expect.objectContaining({ colour: 4, viewpoint: 2 }));
-    expect(request).toHaveBeenCalledExactlyOnceWith("botPlace", { seat: 2, ...MOVE });
+    expect(request).toHaveBeenCalledExactlyOnceWith("botMove", { seat: 2, move: MOVE });
   });
 
   it("a turn that moves on first drops the answer", async () => {
@@ -76,7 +78,8 @@ describe("bot-seats › Bot moves are validated (client side)", () => {
     const { room, request } = fakeRoom();
     let answer!: (move: Placement) => void;
     const askBot: AskBot = () => new Promise((resolve) => (answer = resolve));
-    const { rerender } = renderHook((view: GameView) => useBotRunner(room, view, askBot), { initialProps: botTurn() });
+    const ask = createPalikkaClient(askBot).askBot;
+    const { rerender } = renderHook((view: GameView) => useBotRunner(room, view, ask), { initialProps: botTurn() });
     rerender(botTurn({ turn: 3, turnSeat: 1, turnBotPlayed: false, isMyTurn: true }));
     await act(async () => {
       answer(MOVE);
@@ -89,10 +92,10 @@ describe("bot-seats › Bot moves are validated (client side)", () => {
     // The search bot's time limit reads the real clock: only the pause is faked.
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     const { room, request } = fakeRoom();
-    renderHook(() => useBotRunner(room, botTurn()));
+    renderHook(() => useBotRunner(room, botTurn(), palikkaClient.askBot));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(BOT_DELAY_MS);
     });
-    expect(request).toHaveBeenCalledWith("botPlace", expect.objectContaining({ seat: 2, row: 0 }));
+    expect(request).toHaveBeenCalledWith("botMove", { seat: 2, move: expect.objectContaining({ row: 0 }) });
   });
 });

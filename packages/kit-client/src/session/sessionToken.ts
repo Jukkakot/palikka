@@ -1,9 +1,11 @@
+import { storageKey } from "../config.ts";
+
 /** Per-tab reconnection token: sessionStorage makes every tab its own player. */
-const KEY = "palikka.session";
+const key = () => storageKey("session");
 
 export function loadToken(storage: Storage | undefined = globalThis.sessionStorage): string | undefined {
   try {
-    return storage?.getItem(KEY) ?? undefined;
+    return storage?.getItem(key()) ?? undefined;
   } catch {
     return undefined;
   }
@@ -11,7 +13,7 @@ export function loadToken(storage: Storage | undefined = globalThis.sessionStora
 
 export function saveToken(token: string, storage: Storage | undefined = globalThis.sessionStorage): void {
   try {
-    storage?.setItem(KEY, token);
+    storage?.setItem(key(), token);
   } catch {
     // Storage blocked (private mode): the tab simply cannot rejoin after a reload.
   }
@@ -19,7 +21,7 @@ export function saveToken(token: string, storage: Storage | undefined = globalTh
 
 export function clearToken(storage: Storage | undefined = globalThis.sessionStorage): void {
   try {
-    storage?.removeItem(KEY);
+    storage?.removeItem(key());
   } catch {
     // ignore
   }

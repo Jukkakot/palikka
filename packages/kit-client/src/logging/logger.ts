@@ -1,21 +1,29 @@
+// The client compiles the kit from source, so the ambient declaration must come along with this file.
+// oxlint-disable-next-line typescript/triple-slash-reference
+/// <reference path="./pino-browser.d.ts" />
 // The browser build explicitly (it has `transmit`), also under Vitest.
 import pino from "pino/browser.js";
-import {
-  CLIENT_KEY_EVENTS,
-  CLIENT_LOG_LIMITS,
-  type ClientLogEntry,
-  type ClientLogEvent,
-  type LogLevel,
-} from "@palikka/protocol";
-import { serverUrl } from "../config.ts";
+import { CLIENT_LOG_LIMITS, type ClientLogEntry, type KitClientLogEvent, type LogLevel } from "@game-kit/protocol";
+import { kitConfig } from "../config.ts";
 import { LogShipper, type SendFn } from "./shipper.ts";
 
 export type LogFields = Record<string, unknown> & { stack?: string };
 
+/**
+ * A game's own client log events, added by declaration merging:
+ * `declare module "@game-kit/client" { interface GameClientLogEvents { "client.puzzle.solved": true } }`.
+ */
+// oxlint-disable-next-line typescript/no-empty-interface
+export interface GameClientLogEvents {}
+
+/** Every client log event name: the kit's and the game's. */
+export type ClientLogEvent = KitClientLogEvent | (keyof GameClientLogEvents & string);
+
 const FLUSH_INTERVAL_MS = 5_000;
 const L = CLIENT_LOG_LIMITS;
 
-export const clientVersion = (): string => import.meta.env.VITE_APP_VERSION || "dev";
+/** This client's build version (the game configures it). */
+export const clientVersion = (): string => kitConfig().clientVersion();
 
 /** `?debug=1` ships every level from this client. */
 export const isDebugMode = (search = globalThis.location?.search ?? ""): boolean =>
@@ -23,7 +31,7 @@ export const isDebugMode = (search = globalThis.location?.search ?? ""): boolean
 
 /** warn/error always, key events always, everything else only in debug mode. */
 export function shouldShip(level: LogLevel, evt: ClientLogEvent, debug: boolean): boolean {
-  return debug || level === "warn" || level === "error" || CLIENT_KEY_EVENTS.includes(evt);
+  return debug || level === "warn" || level === "error" || kitConfig().keyEvents.includes(evt);
 }
 
 const truncate = (s: string, max: number) => (s.length > max ? s.slice(0, max) : s);
@@ -57,7 +65,7 @@ export function toEntry(level: LogLevel, evt: ClientLogEvent, fields: LogFields,
 }
 
 const sendToServer: SendFn = async (body, keepalive) => {
-  const res = await fetch(`${serverUrl()}/client-logs`, {
+  const res = await fetch(`${kitConfig().serverUrl()}/client-logs`, {
     method: "POST",
     // text/plain keeps this a "simple" CORS request: no preflight.
     headers: { "Content-Type": "text/plain" },
@@ -68,7 +76,7 @@ const sendToServer: SendFn = async (body, keepalive) => {
 };
 
 export function createClientLogger({ send = sendToServer, debug = isDebugMode() }: { send?: SendFn; debug?: boolean } = {}) {
-  const shipper = new LogShipper(send, clientVersion());
+  const shipper = new LogShipper(send, clientVersion);
 
   const base = pino({
     level: debug ? "debug" : "info",

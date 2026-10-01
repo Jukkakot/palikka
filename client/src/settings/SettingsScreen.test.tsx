@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "../i18n";
-import { clientVersion } from "../logging/logger.ts";
+import { clientVersion } from "@game-kit/client";
 import { getSettings, reloadSettings } from "./settings.ts";
 import { SettingsScreen } from "./SettingsScreen.tsx";
 

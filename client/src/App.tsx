@@ -4,12 +4,9 @@ import { GameScreen } from "./screens/GameScreen.tsx";
 import { StartScreen } from "./screens/StartScreen.tsx";
 import { WaitingRoomScreen } from "./screens/WaitingRoomScreen.tsx";
 import { devBotCount, devWatchCount, dropDevShortcut } from "./session/devShortcut.ts";
-import { dropInviteFromUrl, inviteFromUrl } from "./session/inviteLink.ts";
-import { loadNickname, randomNickname } from "./session/nickname.ts";
-import { useServerWake } from "./session/serverWake.ts";
-import { loadToken } from "./session/sessionToken.ts";
+import { dropInviteFromUrl, inviteFromUrl, loadNickname, loadToken, randomNickname, useOpenGames, useServerWake } from "@game-kit/client";
+import { palikkaListing } from "./session/palikkaClient.ts";
 import { quickPlayPool, useGameSession } from "./session/useGameSession.ts";
-import { useOpenGames } from "./session/useOpenGames.ts";
 
 /** Read once at load: a stored reconnection token wins over an invite link (a reload rejoins the tab's game). */
 function initialInvite(): string | undefined {
@@ -29,7 +26,7 @@ export default function App() {
   const session = useGameSession();
   const [invite, setInvite] = useState(initialInvite);
   const inGame = session.status === "playing" && session.view !== undefined;
-  const openGames = useOpenGames(pool, !inGame && !invite && wake.state !== "waking");
+  const openGames = useOpenGames(palikkaListing, pool, !inGame && !invite && wake.state !== "waking");
   const { i18n } = useTranslation();
   const { playBots, watchBots, status } = session;
   const devUsed = useRef(false);

@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { GameIdBadge } from "../game/GameIdBadge.tsx";
 import { SeatMark } from "../game/SeatMark.tsx";
 import { VariantPicker } from "../game/VariantPicker.tsx";
-import { inviteUrl } from "../session/inviteLink.ts";
+import { inviteUrl } from "@game-kit/client";
 import { NOTICE_MS, type GameSession } from "../session/useGameSession.ts";
 import type { GameView } from "../session/viewModel.ts";
 import { Button } from "../ui/Button.tsx";

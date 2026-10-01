@@ -15,7 +15,8 @@
     "types": [],
     "jsx": "react-jsx",
     "erasableSyntaxOnly": true,
-    "noEmit": true
+    "noEmit": true,
+    "rewriteRelativeImportExtensions": true
   },
   "include": [
     "src",

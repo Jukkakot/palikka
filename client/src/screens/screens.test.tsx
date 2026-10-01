@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../i18n";
-import type { ServerWake } from "../session/serverWake.ts";
+import type { ServerWake } from "@game-kit/client";
 import { reloadSettings, updateSettings } from "../settings/settings.ts";
 import { BuildInfo } from "./BuildInfo.tsx";
 import { StartScreen, type StartScreenProps } from "./StartScreen.tsx";
@@ -191,7 +191,7 @@ describe("lobby › Nickname", () => {
   });
 
   it("Too short: every join and create action is disabled and a hint says 2–16 characters", () => {
-    render(<StartScreen session={sessionOf()} wake={ready} openGames={{ status: "ready", games: [{ roomId: "a-b-c", host: "Liisa", seated: 1, variant: "classic", maxSeats: 4 }], running: [] }} />);
+    render(<StartScreen session={sessionOf()} wake={ready} openGames={{ status: "ready", games: [{ roomId: "a-b-c", host: "Liisa", seated: 1, options: { variant: "classic" }, maxSeats: 4 }], running: [] }} />);
     fireEvent.change(field(), { target: { value: "M" } });
     expect(button("Luo peli").disabled).toBe(true);
     expect(button("Liity peliin: Liisa, Perus, 1/4 pelaajaa").disabled).toBe(true);
@@ -250,7 +250,7 @@ describe("lobby › Nickname", () => {
 });
 
 describe("lobby › Open games list and private game", () => {
-  const games = { status: "ready" as const, games: [{ roomId: "brave-otters-sing", host: "Liisa", seated: 2, variant: "classic" as const, maxSeats: 4 }], running: [] };
+  const games = { status: "ready" as const, games: [{ roomId: "brave-otters-sing", host: "Liisa", seated: 2, options: { variant: "classic" as const }, maxSeats: 4 }], running: [] };
 
   it("start-screen › A waiting game: listed under Liity peliin; an entry shows the host and seats, and tapping it joins that game", () => {
     const joinById = vi.fn();
@@ -262,7 +262,7 @@ describe("lobby › Open games list and private game", () => {
   });
 
   it("start-screen › A waiting Duo game shows its variant and seats of two", () => {
-    const duo = { status: "ready" as const, games: [{ roomId: "a-b-c", host: "Liisa", seated: 1, variant: "duo" as const, maxSeats: 2 }], running: [] };
+    const duo = { status: "ready" as const, games: [{ roomId: "a-b-c", host: "Liisa", seated: 1, options: { variant: "duo" as const }, maxSeats: 2 }], running: [] };
     render(<StartScreen session={sessionOf()} wake={ready} openGames={duo} />);
     expect(screen.getByRole("button", { name: "Liity peliin: Liisa, Duo, 1/2 pelaajaa" }).textContent).toBe("Liisa· Duo · 1/2");
   });
@@ -296,7 +296,7 @@ describe("lobby › Open games list and private game", () => {
 describe("spectators › start screen", () => {
   it("Watch from the list: a running game shows host and players, and tapping it watches that game", () => {
     const watch = vi.fn();
-    const openGames = { status: "ready" as const, games: [], running: [{ roomId: "calm-foxes-jump", host: "Maija", seated: 3, variant: "classic" as const, maxSeats: 4 }] };
+    const openGames = { status: "ready" as const, games: [], running: [{ roomId: "calm-foxes-jump", host: "Maija", seated: 3, options: { variant: "classic" as const }, maxSeats: 4 }] };
     render(<StartScreen session={sessionOf({ watch })} wake={ready} openGames={openGames} />);
     expect(screen.getByText("Käynnissä olevat pelit")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Katso peliä: Maija, Perus, 3 pelaajaa" }));
