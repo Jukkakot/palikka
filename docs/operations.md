@@ -108,7 +108,7 @@ lines, never slows a game.
 ```
 
 **Dashboard for people:** the shared "Pelit – lokit" (pick the game in its Peli filter), built
-by `tools/axiom/dashboard.py` in the game kit; its uid is in the game-kit README → Logs.
+by `tools/axiom/dashboard.py` in the game kit (uid `3345cc1f-c285-4c6b-a0c2-8bc7bc583971`).
 
 **Setup:** since 2026-10-01 Palikka ships to the shared dataset `games` (EU, 30-day retention)
 with the games' shared ingest-only token in Render's `AXIOM_TOKEN`. Its own dataset `palikka` was
