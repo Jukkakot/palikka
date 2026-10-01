@@ -69,10 +69,9 @@ Done once per new game repository (for Palikka: 2026-09-29); all other deploys a
    Frankfurt). Then Settings → Deploy Hook → copy it and
    `gh secret set RENDER_DEPLOY_HOOK_URL --repo Jukkakot/palikka` (paste). Note the service URL and
    `gh variable set VITE_SERVER_URL --repo Jukkakot/palikka --body https://<service>.onrender.com`.
-3. **Axiom:** dataset `palikka` (EU) and an ingest-only token for it, through the API with
-   `tools/axiom/axiom.ps1` (the user's `AXIOM_PAT`); the token goes to the Render service's
-   `AXIOM_TOKEN` env var (dashboard or Render MCP). Then build the dashboard with
-   `tools/axiom/dashboard.py` and record its uid under Logs.
+3. **Axiom:** nothing to create. The games share the dataset `games` and one ingest-only token
+   (game-kit README → Logs): copy it from the user env var `AXIOM_GAMES_TOKEN` into the Render
+   service's `AXIOM_TOKEN` (Render MCP `update_environment_variables`, never printed).
 4. Record the Render service and workspace ids above, then re-run CI (`gh workflow run CI`).
 
 ## Configuration — Implemented
@@ -84,14 +83,14 @@ Done once per new game repository (for Palikka: 2026-09-29); all other deploys a
 | `ALLOWED_ORIGINS` | `render.yaml` env | CORS allow-list (comma-separated) |
 | `NODE_ENV=production` | `render.yaml` env | Disables `/monitor` and `/playground` |
 | `PORT` | set by Render | Server listen port |
-| `AXIOM_DATASET` | `render.yaml` env (`palikka`) | Axiom dataset the production server ships its log lines to |
+| `AXIOM_DATASET` | `render.yaml` env (`games`) | Axiom dataset shared by the games; lines say which game with `game` |
 | `AXIOM_EDGE` | `render.yaml` env | Edge domain of the dataset's region (`eu-central-1.aws.edge.axiom.co`); Axiom refuses ingest through `api.axiom.co` for EU datasets |
-| `AXIOM_TOKEN` | Render dashboard (secret, `sync: false`) | Axiom API token, **ingest-only** for `palikka`; without it nothing is shipped |
+| `AXIOM_TOKEN` | Render dashboard (secret, `sync: false`) | Axiom API token, the games' shared **ingest-only** token for `games`; without it nothing is shipped |
 
 ## Logs — Implemented
 
 All logs, server and client, are written to the server's stdout (Render's log view) and, in
-production with `AXIOM_TOKEN` set, also shipped to the **Axiom** dataset `palikka` (30-day
+production with `AXIOM_TOKEN` set, also shipped to the **Axiom** dataset `games`, shared by the user's games (30-day
 retention, queryable with APL). Axiom is the main place to read them: Claude uses the Axiom MCP
 (`queryApl`), people the Axiom web UI. Render's view (dashboard or Render MCP
 `list_logs(resource=[service id], text=[…], startTime, endTime)`) is the fallback, e.g. while
@@ -101,21 +100,19 @@ lines, never slows a game.
 **Ready queries** (APL; narrow the time range with `where _time > ago(1d)`):
 
 ```
-['palikka'] | where room == "brave-otters-sing" | sort by _time asc          // one game's timeline
-['palikka'] | where level == "error" and _time > ago(1d)                      // errors today
-['palikka'] | where evt == "cmd.rejected" | summarize count() by code, cmd     // rejections by code
-['palikka'] | where evt == "bot.fallback" | project _time, room, seat, reason, runner
-['palikka'] | where evt == "game.finished" | summarize count() by reason, bin(_time, 1d)
+['games'] | where game == "palikka" and room == "brave-otters-sing" | sort by _time asc          // one game's timeline
+['games'] | where game == "palikka" and level == "error" and _time > ago(1d)                      // errors today
+['games'] | where game == "palikka" and evt == "cmd.rejected" | summarize count() by code, cmd     // rejections by code
+['games'] | where game == "palikka" and evt == "bot.fallback" | project _time, room, seat, reason, runner
+['games'] | where game == "palikka" and evt == "game.finished" | summarize count() by reason, bin(_time, 1d)
 ```
 
-**Dashboard for people:** Axiom → Dashboards → **"Palikka – lokit"**, built by
-`tools/axiom/dashboard.py` and uploaded with `tools/axiom/axiom.ps1` (see the script header), not
-by hand in the UI. Uid `0cb7d595-60a5-4fd3-8b7f-abbfd7d2e2a3`. Panels: games
-started, errors, rejected commands, bot fallbacks, lines by level, finished games by reason, the
-log table and rejections by code.
+**Dashboard for people:** the shared "Pelit – lokit" (pick the game in its Peli filter), built
+by `tools/axiom/dashboard.py` in the game kit; its uid is in the game-kit README → Logs.
 
-**Setup (done 2026-09-29):** dataset `palikka` (EU region, 30-day retention), ingest-only token
-"palikka ingest (Render server)" in Render's `AXIOM_TOKEN`.
+**Setup:** since 2026-10-01 Palikka ships to the shared dataset `games` (EU, 30-day retention)
+with the games' shared ingest-only token in Render's `AXIOM_TOKEN`. Its own dataset `palikka` was
+deleted to free the slot (Axiom's personal tier allows 3 datasets); older lines are gone.
 
 **Access:** Claude administers Axiom (datasets, tokens, dashboards) through its REST API with the
 user's personal token `AXIOM_PAT` + `AXIOM_ORG_ID` from the Windows user environment. No error
@@ -132,7 +129,7 @@ alerts or emails: errors are found on the dashboard.
 - `evt` from a fixed catalogue: server events in `server/src/logging/events.ts`, client events in
   `packages/protocol/src/log-events.ts`. Filter by `"evt":"cmd.rejected"` etc.
 - `room` is the readable game id shown to players; `player` the session id.
-- `src` `server` or `client`; `ver` short git commit of the side that logged (`dev` locally).
+- `game` the game's name (`palikka`), set in `server/src/index.ts`; `src` `server` or `client`; `ver` short git commit of the side that logged (`dev` locally).
 - Errors: `err` (server) or `stack` (client) inside the line — never multi-line.
 - `time`: when the server wrote the line; present when shipped to Axiom (its `_time`) and in
   development. Client lines also carry the device clock in `ts`.
@@ -181,7 +178,7 @@ they have no server room, so only client logs can have it (`client.local.*`
 info lines ship only with `?debug=1`).
 
 1. Convert the reported local time (Europe/Helsinki) to UTC.
-2. Query Axiom (Axiom MCP `queryApl`): `['palikka'] | where room == "<game id>" | sort by _time
+2. Query Axiom (Axiom MCP `queryApl`): `['games'] | where game == "palikka" and room == "<game id>" | sort by _time
    asc`, with a ±15 min window around the reported time. If Axiom has nothing (older than 30 days,
    or not set up), fetch Render logs: `list_logs(resource=[service id], text=["<game id>"],
    startTime, endTime)` (`direction: "forward"` gives chronological order). Locally, read

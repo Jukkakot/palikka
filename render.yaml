@@ -17,9 +17,9 @@ services:
         value: "22"
       - key: ALLOWED_ORIGINS
         value: https://jukkakot.github.io
-      # Central log store (docs/operations.md → Logs). The ingest token is set in the dashboard.
+      # Central log store shared by the games (docs/operations.md → Logs). The ingest token is set in the dashboard.
       - key: AXIOM_DATASET
-        value: palikka
+        value: games
       # The dataset lives in Axiom's EU region; ingest must go to its edge domain.
       - key: AXIOM_EDGE
         value: eu-central-1.aws.edge.axiom.co
