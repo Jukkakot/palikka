@@ -29,4 +29,4 @@ same conventions; push to its `main` (the user approved creating and pushing the
 ## 4. Wiki and roadmap
 
 - [x] 4.1 Update `docs/architecture.md` (workspaces table: kit as installed packages from `Jukkakot/game-kit`, boundary now in the kit repo), `docs/development.md` (kit dev loop `kit:use local`, releasing a kit version, lint note, build order), `docs/operations.md` (kit releases as a dependency source), `docs/template.md` (kit rows point to the kit repo; `game-bots` → `@game-kit/bots`); verify `grep -rn "game-bots\|packages/kit-" docs` only shows intended history mentions
-- [ ] 4.2 Mark `game-kit` done in `openspec/context/roadmap.md`; commit and push Palikka, verify Palikka's CI run on `main` is green (`gh run watch`) including the server deploy job's `npm ci`
+- [x] 4.2 Mark `game-kit` done in `openspec/context/roadmap.md`; commit and push Palikka, verify Palikka's CI run on `main` is green (`gh run watch`) including the server deploy job's `npm ci`
