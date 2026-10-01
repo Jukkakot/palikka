@@ -43,3 +43,4 @@ Paths in the template use the placeholder name (`starter-game`, `starterGame`, `
 | `client/src/screens/{StartScreen,WaitingRoomScreen}.tsx` | same paths | adapted (no variants, puzzle or how-to) |
 | `client/src/screens/GameScreen.tsx`, `session/*`, `bots/*`, `ui/tokens.css`, `i18n/locales/*` | same paths | placeholder |
 | `e2e/*` | same paths | configs same; tests placeholder |
+| (none: Palikka's front page card is kept by hand) | `tools/homepage/card.mjs` (`npm run homepage-card`) | template only |
