@@ -17,12 +17,13 @@ test("live site: bot game on the device, then a server game with a bot, then lea
   // A quick bot game runs on the device: no waiting for the server.
   const oneBot = page.getByRole("button", { name: "Pikapeli: sinä ja 1 botti" });
   await oneBot.click();
-  await expect(board(page).locator("[data-cell]")).toHaveCount(400, { timeout: 10_000 });
+  // On a phone the bot way starts on Duo: 14×14, start squares (4,4) and (9,9).
+  await expect(board(page).locator("[data-cell]")).toHaveCount(196, { timeout: 10_000 });
   await expect(page.getByText("Kettu, botti", { exact: false })).toBeAttached();
-  // A piece in the own corner, and the bot answers from its Web Worker in its corner.
-  await placeOnCorner(page, "I5", 0);
-  await expect(board(page).locator("[data-cell='0']")).toHaveAttribute("data-owner", "1");
-  await expect(board(page).locator("[data-cell='19']")).toHaveAttribute("data-owner", "2", { timeout: 10_000 });
+  // A piece on the own start square, and the bot answers from its Web Worker on its own.
+  await placeOnCorner(page, "I5", 4 * 14 + 4);
+  await expect(board(page).locator(`[data-cell='${4 * 14 + 4}']`)).toHaveAttribute("data-owner", "1");
+  await expect(board(page).locator(`[data-cell='${9 * 14 + 9}']`)).toHaveAttribute("data-owner", "2", { timeout: 10_000 });
   await page.getByRole("button", { name: "Poistu pelistä" }).click();
   await page.getByRole("button", { name: "Poistu", exact: true }).click();
 

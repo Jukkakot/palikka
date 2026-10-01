@@ -23,7 +23,7 @@ commit → push to `main` (Claude pushes before each summary) → CI (lint, type
 size, E2E smoke) → Pages deploy (client) and Render deploy hook (server, CI's `deploy-server` job after green checks) →
 **production smoke** (`prod-smoke.yml`: waits until the live server's `/health` version and the
 client's `version.json` carry this commit's code, then `npm run e2e:prod -w @palikka/e2e` starts a
-1v1 bot game on the device (I5 from the tray onto the start corner with two taps, the bot answers from its worker), then a server game ("Luo peli", one bot, start) on the live site and leaves; also daily at 05:17 UTC and by hand). No staging
+1v1 bot game on the device (Duo on a phone: I5 from the tray onto the start square with two taps, the bot answers from its worker), then a server game ("Luo peli", one bot, start) on the live site and leaves; also daily at 05:17 UTC and by hand). No staging
 environment.
 
 **Service worker:** the client is a PWA. A phone with the app open or installed picks up a new
