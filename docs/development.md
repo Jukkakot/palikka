@@ -4,7 +4,7 @@
 
 - Requires Node 22 (`.nvmrc`) and npm 11. `npm install` at the repo root installs all workspaces.
 - Ports are the game's own (not the Colyseus/Vite defaults), so its dev servers run next to other
-  games' (e.g. Labyrinth on 2567/5173).
+  games' (e.g. Labyrinth on 2567/5173, Neljän suora on 2587/5193).
 - `npm run dev` starts both:
   - server on http://localhost:2577 (`/health`, `/monitor`, `/playground`)
   - client on http://localhost:5183 (also on the LAN for phones: see the Vite output)

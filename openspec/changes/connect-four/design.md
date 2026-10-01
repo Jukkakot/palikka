@@ -11,14 +11,14 @@ the setup checklist done (no Pages source, no `VITE_SERVER_URL`, no `RENDER_DEPL
 deploy steps fail. Known ports: Labyrinth 2567/5173, Palikka 2577/5183, template 2597/5203, kit CI
 game 2700.
 
-User decisions in the spec phase (2026-10-01): name "Neljän suora" / `connect-four`; this change
+User decisions in the spec phase (2026-10-01): name "Neljän suora" / `neljan-suora` (first `connect-four`, changed during apply: see Implementation notes); this change
 creates the game and its own spec base only, the game is built through its own changes; the
 GitHub repo may be created and pushed during apply.
 
 ## Goals / Non-Goals
 
-**Goals:** `../connect-four` exists, passes its check chain and E2E as generated, lives in
-`Jukkakot/connect-four` with green CI, and its `product.md` and `roadmap.md` describe Neljän suora
+**Goals:** `../neljan-suora` exists, passes its check chain and E2E as generated, lives in
+`Jukkakot/neljan-suora` with green CI, and its `product.md` and `roadmap.md` describe Neljän suora
 well enough that its first spec change (`theme`) can start right away. Everything the template got
 wrong for a non-Palikka game is fixed in the kit or written down.
 
@@ -28,8 +28,8 @@ wrong for a non-Palikka game is fixed in the kit or written down.
 
 ### D1 Generation
 
-`npm run create-game -- connect-four --port 2587 --title "Neljän suora"` from the kit checkout,
-default `--dir` (`../connect-four`) and `--kit` (newest tag). 2587/5193 are free (see Context). If
+`npm run create-game -- neljan-suora --port 2587 --title "Neljän suora"` from the kit checkout,
+default `--dir` (`../neljan-suora`) and `--kit` (newest tag). 2587/5193 are free (see Context). If
 the kit needs a package fix before the push (D5), cut a patch release and switch the game to it
 with its own `npm run kit:use -- <version>`; the game never stays on `local`.
 
@@ -45,7 +45,7 @@ Replaces the TODO section; Ristinolla stays in the code until the game's `rules-
 - Who starts is drawn from the game's seed (the template's pattern); a rematch lets the other seat
   start. Recorded as a decision for `rules-engine` to confirm.
 - Name and look are our own; "Connect Four" is a trademark and never appears in the UI, icons or
-  texts (nfr → Legal). `connect-four` stays only as the technical repo/package name.
+  texts (nfr → Legal). The technical name is `neljan-suora`; `connect-four` is only the name of this Palikka change.
 
 Other `product.md` entries:
 
@@ -78,14 +78,14 @@ keeps autopilot OFF (template default); the user turns it on there when the back
 
 ### D4 GitHub repo
 
-`gh repo create Jukkakot/connect-four --public --source . --push` (checklist step 1 only). After
+`gh repo create Jukkakot/neljan-suora --public --source . --push` (checklist step 1 only). After
 the push, `ci.yml`'s check and e2e jobs must be green; deploy jobs must skip, not fail (D5).
 Render, Axiom, Pages and secrets are left for `first-deploy`.
 
 ### D5 Kit fixes from being the first outside user
 
 Rule: each friction met while generating, checking or pushing the game is fixed in the kit's
-`template/` or `create-game` when cheap, and the same fix is applied to `../connect-four` (it is a
+`template/` or `create-game` when cheap, and the same fix is applied to `../neljan-suora` (it is a
 copy, never re-generated); bigger ones become a kit TODO in this change's `tasks.md` (and the kit
 README's TODO list if it has one). Known up front:
 
@@ -102,7 +102,7 @@ template-only change needs none (the template is read from the checkout).
 ### D6 nfr
 
 - Logging: the generated game keeps the kit's events and Palikka's audit, client-log and HTTP
-  logging unchanged; its Axiom dataset `connect-four` is created in `first-deploy`, until then the
+  logging unchanged; its Axiom dataset `neljan-suora` is created in `first-deploy`, until then the
   server logs to stdout only.
 - Tests: no new tests here; acceptance is the generated game's own check chain and E2E smoke
   locally and in its CI, plus the kit's `template:check` after a template fix.
@@ -120,5 +120,15 @@ template-only change needs none (the template is read from the checkout).
 ## Migration Plan
 
 Kit fixes first (so the generated game starts from them), then generate, tailor the docs, push the
-new repo, then Palikka's wiki and roadmap. Rollback: delete `../connect-four` and the GitHub repo
+new repo, then Palikka's wiki and roadmap. Rollback: delete `../neljan-suora` and the GitHub repo
 (with the user's go-ahead); revert kit commits.
+
+## Implementation notes (decisions made while building)
+
+- Technical name changed from `connect-four` to `neljan-suora` (user, during apply): "Connect Four"
+  is a trademark and nfr → Legal keeps it out of the repo too. The first generated folder was
+  deleted before any push; this Palikka change keeps its roadmap name.
+- The deploy-skip fix (D5) touched only workflows and docs, so the kit's `template:check` (which
+  runs no workflows) was not run for it; the new repo's first CI run verified it instead: check and
+  e2e green, `deploy-server` printed the skip notice, a dispatched "Deploy client" ran only its gate.
+- No kit package changed, so no kit release; the game uses v0.1.0.

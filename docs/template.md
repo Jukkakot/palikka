@@ -4,7 +4,7 @@ A new game starts from the game kit's template: `npm run create-game -- <name> -
 `Jukkakot/game-kit` (its README → Start a new game). The template is a complete game project made
 from Palikka's generic files, with a placeholder game (Ristinolla) in place of Palikka's rules,
 bots, variants, daily puzzle and piece controls. Palikka itself stays as it is: it is never
-re-generated.
+re-generated. The first game made from it is Neljän suora ([`Jukkakot/neljan-suora`](https://github.com/Jukkakot/neljan-suora), server/client ports 2587/5193).
 
 ## Upkeep
 

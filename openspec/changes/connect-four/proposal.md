@@ -9,13 +9,13 @@ where the kit and the template still assume Palikka. Making it is the kit's firs
 
 ## What Changes
 
-Almost all of it happens outside Palikka: in a new project `../connect-four` and in the kit
+Almost all of it happens outside Palikka: in a new project `../neljan-suora` and in the kit
 repo `../game-kit`. Palikka only updates its wiki and roadmap.
 
-- **Create the game:** `npm run create-game -- connect-four --port 2587 --title "Neljän suora"`
-  in the kit checkout gives `../connect-four` (server 2587, client 5193), pinned to the kit's
+- **Create the game:** `npm run create-game -- neljan-suora --port 2587 --title "Neljän suora"`
+  in the kit checkout gives `../neljan-suora` (server 2587, client 5193), pinned to the kit's
   newest release. Its check chain and E2E smoke pass on the placeholder game as generated.
-- **GitHub repo:** `Jukkakot/connect-four` (public) is created and `main` pushed (the user gave
+- **GitHub repo:** `Jukkakot/neljan-suora` (public) is created and `main` pushed (the user gave
   the go-ahead in the spec phase). Render, Axiom and Pages stay for the game's own
   `first-deploy` change.
 - **The game's own spec base:** the new repo's `product.md` gets the rules of Neljän suora in our
@@ -49,6 +49,6 @@ None.
 ## Impact
 
 - Workspaces: none of Palikka's (rules, server, client) change.
-- New project `../connect-four` and GitHub repo `Jukkakot/connect-four`.
+- New project `../neljan-suora` and GitHub repo `Jukkakot/neljan-suora`.
 - Kit repo: template and `create-game` fixes found while generating; maybe a patch release.
 - Palikka wiki: `docs/template.md`; `openspec/context/roadmap.md`.
